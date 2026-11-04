@@ -9,14 +9,15 @@ development:
   database: jyki_development
   cache:
     <<: *primary_development
-    database: jyki_development_cache
+#    database: jyki_development_cache
     migrations_paths: db/cache_migrate
   queue:
     <<: *primary_development
+#   database: jyki_development_queue
     migrations_paths: db/queue_migrate
   cable:
     <<: *primary_development
-    database: jyki_development_cable
+#    database: jyki_development_cable
     migrations_paths: db/cable_migrate
 
 test:
@@ -24,15 +25,15 @@ test:
   database: jyki_test
   queue:
     <<: *default
-    database: jyki_test_queue
+#    database: jyki_test_queue
     migrations_paths: db/queue_migrate
   cache:
     <<: *default
-    database: jyki_test_cache
+#    database: jyki_test_cache
     migrations_paths: db/cache_migrate
   cable:
     <<: *default
-    database: jyki_test_cable
+#    database: jyki_test_cable
     migrations_paths: db/cable_migrate
 
 production:
@@ -44,13 +45,13 @@ production:
     sslmode: require
   cache:
     <<: *primary_production
-    database: jyki_production_cache
+#    database: jyki_production_cache
     migrations_paths: db/cache_migrate
   queue:
     <<: *primary_production
-    database: jyki_production_queue
+#    database: jyki_production_queue
     migrations_paths: db/queue_migrate
   cable:
     <<: *primary_production
-    database: jyki_production_cable
+#    database: jyki_production_cable
     migrations_paths: db/cable_migrate
