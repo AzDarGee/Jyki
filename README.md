@@ -6,7 +6,7 @@
 0. Install Zsh + Rbenv + Ruby + Install Gemfile
 
 1. Install Homebrew LLVM (for C -> Wasm32), LLD linker, and PostgreSQL 18
-```zsh
+```bash
 brew install llvm lld postgresql@18
 
 # WSL2
@@ -14,7 +14,7 @@ sudo apt install llvm lld postgresql@18
 ```
 
 2. Start PostgreSQL 18 in the background
-```zsh
+```bash
 brew services start postgresql@18
 
 # WSL2
@@ -24,7 +24,7 @@ sudo service postgresql stop
 ```
 
 3. Put Homebrew's LLVM (which has wasm32 support!) & Postgres in your PATH
-```zsh
+```bash
 echo 'export PATH="$(brew --prefix llvm)/bin:$(brew --prefix lld)/bin:$(brew --prefix postgresql@17)/bin:$PATH"' >> ~/.zshrc
 exec zsh
 ```
@@ -52,14 +52,14 @@ List db's
 ```
 
 Create SOLID DBs
-```zsh
+```bash
 bin/rails runner "load 'db/queue_schema.rb'"
 bin/rails runner "load 'db/cable_schema.rb'"
 bin/rails runner "load 'db/cache_schema.rb'"
 ```
 
 When making bin/<file_name> files, make sure to run:
-```sh
+```bash
 ruby -i -pe 'gsub(/\r$/, "")' bin/*
 
 # Example
