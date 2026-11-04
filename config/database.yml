@@ -39,7 +39,8 @@ test:
 production:
   primary: &primary_production
     <<: *default
-    database: jyki_production
+    username: <%= Rails.application.credentials.dig(:database, :prod, :username) %>
+    database: <%= Rails.application.credentials.dig(:database, :prod, :database_name) %>
     url: <%= Rails.application.credentials.dig(:database, :prod, :url) %>
     password: <%= Rails.application.credentials.dig(:database, :prod, :password) %>
     sslmode: require
