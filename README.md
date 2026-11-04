@@ -53,12 +53,19 @@ List db's
 
 Create SOLID DBs
 ```zsh
-    bin/rails runner "load 'db/queue_schema.rb'"
-    bin/rails runner "load 'db/cable_schema.rb'"
-    bin/rails runner "load 'db/cache_schema.rb'"
+bin/rails runner "load 'db/queue_schema.rb'"
+bin/rails runner "load 'db/cable_schema.rb'"
+bin/rails runner "load 'db/cache_schema.rb'"
 ```
 
+When making bin/<file_name> files, make sure to run:
+```sh
+ruby -i -pe 'gsub(/\r$/, "")' bin/*
 
+# Example
+ruby -i -pe 'gsub(/\r$/, "")' bin/css-pipeline
+chmod +x bin/css-pipeline
+```
 
 
 

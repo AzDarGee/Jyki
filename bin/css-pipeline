@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/setup"
+require "fileutils"
+
+scss_input = File.expand_path("../app/assets/scss/application.scss", __dir__)
+temp_css   = File.expand_path("../app/assets/tailwind/scss_compiled.css", __dir__)
+tw_input   = File.expand_path("../app/assets/tailwind/application.css", __dir__)
+final_css  = File.expand_path("../app/assets/builds/tailwind.css", __dir__)
+
+FileUtils.mkdir_p(File.dirname(temp_css))
+FileUtils.mkdir_p(File.dirname(final_css))
+
+watch_mode = ARGV.include?("--watch")
+
+puts "⚡ [Saanskara CSS] Compiling initial SCSS..."
+system("bundle", "exec", "sass", "#{scss_input}:#{temp_css}", "--no-source-map", exception: true)
+
+if watch_mode
+  puts "🔥 [Saanskara CSS] Watching SCSS -> Tailwind v4 pipeline..."
+
+  sass_pid = Process.spawn("bundle", "exec", "sass", "#{scss_input}:#{temp_css}", "--watch", "--no-source-map")
+  tw_pid   = Process.spawn("bundle", "exec", "tailwindcss", "-i", tw_input, "-o", final_css, "--watch")
+
+  trap("INT") do
+    Process.kill("TERM", sass_pid, tw_pid) rescue nil
+    exit
+  end
+
+  trap("TERM") do
+    Process.kill("TERM", sass_pid, tw_pid) rescue nil
+    exit
+  end
+
+  Process.waitall
+else
+  puts "🚀 [Saanskara CSS] Building minified CSS with Tailwind v4..."
+  system("bundle", "exec", "tailwindcss", "-i", tw_input, "-o", final_css, "--minify", exception: true)
+end
