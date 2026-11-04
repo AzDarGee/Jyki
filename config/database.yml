@@ -1,0 +1,56 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  primary: &primary_development
+  <<: *default
+  database: jyki_development
+  cache:
+    <<: *primary_development
+    database: jyki_development_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_development
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_development
+    database: jyki_development_cable
+    migrations_paths: db/cable_migrate
+
+test:
+  <<: *default
+  database: jyki_test
+  queue:
+    <<: *default
+    database: jyki_test_queue
+    migrations_paths: db/queue_migrate
+  cache:
+    <<: *default
+    database: jyki_test_cache
+    migrations_paths: db/cache_migrate
+  cable:
+    <<: *default
+    database: jyki_test_cable
+    migrations_paths: db/cable_migrate
+
+production:
+  primary: &primary_production
+    <<: *default
+    database: jyki_production
+    url: <%= Rails.application.credentials.dig(:database, :prod, :url) %>
+    password: <%= Rails.application.credentials.dig(:database, :prod, :password) %>
+    sslmode: require
+  cache:
+    <<: *primary_production
+    database: jyki_production_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_production
+    database: jyki_production_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_production
+    database: jyki_production_cable
+    migrations_paths: db/cable_migrate
