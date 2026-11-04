@@ -1,0 +1,18 @@
+// app/assets/scss/components/_daw_canvas.scss
+@use "../abstracts" as *;
+
+.daw-canvas {
+  background-color: theme("bg-canvas");
+  color: theme("text-main");
+  border: 1px solid theme("border-subtle");
+
+  // Hardware acceleration for 60fps DAW scrolling
+  will-change: transform;
+  contain: strict;
+
+  .playhead-cursor {
+    background-color: theme("accent-primary");
+    width: 2px;
+    pointer-events: none;
+  }
+}

@@ -1,0 +1,33 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Usage:
+#   bin/scss-new component mixer_rack
+#   bin/scss-new theme bhairavi
+
+require "fileutils"
+
+type = ARGV[0] # "component", "theme", or "base"
+name = ARGV[1]&.sub(/^_/, "")&.sub(/\.scss$/, "")
+
+unless %w[component theme base].include?(type) && name
+  abort "Usage: bin/scss-new [component|theme|base] <name>"
+end
+
+folder = File.expand_path("../app/assets/scss/#{type}s", __dir__)
+FileUtils.mkdir_p(folder)
+
+partial_file = File.join(folder, "_#{name}.scss")
+index_file   = File.join(folder, "_index.scss")
+
+unless File.exist?(partial_file)
+  header = type == "theme" ? %(@use "theme_engine" as *;\n\n) : %(@use "../abstracts" as *;\n\n.#{$1 || name.tr('_', '-')} {\n  \n}\n)
+  File.write(partial_file, header)
+  puts "✨ Created #{partial_file}"
+end
+
+FileUtils.touch(index_file)
+forward_line = %(@forward "#{name}";\n)
+unless File.read(index_file).include?(forward_line)
+  File.open(index_file, "a") { |f| f.write(forward_line) }
+  puts "🔗 Registered @forward \"#{name}\" in #{type}s/_index.scss"
+end

@@ -69,6 +69,37 @@ chmod +x bin/css-pipeline
 
 
 
+# Example Styling Hierarchy
+```aiignore
+app/assets/scss/
+├── application.scss          # The Sutradhara (Entry point — ONLY contains @use statements!)
+│
+├── abstracts/                # Zero CSS output! Pure SCSS variables, maps, functions, mixins
+│   ├── _index.scss           # @forward barrel file so any component only needs `@use "../abstracts" as *;`
+│   ├── _tokens.scss          # Core design tokens (spacing, z-indices, DAW grid math, easing curves)
+│   ├── _mixins.scss          # Reusable layout/hardware-acceleration/glassmorphism mixins
+│   └── _functions.scss       # Custom SCSS math/color functions
+│
+├── themes/                   # Your Ragas / Visual Moods (Navarasa of the UI)
+│   ├── _index.scss           # Forwards all themes
+│   ├── _theme_engine.scss    # Mixin that turns an SCSS theme map into CSS custom properties
+│   ├── _midnight_studio.scss # Default Dark DAW theme
+│   ├── _saffron_dusk.scss    # High-contrast warm creative theme
+│   └── _ottawa_frost.scss    # Crisp daylight / studio light theme
+│
+├── base/                     # PWA shell, viewport locking, scrollbars, typography
+│   ├── _index.scss
+│   ├── _pwa_shell.scss       # overscroll-behavior: none, user-select: none, touch-action rules
+│   └── _scrollbars.scss      # Ultra-thin custom DAW scrollbars
+│
+└── components/               # Your SPA / DAW UI modules
+    ├── _index.scss
+    ├── _daw_canvas.scss      # Timeline, grid, playhead, waveform containers
+    ├── _transport_bar.scss   # Play, stop, BPM, time signature HUD
+    ├── _mixer_rack.scss      # Channel strips, meters, faders, rotary knobs
+    └── _floating_modals.scss # Command palette, synth patches, settings drawers
+```
+
 
 
 

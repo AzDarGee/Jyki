@@ -1,0 +1,16 @@
+@use "theme_engine" as *;
+
+$midnight-palette: (
+        "bg-canvas":      #090d16,
+        "bg-surface":     #111827,
+        "bg-panel":       #1e293b,
+        "border-subtle":  #334155,
+        "accent-primary": #f59e0b, // Saffron gold playhead / active knob
+        "accent-alert":   #e11d48, // Record arm crimson
+        "text-main":      #f8fafc,
+        "text-muted":     #94a3b8,
+        "grid-beat":      rgba(255, 255, 255, 0.06),
+        "grid-bar":       rgba(245, 158, 11, 0.18)
+);
+
+@include register-theme("midnight", $midnight-palette, $is-default: true);

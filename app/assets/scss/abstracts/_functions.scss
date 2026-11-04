@@ -1,0 +1,4 @@
+// app/assets/scss/abstracts/_functions.scss
+@function theme($key) {
+  @return var(--saanskara-#{$key});
+}

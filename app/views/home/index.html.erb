@@ -1,35 +1,220 @@
-<div class="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-  <div class="saanskara-test-card">
+<div class="daw-pwa-shell" id="saanskara-daw">
 
-    <span class="badge-pill">
-      <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-      Spanda Active • Rails <%= Rails.version %>
-    </span>
+  <!-- 1. TOP TRANSPORT & THEME SWITCHER BAR -->
+  <header class="daw-transport-bar">
+    <div class="flex items-center gap-3">
+      <span class="w-3 h-3 rounded-full animate-pulse" style="background-color: var(--saanskara-accent-alert)"></span>
+      <span class="font-bold tracking-wider uppercase text-sm">Saanskara Studio DAW</span>
+      <span class="text-xs px-2 py-0.5 rounded font-mono" style="background-color: var(--saanskara-bg-panel); color: var(--saanskara-text-muted)">
+        Rails <%= Rails.version %> • Zero-Node PWA
+      </span>
+    </div>
 
-    <h1 class="title-sanskrit">
-      Saanskara Studio Pipeline
-    </h1>
+    <!-- Digital Transport LCD -->
+    <div class="daw-lcd-readout">
+      <span>BPM <strong>120.0</strong></span>
+      <span class="opacity-40">|</span>
+      <span>TAAL <strong>4/4 (Teental)</strong></span>
+      <span class="opacity-40">|</span>
+      <span id="playhead-clock">001 : 02 : 038</span>
+    </div>
 
-    <p class="text-slate-300 text-sm leading-relaxed mt-2">
-      If this card has a glowing saffron border that shifts to lotus-crimson when you hover,
-      your <code class="text-amber-400 font-mono">SCSS &rarr; Tailwind v4 &rarr; Propshaft</code>
-      alchemical pipeline is officially firing on all cylinders.
-    </p>
+    <!-- Raga / Theme Switcher -->
+    <div class="flex items-center gap-2" role="group" aria-label="Studio Theme Switcher">
+      <span class="text-xs uppercase tracking-widest mr-1" style="color: var(--saanskara-text-muted)">Theme:</span>
+      <button type="button" class="theme-pill-btn" data-set-theme="midnight" aria-pressed="true">
+        🌙 Midnight Studio
+      </button>
+      <button type="button" class="theme-pill-btn" data-set-theme="saffron" aria-pressed="false">
+        🔥 Saffron Dusk
+      </button>
+      <button type="button" class="theme-pill-btn" data-set-theme="frost" aria-pressed="false">
+        ❄️ Ottawa Frost
+      </button>
+    </div>
+  </header>
 
-    <div class="status-grid">
-      <div class="status-item">
-        <span class="label">SCSS Mixins</span>
-        <span class="value">✓ Compiled</span>
+  <!-- 2. MAIN DAW WORKSPACE -->
+  <section class="daw-workspace">
+
+    <!-- Left Column: Channel Tracks & Live Theme Tokens Inspector -->
+    <aside class="daw-panel lg:col-span-1">
+      <div>
+        <h2 class="text-xs font-bold uppercase tracking-widest mb-4" style="color: var(--saanskara-text-muted)">
+          Active Tracks
+        </h2>
+
+        <div class="track-row armed">
+          <div>
+            <div class="font-semibold">01 • Sitar Lead (Armed)</div>
+            <div class="text-xs" style="color: var(--saanskara-text-muted)">Input 1/2 • 48kHz</div>
+          </div>
+          <span class="px-2 py-0.5 text-xs font-mono rounded text-white" style="background-color: var(--saanskara-accent-alert)">REC</span>
+        </div>
+
+        <div class="track-row">
+          <div>
+            <div class="font-semibold">02 • Tabla Groove</div>
+            <div class="text-xs" style="color: var(--saanskara-text-muted)">MIDI • Spanda Engine</div>
+          </div>
+          <span class="px-2 py-0.5 text-xs font-mono rounded" style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">M / S</span>
+        </div>
+
+        <div class="track-row">
+          <div>
+            <div class="font-semibold">03 • Sub Bass Drone</div>
+            <div class="text-xs" style="color: var(--saanskara-text-muted)">Synth • Tanpura Sub</div>
+          </div>
+          <span class="px-2 py-0.5 text-xs font-mono rounded" style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">M / S</span>
+        </div>
       </div>
-      <div class="status-item">
-        <span class="label">Tailwind v4</span>
-        <span class="value">✓ Purged</span>
+
+      <!-- Active CSS Variable Readout -->
+      <div class="mt-6 pt-4 border-t text-xs font-mono space-y-1.5" style="border-color: var(--saanskara-border-subtle); color: var(--saanskara-text-muted)">
+        <div class="uppercase font-bold mb-2">Live CSS Custom Props:</div>
+        <div class="flex justify-between">
+          <span>--saanskara-bg-canvas:</span>
+          <span id="token-bg" class="font-bold" style="color: var(--saanskara-accent-primary)">#090d16</span>
+        </div>
+        <div class="flex justify-between">
+          <span>--saanskara-accent-primary:</span>
+          <span id="token-accent" class="font-bold" style="color: var(--saanskara-accent-primary)">#f59e0b</span>
+        </div>
       </div>
-      <div class="status-item">
-        <span class="label">Node.js RAM</span>
-        <span class="value">0 MB</span>
+    </aside>
+
+    <!-- Right Column (3 cols): DAW Timeline & Live HTML5 Canvas -->
+    <div class="daw-panel lg:col-span-3">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h1 class="text-lg font-bold">DAW Canvas Timeline (`daw_canvas.scss`)</h1>
+          <p class="text-xs" style="color: var(--saanskara-text-muted)">
+            Grid lines are pure SCSS (`theme("grid-bar")`), and the waveform below is an HTML5 <code>&lt;canvas&gt;</code> reading the exact same SCSS theme tokens at 60fps!
+          </p>
+        </div>
+        <button type="button" id="toggle-playhead" class="theme-pill-btn">
+          ▶ Toggle Playhead
+        </button>
+      </div>
+
+      <!-- The SCSS Grid + HTML5 Waveform Canvas -->
+      <div class="daw-canvas-stage" id="timeline-stage">
+        <div class="playhead-line" id="playhead" style="left: 160px;"></div>
+        <canvas id="waveform-canvas" class="w-full h-full block"></canvas>
+      </div>
+
+      <!-- Bottom Mixer Meter Bar -->
+      <div class="grid grid-cols-3 gap-4 mt-4 pt-4 border-t text-xs font-mono" style="border-color: var(--saanskara-border-subtle)">
+        <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
+          <span style="color: var(--saanskara-text-muted)">ENGINE:</span>
+          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">Dart Sass → Tailwind v4</strong>
+        </div>
+        <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
+          <span style="color: var(--saanskara-text-muted)">THEME SWITCH LATENCY:</span>
+          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">0.0 ms (CSS Vars)</strong>
+        </div>
+        <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
+          <span style="color: var(--saanskara-text-muted)">ACTIVE RAGA:</span>
+          <strong id="active-theme-label" class="block mt-1 uppercase" style="color: var(--saanskara-accent-primary)">midnight</strong>
+        </div>
       </div>
     </div>
 
-  </div>
+  </section>
 </div>
+
+<script>
+    (() => {
+        const root = document.documentElement;
+        const buttons = document.querySelectorAll("[data-set-theme]");
+        const canvas = document.getElementById("waveform-canvas");
+        const ctx = canvas.getContext("2d");
+        const playhead = document.getElementById("playhead");
+        const toggleBtn = document.getElementById("toggle-playhead");
+
+        let isPlaying = true;
+        let playheadX = 160;
+        let phase = 0;
+
+        // Read live SCSS theme variables straight from the DOM!
+        function getThemeToken(name) {
+            return getComputedStyle(root).getPropertyValue(`--saanskara-${name}`).trim();
+        }
+
+        function updateTokenInspector(themeName) {
+            document.getElementById("token-bg").textContent = getThemeToken("bg-canvas");
+            document.getElementById("token-accent").textContent = getThemeToken("accent-primary");
+            document.getElementById("active-theme-label").textContent = themeName;
+        }
+
+        // Theme switcher click handler
+        buttons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const theme = btn.dataset.setTheme;
+                root.setAttribute("data-theme", theme);
+                buttons.forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+                requestAnimationFrame(() => updateTokenInspector(theme));
+            });
+        });
+
+        // Resize canvas cleanly
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth * window.devicePixelRatio;
+            canvas.height = canvas.clientHeight * window.devicePixelRatio;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        // Toggle playhead animation
+        toggleBtn.addEventListener("click", () => {
+            isPlaying = !isPlaying;
+            toggleBtn.textContent = isPlaying ? "⏸ Pause Playhead" : "▶ Resume Playhead";
+        });
+
+        // Draw 60fps synthesized waveform using live SCSS Theme colors!
+        function renderLoop() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            const accent = getThemeToken("accent-primary") || "#f59e0b";
+            const alertColor = getThemeToken("accent-alert") || "#e11d48";
+
+            // Draw primary harmonic wave
+            ctx.beginPath();
+            ctx.strokeStyle = accent;
+            ctx.lineWidth = 2.5 * window.devicePixelRatio;
+
+            for (let x = 0; x < w; x += 3) {
+                const envelope = Math.sin((x / w) * Math.PI);
+                const y = h / 2 + Math.sin(x * 0.025 + phase) * Math.cos(x * 0.008 - phase * 0.5) * (h * 0.34) * envelope;
+                x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw secondary subtle overtone wave
+            ctx.beginPath();
+            ctx.strokeStyle = alertColor;
+            ctx.globalAlpha = 0.45;
+            ctx.lineWidth = 1.5 * window.devicePixelRatio;
+            for (let x = 0; x < w; x += 4) {
+                const y = h / 2 + Math.cos(x * 0.04 - phase * 1.3) * (h * 0.18);
+                x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+
+            if (isPlaying) {
+                phase += 0.04;
+                const stageWidth = document.getElementById("timeline-stage").clientWidth;
+                playheadX = (playheadX + 1.5) % stageWidth;
+                playhead.style.left = `${playheadX}px`;
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        updateTokenInspector("midnight");
+        renderLoop();
+    })();
+</script>

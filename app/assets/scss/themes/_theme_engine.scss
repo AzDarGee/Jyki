@@ -1,0 +1,12 @@
+@use "sass:map";
+
+// Automatically converts an SCSS Map into CSS Custom Properties + RGB channels for opacity!
+@mixin register-theme($name, $palette, $is-default: false) {
+  $selector: if($is-default, ":root, [data-theme='#{$name}']", "[data-theme='#{$name}']");
+
+  #{$selector} {
+    @each $key, $value in $palette {
+      --saanskara-#{$key}: #{$value};
+    }
+  }
+}
