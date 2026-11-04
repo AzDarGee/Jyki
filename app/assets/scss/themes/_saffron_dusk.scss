@@ -1,0 +1,15 @@
+// app/assets/scss/themes/_saffron_dusk.scss
+@use "theme_engine" as *;
+
+@include register-theme("saffron", (
+        "bg-canvas":      #1c100b,
+        "bg-surface":     #2a1810,
+        "bg-panel":       #3d2317,
+        "border-subtle":  #5c3524,
+        "accent-primary": #fb923c,
+        "accent-alert":   #f43f5e,
+        "text-main":      #fff7ed,
+        "text-muted":     #fdba74,
+        "grid-beat":      rgba(253, 186, 116, 0.08),
+        "grid-bar":       rgba(251, 146, 60, 0.3)
+));

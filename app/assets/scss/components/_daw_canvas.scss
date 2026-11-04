@@ -1,18 +1,28 @@
 // app/assets/scss/components/_daw_canvas.scss
 @use "../abstracts" as *;
 
-.daw-canvas {
+.daw-canvas-stage {
   background-color: theme("bg-canvas");
-  color: theme("text-main");
   border: 1px solid theme("border-subtle");
+  background-image:
+          linear-gradient(to right, theme("grid-bar") 1px, transparent 1px),
+          linear-gradient(to right, theme("grid-beat") 1px, transparent 1px);
+  background-size: $daw-grid-bar-width 100%, $daw-grid-beat-width 100%;
+  @apply relative rounded-lg overflow-hidden h-56 flex items-center;
 
-  // Hardware acceleration for 60fps DAW scrolling
-  will-change: transform;
-  contain: strict;
-
-  .playhead-cursor {
+  .playhead-line {
     background-color: theme("accent-primary");
-    width: 2px;
-    pointer-events: none;
+    box-shadow: 0 0 10px theme("accent-primary");
+    @apply absolute top-0 bottom-0 w-0.5 z-10 pointer-events-none;
+  }
+}
+
+.track-row {
+  background-color: theme("bg-panel");
+  border-left: 4px solid theme("accent-primary");
+  @apply flex items-center justify-between p-3 rounded-r-lg mb-3 text-sm;
+
+  &.armed {
+    border-left-color: theme("accent-alert");
   }
 }

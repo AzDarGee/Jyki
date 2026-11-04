@@ -1,0 +1,6 @@
+@use "functions" as *;
+
+@mixin glow-ring($token-name: "accent-primary") {
+  border-color: theme($token-name);
+  box-shadow: 0 0 12px -2px theme($token-name);
+}

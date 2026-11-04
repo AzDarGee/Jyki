@@ -1,16 +1,15 @@
+// app/assets/scss/themes/_ottawa_frost.scss
 @use "theme_engine" as *;
 
-$frost-palette: (
+@include register-theme("frost", (
         "bg-canvas":      #f1f5f9,
         "bg-surface":     #ffffff,
         "bg-panel":       #e2e8f0,
         "border-subtle":  #cbd5e1,
-        "accent-primary": #0284c7, // Rideau ice blue
+        "accent-primary": #0284c7,
         "accent-alert":   #dc2626,
         "text-main":      #0f172a,
         "text-muted":     #64748b,
         "grid-beat":      rgba(15, 23, 42, 0.06),
-        "grid-bar":       rgba(2, 132, 199, 0.2)
-);
-
-@include register-theme("frost", $frost-palette);
+        "grid-bar":       rgba(2, 132, 199, 0.25)
+));
