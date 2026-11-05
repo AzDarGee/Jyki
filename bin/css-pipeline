@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "bundler/setup"
 require "fileutils"
 
-scss_input = File.expand_path("../app/assets/scss/application.scss", __dir__)
+scss_dir   = File.expand_path("../app/assets/scss", __dir__)
+scss_input = File.join(scss_dir, "application.scss")
 temp_css   = File.expand_path("../app/assets/tailwind/scss_compiled.css", __dir__)
 tw_input   = File.expand_path("../app/assets/tailwind/application.css", __dir__)
 final_css  = File.expand_path("../app/assets/builds/tailwind.css", __dir__)
@@ -12,29 +12,66 @@ final_css  = File.expand_path("../app/assets/builds/tailwind.css", __dir__)
 FileUtils.mkdir_p(File.dirname(temp_css))
 FileUtils.mkdir_p(File.dirname(final_css))
 
+# ============================================================================
+# 1. Locate Cargo's `grass` Binary (or Auto-Build via Cargo if Missing)
+# ============================================================================
+cargo_bin_dir = File.expand_path("~/.cargo/bin")
+ENV["PATH"] = "#{cargo_bin_dir}:#{ENV.fetch('PATH', '')}" unless ENV.fetch("PATH", "").include?(cargo_bin_dir)
+
+grass_bin = ["#{cargo_bin_dir}/grass", `which grass 2>/dev/null`.strip].find { |p| !p.empty? && File.executable?(p) }
+
+unless grass_bin
+  puts "🦀 [Saanskara CSS] `grass` not found! Building native binary via `cargo install grass_cli`..."
+  system("cargo", "install", "grass_cli", exception: true)
+  grass_bin = "#{cargo_bin_dir}/grass"
+end
+
+# ============================================================================
+# 2. Fast Compile Lambda (Resilient — Syntax Errors Won't Crash Watcher!)
+# ============================================================================
+compile_scss = lambda do |style: "expanded"|
+  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  ok = system(grass_bin, scss_input, temp_css, "--style", style, "--load-path", scss_dir)
+  ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0) * 1000).round(2)
+
+  if ok
+    puts "🌿 [grass • PID #{Process.pid}] Compiled @use/@forward SCSS in #{ms}ms"
+  else
+    warn "⚠️  [grass] SCSS syntax error above — fix and save to retry!"
+  end
+  ok
+end
+
 watch_mode = ARGV.include?("--watch")
 
-puts "⚡ [Saanskara CSS] Compiling initial SCSS..."
-system("bundle", "exec", "sass", "#{scss_input}:#{temp_css}", "--no-source-map", exception: true)
+puts "⚡ [Saanskara CSS] Initial native Cargo `grass` SCSS build..."
+abort("❌ Initial SCSS compilation failed!") unless compile_scss.call(style: "expanded")
 
 if watch_mode
-  puts "🔥 [Saanskara CSS] Watching SCSS -> Tailwind v4 pipeline..."
+  puts "🔥 [Saanskara CSS] Watching #{scss_dir}/**/*.scss (Cargo grass -> Tailwind v4)..."
 
-  sass_pid = Process.spawn("bundle", "exec", "sass", "#{scss_input}:#{temp_css}", "--watch", "--no-source-map")
-  tw_pid   = Process.spawn("bundle", "exec", "tailwindcss", "-i", tw_input, "-o", final_css, "--watch")
+  tw_pid = Process.spawn("bundle", "exec", "tailwindcss", "-i", tw_input, "-o", final_css, "--watch")
 
-  trap("INT") do
-    Process.kill("TERM", sass_pid, tw_pid) rescue nil
+  shutdown = lambda do |*_sig|
+    Process.kill("TERM", tw_pid) rescue nil
     exit
   end
+  trap("INT", &shutdown)
+  trap("TERM", &shutdown)
 
-  trap("TERM") do
-    Process.kill("TERM", sass_pid, tw_pid) rescue nil
-    exit
+  snapshot = -> { Dir.glob("#{scss_dir}/**/*.scss").to_h { |f| [f, File.mtime(f).to_f] } }
+  last_state = snapshot.call
+
+  loop do
+    sleep 0.2
+    current_state = snapshot.call
+    if current_state != last_state
+      last_state = current_state
+      compile_scss.call(style: "expanded")
+    end
   end
-
-  Process.waitall
 else
-  puts "🚀 [Saanskara CSS] Building minified CSS with Tailwind v4..."
+  puts "🚀 [Saanskara CSS] Building minified production CSS..."
+  abort("❌ Production SCSS compilation failed!") unless compile_scss.call(style: "compressed")
   system("bundle", "exec", "tailwindcss", "-i", tw_input, "-o", final_css, "--minify", exception: true)
 end
