@@ -3,7 +3,7 @@
 #### Install Dependencies
 ##### Time Estimate - 10 Hours [i7 Quad Core + GPU Card MacPro15]
 
-0. Install Zsh + Rbenv + Ruby + Install Gemfile
+0. Install Zsh + Rbenv + Ruby + Install Gemfile + Rust/Crate
 
 1. Install Homebrew LLVM (for C -> Wasm32), LLD linker, and PostgreSQL 18
 ```bash
