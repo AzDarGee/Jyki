@@ -12,7 +12,7 @@ export default class extends Controller {
     bpm: { type: Number, default: 128 }
   }
 
-  connect() {
+  initialize() {
     this.rulerHeight = 28
     this.laneHeight = 68
     this.playheadBar = 1.0 // Starts at bar 1.1 (0px offset)
@@ -20,8 +20,13 @@ export default class extends Controller {
     this.scrubbingRuler = false
     this.hoveredNode = null
     this.animPhase = 0
-
+    this.webgpuReady = false
+    this.webgl2Ready = false
     this.tracks = this.buildInitialTracks()
+  }
+
+  connect() {
+    this.isReady = true
     this.initGpuBackends()
 
     this.boundResize = this.resizeAndRender.bind(this)
@@ -34,19 +39,27 @@ export default class extends Controller {
     this.element.addEventListener("daw-timeline:add-track", this.boundAddTrack)
     this.element.addEventListener("daw-timeline:drop-clip", this.boundDropClip)
 
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => this.resizeAndRender())
+      this.resizeObserver.observe(this.element)
+    }
+
     this.resizeAndRender()
     this.startLoop()
   }
 
   disconnect() {
+    this.isReady = false
     window.removeEventListener("resize", this.boundResize)
     this.element.removeEventListener("daw-timeline:reset-playhead", this.boundResetPlayhead)
     this.element.removeEventListener("daw-timeline:add-track", this.boundAddTrack)
     this.element.removeEventListener("daw-timeline:drop-clip", this.boundDropClip)
+    if (this.resizeObserver) this.resizeObserver.disconnect()
     if (this.rafId) cancelAnimationFrame(this.rafId)
   }
 
   rendererValueChanged() {
+    if (!this.isReady) return
     const labelMap = {
       webgpu: this.webgpuReady ? "WEBGPU · WGSL" : "WEBGPU · WGSL (SIM)",
       webgl2: this.webgl2Ready ? "WEBGL2 · GLSL3" : "WEBGL2 · FALLBACK",
@@ -62,11 +75,13 @@ export default class extends Controller {
   }
 
   zoomValueChanged() {
+    if (!this.isReady) return
     this.emitPlayheadPosition()
     this.renderFrame()
   }
 
   autoLanesValueChanged() {
+    if (!this.isReady) return
     this.renderFrame()
   }
 
@@ -455,6 +470,7 @@ export default class extends Controller {
 
   // Main Render Pipeline (executes active WebGPU / WebGL2 / Canvas2D pass)
   renderFrame() {
+    if (!this.tracks) this.tracks = this.buildInitialTracks()
     const ctx = this.element.getContext("2d")
     if (!ctx) return
 

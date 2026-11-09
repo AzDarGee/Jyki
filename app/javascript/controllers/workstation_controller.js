@@ -6,7 +6,7 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = [
     "themeButton", "themeIcon", "themeLabel",
-    "modeTab", "submodeTab",
+    "modeTab", "submodeTab", "createSubNav",
     "createWorkspace", "djWorkspace",
     "songView", "ideasView",
     "soundBrowser", "librarySearch", "libraryTabButton", "libraryList", "libraryCard",
@@ -46,8 +46,8 @@ export default class extends Controller {
       { id: "frost", icon: "❄️", label: "Frost" }
     ]
     this.themeIndex = 0
-    this.sampleRates = [ "48.0 kHz", "96.0 kHz", "192.0 kHz" ]
-    this.bitDepths = [ "24-bit", "32-bit float", "64-bit DSP" ]
+    this.sampleRates = ["48.0 kHz", "96.0 kHz", "192.0 kHz"]
+    this.bitDepths = ["24-bit", "32-bit float", "64-bit DSP"]
     this.masterPhase = 0
     this.currentAiMode = "Mix Critic"
     this.micRecording = false
@@ -108,10 +108,24 @@ export default class extends Controller {
         this.createWorkspaceTarget.classList.add("hidden")
         this.djWorkspaceTarget.classList.remove("hidden")
         this.djWorkspaceTarget.classList.add("flex")
+        if (this.hasCreateSubNavTarget) {
+          this.createSubNavTarget.classList.add("invisible", "pointer-events-none")
+        }
+        if (this.hasMixerDrawerTarget) {
+          this.mixerDrawerTarget.classList.add("hidden")
+        }
+        requestAnimationFrame(() => window.dispatchEvent(new Event("resize")))
       } else {
         this.djWorkspaceTarget.classList.add("hidden")
         this.djWorkspaceTarget.classList.remove("flex")
         this.createWorkspaceTarget.classList.remove("hidden")
+        if (this.hasCreateSubNavTarget) {
+          this.createSubNavTarget.classList.remove("invisible", "pointer-events-none")
+        }
+        if (this.hasMixerDrawerTarget) {
+          this.mixerDrawerTarget.classList.toggle("hidden", !this.mixerOpenValue)
+        }
+        requestAnimationFrame(() => window.dispatchEvent(new Event("resize")))
       }
     }
     this.ensureRootUrlLocked()
@@ -156,6 +170,9 @@ export default class extends Controller {
     if (this.hasTimelineCanvasTarget) {
       this.timelineCanvasTarget.dataset.dawTimelinePlayingValue = String(this.playingValue)
     }
+    if (this.hasDjWorkspaceTarget) {
+      this.djWorkspaceTarget.dataset.djBeatgridPlayingValue = String(this.playingValue)
+    }
   }
 
   stopTransport() {
@@ -167,6 +184,9 @@ export default class extends Controller {
     if (this.hasTimelineCanvasTarget) {
       this.timelineCanvasTarget.dataset.dawTimelinePlayingValue = "false"
       this.timelineCanvasTarget.dispatchEvent(new CustomEvent("daw-timeline:reset-playhead"))
+    }
+    if (this.hasDjWorkspaceTarget) {
+      this.djWorkspaceTarget.dataset.djBeatgridPlayingValue = "false"
     }
   }
 
@@ -199,7 +219,7 @@ export default class extends Controller {
   }
 
   nudgeBpm() {
-    const presets = [ 120, 124, 128, 132, 140, 174 ]
+    const presets = [120, 124, 128, 132, 140, 174]
     const idx = presets.indexOf(this.bpmValue)
     this.bpmValue = presets[(idx + 1) % presets.length]
     if (this.hasBpmDisplayTarget) this.bpmDisplayTarget.textContent = String(this.bpmValue)
@@ -288,11 +308,10 @@ export default class extends Controller {
     const selected = event.currentTarget
     this.libraryCardTargets.forEach((card) => {
       const isTarget = card === selected
-      card.className = `${card.classList.contains("hidden") ? "hidden " : ""}p-2.5 rounded cursor-grab active:cursor-grabbing transition-all ${
-        isTarget
+      card.className = `${card.classList.contains("hidden") ? "hidden " : ""}p-2.5 rounded cursor-grab active:cursor-grabbing transition-all ${isTarget
           ? "bg-[#171411] border border-[#5c3d1e] shadow-[inset_0_0_0_1px_rgba(217,119,6,0.12)]"
           : "bg-[#121214] border border-[#22201e] hover:border-[#3d352e]"
-      }`
+        }`
     })
   }
 

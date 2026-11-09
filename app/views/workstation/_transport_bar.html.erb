@@ -2,8 +2,9 @@
 <section class="h-11 px-3 border-y border-[#221f1d] bg-[#121110] flex items-center justify-between shrink-0"
          data-zone="transport"
          aria-label="Primary Transport and Audio Engine Controls">
-  <%# 1. Left: Sub-Navigation inside Create (Bookshelf Icon + Ideas | Song) %>
-  <div class="flex items-center gap-2">
+  <%# 1. Left: Sub-Navigation inside Create (Bookshelf Icon + Ideas | Song) — Hidden in DJ Mode %>
+  <div class="flex items-center gap-2 transition-opacity"
+       data-workstation-target="createSubNav">
     <button type="button"
             data-action="click->workstation#toggleSoundBrowser"
             title="Toggle Sound Libraries & Plugins Rack"

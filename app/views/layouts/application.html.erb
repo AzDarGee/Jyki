@@ -83,6 +83,18 @@
         box-shadow: 0 0 6px rgba(245, 158, 11, 0.55);
       }
 
+      /* DJ Deck Signature Colored Tempo Sliders */
+      input[type="range"].jaku-deck-tempo::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, var(--deck-color, #d97706) 0%, var(--deck-color, #d97706) 50%, #272523 50%);
+      }
+      input[type="range"].jaku-deck-tempo::-webkit-slider-thumb {
+        background: var(--deck-color, #e2b887);
+        border: 1.5px solid #141210;
+        box-shadow: 0 0 7px var(--deck-color, rgba(245, 158, 11, 0.55));
+      }
+
       /* Ultra-thin obsidian scrollbars */
       ::-webkit-scrollbar {
         width: 5px;

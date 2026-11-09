@@ -1,7 +1,7 @@
 <%= turbo_frame_tag "jaku_workstation",
       class: "h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc]",
       data: {
-        controller: "workstation mixer",
+        controller: "workstation mixer auth-drawer",
         workstation_mode_value: "create",
         workstation_submode_value: "song",
         workstation_library_tab_value: "library",
@@ -14,7 +14,7 @@
         workstation_renderer_value: "webgpu",
         workstation_zoom_value: 100,
         mixer_selected_track_value: 1,
-        action: "keydown@window->workstation#handleGlobalKeydown"
+        action: "keydown@window->workstation#handleGlobalKeydown keydown.esc@window->auth-drawer#close"
       } do %>
 
   <%# ZONE A: Top Global Header Bar %>
@@ -27,7 +27,7 @@
   <%= render "workstation/transport_bar", transport: @transport %>
 
   <%# ZONE D: Main Center Workstation Area %>
-  <div class="flex-1 flex overflow-hidden relative" data-zone="center-workstation">
+  <div id="jaku_stage_body" class="flex-1 flex overflow-hidden relative" data-zone="center-workstation">
 
     <%# CREATE WORKSPACE (Active by default) %>
     <div class="flex-1 flex overflow-hidden" data-workstation-target="createWorkspace">
@@ -58,8 +58,8 @@
       <%= render "workstation/ai_lab" %>
     </div>
 
-    <%# DJ DUAL-DECK WORKSPACE (Toggled via DJ pill in Zone A without URL change) %>
-    <%= render "workstation/dj_workspace", transport: @transport %>
+    <%# DJ 6-DECK PHASE-LOCKED WORKSPACE (Toggled via DJ pill in Zone A without URL change) %>
+    <%= render "workstation/dj_view", decks: @decks, transport: @transport %>
 
     <%# Column 4: Far-Right Vertical Icon Utility Rail %>
     <%= render "workstation/utility_rail" %>
@@ -67,6 +67,9 @@
 
   <%# ZONE E: Bottom Mixer Console & Smooth Gain Automation Drawer %>
   <%= render "workstation/mixer_console", tracks: @tracks, inserts: @inserts %>
+
+  <%# Right-Side Slide-Over "Studio Auth" Drawer & Backdrop %>
+  <%= render "shared/studio_auth_drawer", current_producer: current_user %>
 
 <% end %>
 

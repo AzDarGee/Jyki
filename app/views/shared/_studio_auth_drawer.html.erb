@@ -1,0 +1,317 @@
+<%# Right-Side "Studio Auth" Slide-Over Drawer %>
+<%
+  producer = local_assigns.key?(:current_producer) ? current_producer : (defined?(current_user) ? current_user : nil)
+  form_user = local_assigns[:resource] || User.new
+  tab = local_assigns[:active_tab] || "signup"
+  is_open = local_assigns.fetch(:open, false)
+  error_text = local_assigns[:auth_error]
+%>
+<div id="studio_auth_drawer"
+     data-auth-drawer-open-value="<%= is_open %>"
+     data-auth-drawer-active-tab-value="<%= tab %>">
+  <%= turbo_frame_tag "studio_auth_frame" do %>
+    <%# Translucent Dark Backdrop %>
+    <div data-auth-drawer-target="backdrop"
+         data-action="click->auth-drawer#close"
+         class="<%= is_open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none hidden' %> fixed inset-0 z-40 bg-black/55 transition-opacity duration-200"></div>
+
+    <%# Right-Side Slide-Over Drawer Panel %>
+    <aside data-auth-drawer-target="panel"
+           aria-label="Studio Auth Drawer"
+           class="<%= is_open ? 'translate-x-0' : 'translate-x-full hidden' %> fixed top-0 right-0 bottom-0 w-[440px] max-w-full z-50 bg-[#0d0d0f] border-l border-[#262320] shadow-2xl flex flex-col text-[#e5e2dc] select-none transition-transform duration-200">
+
+      <%# 3A. Drawer Header %>
+      <div class="px-5 py-4 border-b border-[#1f1d1b] flex items-center justify-between shrink-0">
+        <div>
+          <div class="flex items-center gap-2 text-sm font-semibold text-[#f4f4f0]">
+            <span class="text-[#f59e0b]">🔑</span>
+            <span>Studio Auth</span>
+          </div>
+          <div class="text-[11px] font-mono text-[#7c7872] mt-0.5">
+            Identity · Project Authorization Matrix
+          </div>
+        </div>
+
+        <button type="button"
+                data-action="click->auth-drawer#close"
+                aria-label="Close Studio Auth Drawer"
+                class="w-7 h-7 rounded border border-[#262320] bg-[#141416] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors">
+          ✕
+        </button>
+      </div>
+
+      <%# 3B. Drawer Body %>
+      <div class="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
+
+        <%# 1. Identity Status Card %>
+        <div class="p-3.5 rounded-lg bg-[#121215] border border-[#222120] flex items-center gap-3.5">
+          <div class="w-9 h-9 rounded bg-[#231911] border border-[#5c3d1e] text-[#e5a952] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+            <%= producer.present? ? producer.initials : "GU" %>
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <% if producer.present? %>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-[#f4f4f0] font-mono truncate">@<%= producer.username %></span>
+                <span class="px-1.5 py-0.5 rounded bg-[#231911] border border-[#5c3d1e] text-[9px] font-mono font-bold text-[#f59e0b] uppercase">
+                  <%= producer.role %>
+                </span>
+              </div>
+              <div class="text-[11px] font-mono text-[#7c7872] truncate mt-0.5">
+                <%= producer.email %> · <%= producer.studio_plan_label %>
+              </div>
+            <% else %>
+              <div class="text-xs font-semibold text-[#f4f4f0]">Not Signed In</div>
+              <div class="text-[11px] font-mono text-[#7c7872]">Sign in to access studio cloud &amp; roles</div>
+            <% end %>
+          </div>
+        </div>
+
+        <% if error_text.present? %>
+          <div role="alert" class="p-3 rounded-md bg-[#1c1010] border border-[#dc2626]/70 text-[#f87171] text-xs font-mono leading-relaxed">
+            ⚠ <%= error_text %>
+          </div>
+        <% end %>
+
+        <% if producer.present? %>
+          <%# 7. Authenticated State View %>
+          <div class="p-4 rounded-lg bg-[#111113] border border-[#242220] space-y-3 font-mono text-xs">
+            <div class="flex items-center justify-between pb-2 border-b border-[#1f1d1b]">
+              <span class="text-[#8e8a83]">STUDIO PLAN TIER</span>
+              <span class="text-[#f3be7a] font-semibold"><%= producer.studio_plan_label %></span>
+            </div>
+            <div class="flex items-center justify-between pb-2 border-b border-[#1f1d1b]">
+              <span class="text-[#8e8a83]">CRDT SYNC ENGINE</span>
+              <span class="text-[#14b8a6] font-semibold">● Active · Zero-Latency</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-[#8e8a83]">DSP HARDWARE MATRIX</span>
+              <span class="text-[#10b981] font-semibold">✓ Authorized (<%= producer.role %>)</span>
+            </div>
+          </div>
+
+          <%= button_to destroy_user_session_path,
+                method: :delete,
+                form: { data: { turbo: true } },
+                class: "w-full mt-2 py-2.5 px-4 rounded-md bg-[#1a1312] hover:bg-[#261816] border border-[#5c2b29] text-[#f87171] font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer" do %>
+            <span>⏻</span>
+            <span>Sign Out of Studio</span>
+          <% end %>
+
+        <% else %>
+          <%# 2. Mode Switcher Tabs: Sign Up (New Producer) | Sign In (Existing) %>
+          <div class="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-[#111113] border border-[#22201e]"
+               role="tablist"
+               aria-label="Studio Authentication Mode">
+            <button type="button"
+                    role="tab"
+                    aria-selected="<%= tab == 'signup' ? 'true' : 'false' %>"
+                    data-tab="signup"
+                    data-auth-drawer-target="tabButton"
+                    data-action="click->auth-drawer#switchTab"
+                    class="py-1.5 px-3 rounded-md text-xs font-medium transition cursor-pointer <%= tab == 'signup' ? 'bg-[#211811] border border-[#6b4926] text-[#f3be7a] shadow-sm' : 'text-[#8e8a83] hover:text-white border border-transparent' %>">
+              Sign Up (New Producer)
+            </button>
+            <button type="button"
+                    role="tab"
+                    aria-selected="<%= tab == 'signin' ? 'true' : 'false' %>"
+                    data-tab="signin"
+                    data-auth-drawer-target="tabButton"
+                    data-action="click->auth-drawer#switchTab"
+                    class="py-1.5 px-3 rounded-md text-xs font-medium transition cursor-pointer <%= tab == 'signin' ? 'bg-[#211811] border border-[#6b4926] text-[#f3be7a] shadow-sm' : 'text-[#8e8a83] hover:text-white border border-transparent' %>">
+              Sign In (Existing)
+            </button>
+          </div>
+
+          <%# 3. OAuth Social Action Button %>
+          <button type="button"
+                  data-action="click->auth-drawer#triggerGoogleOauth"
+                  class="w-full py-2.5 px-4 rounded-md bg-[#181411] hover:bg-[#221c16] border border-[#4a3520] flex items-center justify-center gap-2.5 text-xs font-medium text-[#e5c08d] transition cursor-pointer">
+            <span class="w-4 h-4 rounded-full bg-[#e5a952] text-[#09090b] font-mono font-bold text-[10px] flex items-center justify-center leading-none">
+              G
+            </span>
+            <span data-auth-drawer-target="googleButtonLabel">
+              <%= tab == "signin" ? "Sign In with Google" : "Sign Up with Google" %>
+            </span>
+          </button>
+
+          <%# 4. Horizontal Divider %>
+          <div class="flex items-center gap-3 my-0.5">
+            <div class="flex-1 h-px bg-[#1f1e1c]"></div>
+            <span class="text-[10px] font-mono tracking-widest text-[#6e6a64] uppercase">
+              OR WITH EMAIL &amp; USERNAME
+            </span>
+            <div class="flex-1 h-px bg-[#1f1e1c]"></div>
+          </div>
+
+          <%# 5. Devise Sign Up Form (Sign Up (New Producer) View) %>
+          <div data-auth-drawer-target="signupPanel" class="<%= tab == 'signup' ? '' : 'hidden' %>">
+            <%= form_with model: form_user,
+                  scope: :user,
+                  url: user_registration_path,
+                  method: :post,
+                  data: { turbo: true },
+                  class: "flex flex-col gap-3.5" do |f| %>
+
+              <%# Field 1 — STUDIO USERNAME %>
+              <div>
+                <label for="signup_user_username" class="block text-[10px] font-mono tracking-wider text-[#8e8a83] uppercase mb-1.5">
+                  STUDIO USERNAME
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] pointer-events-none">👤</span>
+                  <%= f.text_field :username,
+                        id: "signup_user_username",
+                        placeholder: "e.g. ashish_darji",
+                        autocomplete: "username",
+                        class: "w-full pl-9 pr-3 py-2 rounded-md bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+                </div>
+              </div>
+
+              <%# Field 2 — EMAIL ADDRESS %>
+              <div>
+                <label for="signup_user_email" class="block text-[10px] font-mono tracking-wider text-[#8e8a83] uppercase mb-1.5">
+                  EMAIL ADDRESS
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] pointer-events-none">✉</span>
+                  <%= f.email_field :email,
+                        id: "signup_user_email",
+                        value: form_user.email.presence || "ashdarji1@gmail.com",
+                        placeholder: "ashdarji1@gmail.com",
+                        autocomplete: "email",
+                        class: "w-full pl-9 pr-3 py-2 rounded-md bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+                </div>
+              </div>
+
+              <%# Field 3 & 4 — 2-Column Password Grid %>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="signup_user_password" class="block text-[10px] font-mono tracking-wider text-[#8e8a83] uppercase mb-1.5">
+                    PASSWORD
+                  </label>
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] pointer-events-none">🔒</span>
+                    <%= f.password_field :password,
+                          id: "signup_user_password",
+                          value: "••••••••••",
+                          placeholder: "••••••••••",
+                          autocomplete: "new-password",
+                          data: { auth_drawer_target: "signupPasswordInput" },
+                          class: "w-full pl-9 pr-8 py-2 rounded-md bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+                    <button type="button"
+                            data-action="click->auth-drawer#togglePassword"
+                            data-target-input="signupPasswordInput"
+                            aria-label="Toggle password visibility"
+                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] hover:text-[#e5e2dc] cursor-pointer">
+                      👁
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label for="signup_user_password_confirmation" class="block text-[10px] font-mono tracking-wider text-[#8e8a83] uppercase mb-1.5">
+                    CONFIRM PASSWORD
+                  </label>
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] pointer-events-none">🔒</span>
+                    <%= f.password_field :password_confirmation,
+                          id: "signup_user_password_confirmation",
+                          placeholder: "Repeat password",
+                          autocomplete: "new-password",
+                          data: { auth_drawer_target: "signupConfirmInput" },
+                          class: "w-full pl-9 pr-3 py-2 rounded-md bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+                  </div>
+                </div>
+              </div>
+
+              <%# Field 5 — STUDIO PLAN TIER Dropdown %>
+              <div>
+                <label for="signup_user_studio_plan_tier" class="block text-[10px] font-mono tracking-wider text-[#8e8a83] uppercase mb-1.5">
+                  STUDIO PLAN TIER
+                </label>
+                <div class="relative">
+                  <%= f.select :studio_plan_tier,
+                        User::STUDIO_PLAN_TIERS.map { |k, label| [ label, k ] },
+                        { selected: form_user.studio_plan_tier.presence || "studio_master_192_64" },
+                        id: "signup_user_studio_plan_tier",
+                        class: "w-full px-3 py-2 rounded-md bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] appearance-none cursor-pointer" %>
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8e8a83] pointer-events-none">⌄</span>
+                </div>
+              </div>
+
+              <%# Primary Submit CTA Button %>
+              <button type="submit"
+                      data-turbo-submits-with="Provisioning Studio Matrix..."
+                      class="w-full mt-2 py-2.5 px-4 rounded-md bg-[#d8b98a] hover:bg-[#e3c79c] text-[#0c0b0a] font-semibold text-xs flex items-center justify-center gap-2 shadow transition cursor-pointer">
+                <span>✨</span>
+                <span>Sign Up with Email &amp; Username</span>
+              </button>
+            <% end %>
+          </div>
+
+          <%# 6. Devise Sign In Form (Sign In (Existing) View — Toggled via Tab 2) %>
+          <div data-auth-drawer-target="signinPanel" class="<%= tab == 'signin' ? '' : 'hidden' %>">
+            <%= form_with scope: :user,
+                  url: user_session_path,
+                  method: :post,
+                  data: { turbo: true },
+                  class: "flex flex-col gap-3.5" do |f| %>
+
+              <div>
+                <label for="signin_user_login" class="block text-[10px] font-mono tracking-wider text-[#8e8a83] uppercase mb-1.5">
+                  EMAIL OR STUDIO USERNAME
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] pointer-events-none">👤</span>
+                  <%= f.text_field :login,
+                        id: "signin_user_login",
+                        value: form_user.respond_to?(:login) ? form_user.login : nil,
+                        placeholder: "e.g. ashish_darji or ashdarji1@gmail.com",
+                        autocomplete: "username",
+                        class: "w-full pl-9 pr-3 py-2 rounded-md bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+                </div>
+              </div>
+
+              <div>
+                <label for="signin_user_password" class="block text-[10px] font-mono tracking-wider text-[#8e8a83] uppercase mb-1.5">
+                  PASSWORD
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] pointer-events-none">🔒</span>
+                  <%= f.password_field :password,
+                        id: "signin_user_password",
+                        placeholder: "••••••••••",
+                        autocomplete: "current-password",
+                        data: { auth_drawer_target: "signinPasswordInput" },
+                        class: "w-full pl-9 pr-8 py-2 rounded-md bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+                  <button type="button"
+                          data-action="click->auth-drawer#togglePassword"
+                          data-target-input="signinPasswordInput"
+                          aria-label="Toggle sign-in password visibility"
+                          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#7c7872] hover:text-[#e5e2dc] cursor-pointer">
+                    👁
+                  </button>
+                </div>
+              </div>
+
+              <label class="flex items-center gap-2 text-xs font-mono text-[#8e8a83] cursor-pointer">
+                <%= f.check_box :remember_me, checked: true, class: "rounded border-[#3a3632] bg-[#09090b] text-[#d97706]" %>
+                <span>Remember studio session</span>
+              </label>
+
+              <button type="submit"
+                      data-turbo-submits-with="Authenticating..."
+                      class="w-full mt-2 py-2.5 px-4 rounded-md bg-[#d8b98a] hover:bg-[#e3c79c] text-[#0c0b0a] font-semibold text-xs flex items-center justify-center gap-2 shadow transition cursor-pointer">
+                <span>🔑</span>
+                <span>Sign In to Studio Matrix</span>
+              </button>
+            <% end %>
+          </div>
+        <% end %>
+
+      </div>
+    </aside>
+  <% end %>
+</div>
+
