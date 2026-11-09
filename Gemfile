@@ -10,14 +10,14 @@ gem "stimulus-rails"
 gem "tailwindcss-rails"
 gem "jbuilder"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
-
+gem "fiddle"
+gem "foreman"
 gem "solid_cache"
 gem "solid_queue"
 gem "solid_cable"
 
 gem 'omniauth'
 gem 'omniauth-rails_csrf_protection'
-# gem 'omniauth-github'
 gem 'omniauth-google-oauth2'
 
 gem "bootsnap", require: false
@@ -25,7 +25,6 @@ gem "kamal", require: false
 gem "thruster", require: false
 gem "image_processing", "~> 1.2"
 gem "devise", "~> 5.0.4"
-gem "dartsass-rails"
 
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"

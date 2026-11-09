@@ -59,7 +59,6 @@
     <orderEntry type="library" scope="PROVIDED" name="concurrent-ruby (v1.3.8, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="connection_pool (v3.0.2, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="crass (v1.0.8, rbenv: 4.0.9) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="dartsass-rails (v0.5.1, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="date (v3.6.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="debug (v1.11.1, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="devise (v5.0.4, rbenv: 4.0.9) [gem]" level="application" />
@@ -72,9 +71,10 @@
     <orderEntry type="library" scope="PROVIDED" name="faraday (v2.15.1, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="faraday-net_http (v3.5.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ffi (v1.17.4, rbenv: 4.0.9) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="fiddle (v1.1.8, rbenv: 4.0.9) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="foreman (v0.90.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="fugit (v1.14.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="globalid (v1.4.0, rbenv: 4.0.9) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="google-protobuf (v4.36.2, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="hashie (v5.2.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="TEST" name="hotwire-spark (v0.1.13, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="i18n (v1.15.2, rbenv: 4.0.9) [gem]" level="application" />
@@ -156,7 +156,6 @@
     <orderEntry type="library" scope="PROVIDED" name="ruby-progressbar (v1.13.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ruby-vips (v2.3.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rubyzip (v3.7.0, rbenv: 4.0.9) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="sass-embedded (v1.107.1, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="securerandom (v0.4.1, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="TEST" name="selenium-webdriver (v4.52.0, rbenv: 4.0.9) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="snaky_hash (v2.0.9, rbenv: 4.0.9) [gem]" level="application" />

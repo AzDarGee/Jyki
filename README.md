@@ -3,7 +3,7 @@
 #### Install Dependencies
 ##### Time Estimate - 10 Hours [i7 Quad Core + GPU Card MacPro15]
 
-0. Install Zsh + Rbenv + Ruby + Install Gemfile
+0. Install Zsh + Rbenv + Ruby + Install Gemfile + Rust/Cargo
 
 1. Install Homebrew LLVM (for C -> Wasm32), LLD linker, and PostgreSQL 18
 ```bash
@@ -37,7 +37,11 @@ def enable_shared_array_buffer_headers!
     response.set_header("Cross-Origin-Resource-Policy", "same-origin")
 end
 ```
-
+5. Install Cargo + Grass
+```aiignore
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo install grass
+```
 
 # Helpers
 
