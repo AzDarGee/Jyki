@@ -1,0 +1,142 @@
+<%# Tab 2: "Roles & ACL" View — Active Session Role & Subscription Tier + Project Collaborator ACL %>
+<%
+  producer = local_assigns[:producer] || current_user
+  collaborators = local_assigns[:collaborators] || ProjectCollaborator.default_roster_for("proj_default")
+%>
+
+<%# Card 4A: Active Session Role & Subscription Tier %>
+<div class="mx-4 mt-3 p-4 rounded-lg bg-[#121215] border border-[#222120] flex flex-col gap-3.5">
+  <%# Card Header %>
+  <div class="flex items-center justify-between">
+    <span class="text-xs font-semibold text-[#e5e2dc]">Active Session Role &amp; Subscription Tier</span>
+    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-semibold bg-[#241a10] border border-[#6b4926] text-[#f3be7a] uppercase tracking-wider">
+      RBAC ENFORCED
+    </span>
+  </div>
+
+  <%# 2-Column Role & Plan Selector Grid (Auto-submitting via Turbo Stream) %>
+  <%= form_with url: studio_auth_role_tier_path,
+        method: :patch,
+        scope: :user,
+        data: { turbo: true, auth_drawer_target: "roleTierForm" },
+        class: "grid grid-cols-2 gap-2.5" do |f| %>
+    <div>
+      <label for="studio_auth_project_role" class="block text-[10px] font-mono uppercase text-[#7c7872] mb-1">
+        PROJECT ROLE
+      </label>
+      <div class="relative">
+        <%= f.select :project_role,
+              User::PROJECT_ROLES.map { |key, label| [ label, key ] },
+              { selected: producer.project_role },
+              id: "studio_auth_project_role",
+              data: { action: "change->auth-drawer#submitRoleTier" },
+              class: "w-full px-2.5 py-1.5 pr-6 rounded bg-[#09090b] border border-[#262421] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] appearance-none cursor-pointer" %>
+        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#7c7872] pointer-events-none">⌄</span>
+      </div>
+    </div>
+
+    <div>
+      <label for="studio_auth_studio_plan" class="block text-[10px] font-mono uppercase text-[#7c7872] mb-1">
+        STUDIO PLAN
+      </label>
+      <div class="relative">
+        <%= f.select :studio_plan,
+              User::STUDIO_PLANS.map { |key, label| [ label, key ] },
+              { selected: producer.studio_plan },
+              id: "studio_auth_studio_plan",
+              data: { action: "change->auth-drawer#submitRoleTier" },
+              class: "w-full px-2.5 py-1.5 pr-6 rounded bg-[#09090b] border border-[#262421] focus:border-[#b45309] focus:outline-none text-xs font-mono text-[#e5e2dc] appearance-none cursor-pointer" %>
+        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#7c7872] pointer-events-none">⌄</span>
+      </div>
+    </div>
+  <% end %>
+
+  <%# Effective Permission Grants Matrix (7 Rows) %>
+  <div class="pt-1">
+    <div class="text-[10px] font-mono tracking-wider uppercase text-[#7c7872] mb-2">
+      EFFECTIVE PERMISSION GRANTS
+    </div>
+
+    <div class="flex flex-col divide-y divide-[#1a1918]">
+      <% producer.effective_permissions.each do |perm| %>
+        <div class="flex items-center justify-between py-1.5 text-[11px] font-mono">
+          <span class="text-[#d6d3cd]"><%= perm[:label] %></span>
+          <% if perm[:granted] %>
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-[#0d2822] border border-[#115e59] text-[#2dd4bf] uppercase">
+              <%= perm[:status] %>
+            </span>
+          <% else %>
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-[#241a10] border border-[#6b4926] text-[#f3be7a] uppercase">
+              <%= perm[:status] %>
+            </span>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<%# Card 4B: Project Collaborator ACL %>
+<div class="mx-4 mt-3 p-4 rounded-lg bg-[#121215] border border-[#222120] flex flex-col gap-3">
+  <%# Card Header %>
+  <div class="flex items-start justify-between gap-2">
+    <div>
+      <div class="text-xs font-semibold text-[#e5e2dc]">Project Collaborator ACL</div>
+      <div class="text-[10px] font-mono text-[#7c7872] mt-0.5">
+        Synced to <span class="text-[#a19d95]">/projects/proj_default</span>
+      </div>
+    </div>
+
+    <button type="button"
+            data-action="click->auth-drawer#syncAcl"
+            class="px-2 py-1 rounded bg-[#17171a] border border-[#2c2a27] text-[10px] font-mono text-[#c4bfb6] hover:text-white flex items-center gap-1 cursor-pointer transition-colors">
+      <span data-auth-drawer-target="syncAclIcon">↻</span>
+      <span data-auth-drawer-target="syncAclLabel">Sync ACL</span>
+    </button>
+  </div>
+
+  <%# Add Collaborator Form (Turbo Stream Form) %>
+  <%= form_with url: studio_auth_collaborators_path,
+        scope: :collaborator,
+        method: :post,
+        data: { turbo: true, action: "turbo:submit-end->auth-drawer#resetCollaboratorForm" },
+        class: "flex flex-col gap-2" do |f| %>
+    <%# Row 1 (2-Column Input Grid) %>
+    <div class="grid grid-cols-2 gap-2">
+      <%= f.text_field :username,
+            placeholder: "Username (e.g. kora_mix)",
+            required: true,
+            aria_label: "Collaborator studio username",
+            class: "w-full px-2.5 py-1.5 rounded bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-[11px] font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+      <%= f.email_field :email,
+            placeholder: "Email (optional)",
+            aria_label: "Collaborator email address",
+            class: "w-full px-2.5 py-1.5 rounded bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-[11px] font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+    </div>
+
+    <%# Row 2 (Role Dropdown + Grant Access CTA) %>
+    <div class="flex items-center gap-2">
+      <div class="relative flex-1">
+        <%= f.select :role,
+              ProjectCollaborator::ACL_ROLES.map { |role_key, role_label| [ role_label, role_key ] },
+              { selected: "EDITOR" },
+              aria_label: "Collaborator role",
+              class: "w-full px-2.5 py-1.5 pr-6 rounded bg-[#09090b] border border-[#242220] focus:border-[#b45309] focus:outline-none text-[11px] font-mono text-[#e5e2dc] appearance-none cursor-pointer" %>
+        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[#7c7872] pointer-events-none">⌄</span>
+      </div>
+
+      <button type="submit"
+              data-turbo-submits-with="Granting..."
+              class="px-3.5 py-1.5 rounded bg-[#d8b98a] hover:bg-[#e3c79c] text-[#0c0b0a] font-semibold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer transition">
+        <span>👤+</span>
+        <span>Grant Access</span>
+      </button>
+    </div>
+  <% end %>
+
+  <%# Collaborator ACL Roster List (#project_collaborators_list) %>
+  <div id="project_collaborators_list" class="flex flex-col gap-2 pt-1">
+    <%= render partial: "studio_auth/collaborator", collection: collaborators, as: :collaborator %>
+  </div>
+</div>
+

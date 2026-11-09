@@ -10,9 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_09_224500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_09_231500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "project_collaborators", force: :cascade do |t|
+    t.string "project_slug", default: "proj_default", null: false
+    t.string "username", null: false
+    t.string "external_user_id", null: false
+    t.string "email", default: "", null: false
+    t.string "role", default: "EDITOR", null: false
+    t.string "added_at_label", default: "Added 17:00 UTC", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_slug", "username"], name: "index_project_collaborators_on_project_slug_and_username", unique: true
+    t.index ["project_slug"], name: "index_project_collaborators_on_project_slug"
+  end
 
   create_table "solid_cable_messages", force: :cascade do |t|
     t.binary "channel", null: false
@@ -209,6 +222,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_224500) do
     t.string "role", default: "OWNER", null: false
     t.string "provider"
     t.string "uid"
+    t.string "display_name", default: "Saanskara", null: false
+    t.string "avatar_url"
+    t.string "storage_node_id", default: "4PS1G6fg...", null: false
+    t.string "project_role", default: "owner", null: false
+    t.string "studio_plan", default: "studio_master", null: false
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid"

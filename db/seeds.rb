@@ -1,9 +1,20 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# frozen_string_literal: true
+
+# Default Studio Owner (@saanskara) & Project Collaborator ACL roster
+saanskara = User.find_or_initialize_by(email: "saanskarastudios@gmail.com")
+saanskara.assign_attributes(
+  username: "saanskara",
+  display_name: "Saanskara",
+  password: "Password123!",
+  password_confirmation: "Password123!",
+  provider: "GOOGLE.COM",
+  storage_node_id: "4PS1G6fg...",
+  project_role: "owner",
+  studio_plan: "studio_master",
+  studio_plan_tier: "studio_master_192_64",
+  role: "OWNER"
+)
+saanskara.skip_confirmation! if saanskara.respond_to?(:skip_confirmation!)
+saanskara.save!
+
+ProjectCollaborator.default_roster_for("proj_default")

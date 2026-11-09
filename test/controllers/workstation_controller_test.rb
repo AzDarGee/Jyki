@@ -144,4 +144,78 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/Sign In/, response.body)
   end
+
+  test "renders authenticated Studio Auth drawer with Identity and Roles & ACL tabs and handles RBAC turbo streams" do
+    user = User.new(
+      username: "saanskara",
+      display_name: "Saanskara",
+      email: "saanskarastudios@gmail.com",
+      password: "Password123!",
+      password_confirmation: "Password123!",
+      provider: "GOOGLE.COM",
+      storage_node_id: "4PS1G6fg...",
+      project_role: "owner",
+      studio_plan: "studio_master",
+      role: "OWNER"
+    )
+    user.skip_confirmation! if user.respond_to?(:skip_confirmation!)
+    user.save!
+
+    ProjectCollaborator.find_or_create_by!(project_slug: "proj_default", username: "aria_mastering") do |c|
+      c.external_user_id = "usr_aria_mastering"
+      c.email = "aria@saanskara.studio"
+      c.role = "EDITOR"
+      c.added_at_label = "Added 17:00 UTC"
+    end
+    ProjectCollaborator.find_or_create_by!(project_slug: "proj_default", username: "devon_synth") do |c|
+      c.external_user_id = "usr_devon_synth"
+      c.email = "devon@saanskara.studio"
+      c.role = "COLLABORATOR"
+      c.added_at_label = "Added 17:05 UTC"
+    end
+
+    post user_session_url, params: {
+      user: { login: "saanskara", password: "Password123!" }
+    }, as: :turbo_stream
+    assert_response :success
+
+    # Verify both Identity and Roles & ACL tabs are rendered inside the authenticated drawer
+    assert_match(/Authenticated Studio Identity/, response.body)
+    assert_match(/SESSION ACTIVE/, response.body)
+    assert_match(/CONNECTED \(4PS1G6fg…\)/, response.body)
+    assert_match(/Active Session Role &amp; Subscription Tier/, response.body)
+    assert_match(/RBAC ENFORCED/, response.body)
+    assert_match(/Track DSP, Mixer &amp; Automation Write/, response.body)
+    assert_match(/Project Collaborator ACL/, response.body)
+    assert_match(/@aria_mastering/, response.body)
+    assert_match(/@devon_synth/, response.body)
+
+    # 1. Inline @username update via PATCH /studio_auth/identity
+    patch studio_auth_identity_url, params: { user: { username: "saanskara_hq" } }, as: :turbo_stream
+    assert_response :success
+    assert_match(/@saanskara_hq/, response.body)
+
+    # 2. Live role & plan tier update via PATCH /studio_auth/role_tier
+    patch studio_auth_role_tier_url, params: {
+      user: { project_role: "editor", studio_plan: "producer_pro" }
+    }, as: :turbo_stream
+    assert_response :success
+    assert_match(/EFFECTIVE PERMISSION GRANTS/, response.body)
+
+    # 3. Grant collaborator access via POST /studio_auth/collaborators
+    post studio_auth_collaborators_url, params: {
+      collaborator: {
+        username: "kora_mix",
+        email: "kora@saanskara.studio",
+        role: "EDITOR"
+      }
+    }, as: :turbo_stream
+    assert_response :success
+    assert_match(/@kora_mix/, response.body)
+
+    # 4. Revoke collaborator access via DELETE /studio_auth/collaborators/:id
+    collab = ProjectCollaborator.find_by!(username: "kora_mix")
+    delete studio_auth_collaborator_url(collab), as: :turbo_stream
+    assert_response :success
+  end
 end

@@ -5,18 +5,44 @@ require "test_helper"
 class UserTest < ActiveSupport::TestCase
   self.fixture_table_names = []
 
-  test "sets default studio_plan_tier and role and validates username" do
+  test "sets default studio_plan_tier, project_role, studio_plan, and role and validates username" do
     user = User.new(
-      username: "ashish_darji",
-      email: "ashdarji1@gmail.com",
+      username: "saanskara",
+      display_name: "Saanskara",
+      email: "saanskarastudios@gmail.com",
       password: "Password123!",
       password_confirmation: "Password123!"
     )
     assert user.valid?
     assert_equal "studio_master_192_64", user.studio_plan_tier
+    assert_equal "studio_master", user.studio_plan
+    assert_equal "owner", user.project_role
     assert_equal "OWNER", user.role
-    assert_equal "AD", user.initials
+    assert_equal "GOOGLE.COM", user.provider
+    assert_equal "4PS1G6fg...", user.storage_node_id
+    assert_equal "SA", user.initials
     assert_equal "Studio Master (192kHz / 64-bit)", user.studio_plan_label
+  end
+
+  test "computes 7 effective_permissions dynamically from project_role and studio_plan" do
+    user = User.new(
+      username: "saanskara",
+      email: "saanskarastudios@gmail.com",
+      password: "Password123!",
+      project_role: "owner",
+      studio_plan: "studio_master"
+    )
+    perms = user.effective_permissions
+    assert_equal 7, perms.size
+    assert perms.all? { |p| p[:status] == "GRANTED" }
+
+    user.project_role = "viewer"
+    user.studio_plan = "indie_creator"
+    restricted_perms = user.effective_permissions
+    acl_perm = restricted_perms.find { |p| p[:label] == "Project Collaborator ACL Management" }
+    stem_perm = restricted_perms.find { |p| p[:label] == "96kHz / 192kHz Lossless Stem Export" }
+    assert_not_equal "GRANTED", acl_perm[:status]
+    assert_not_equal "GRANTED", stem_perm[:status]
   end
 
   test "requires unique username and email" do

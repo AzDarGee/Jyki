@@ -3,6 +3,7 @@
   producer = local_assigns.key?(:current_producer) ? current_producer : (defined?(current_user) ? current_user : nil)
   form_user = local_assigns[:resource] || User.new
   tab = local_assigns[:active_tab] || "signup"
+  auth_tab = local_assigns[:active_auth_tab] || "identity"
   is_open = local_assigns.fetch(:open, false)
   error_text = local_assigns[:auth_error]
 %>
@@ -21,7 +22,7 @@
            class="<%= is_open ? 'translate-x-0' : 'translate-x-full hidden' %> fixed top-0 right-0 bottom-0 w-[440px] max-w-full z-50 bg-[#0d0d0f] border-l border-[#262320] shadow-2xl flex flex-col text-[#e5e2dc] select-none transition-transform duration-200">
 
       <%# 3A. Drawer Header %>
-      <div class="px-5 py-4 border-b border-[#1f1d1b] flex items-center justify-between shrink-0">
+      <div class="px-4 py-3.5 border-b border-[#1f1d1b] flex items-center justify-between shrink-0">
         <div>
           <div class="flex items-center gap-2 text-sm font-semibold text-[#f4f4f0]">
             <span class="text-[#f59e0b]">🔑</span>
@@ -40,65 +41,33 @@
         </button>
       </div>
 
-      <%# 3B. Drawer Body %>
-      <div class="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
+      <% if producer.present? %>
+        <%# Authenticated State: 2-Tab Switcher (Identity | Roles & ACL) + Persistent Profile Card + Active Tab Content %>
+        <%= render "studio_auth/authenticated_drawer",
+              producer: producer,
+              active_auth_tab: auth_tab,
+              auth_error: error_text %>
+      <% else %>
+        <%# 3B. Guest Drawer Body %>
+        <div class="p-5 flex-1 overflow-y-auto flex flex-col gap-4">
 
-        <%# 1. Identity Status Card %>
-        <div class="p-3.5 rounded-lg bg-[#121215] border border-[#222120] flex items-center gap-3.5">
-          <div class="w-9 h-9 rounded bg-[#231911] border border-[#5c3d1e] text-[#e5a952] font-mono text-xs font-bold flex items-center justify-center shrink-0">
-            <%= producer.present? ? producer.initials : "GU" %>
-          </div>
+          <%# 1. Identity Status Card %>
+          <div class="p-3.5 rounded-lg bg-[#121215] border border-[#222120] flex items-center gap-3.5">
+            <div class="w-9 h-9 rounded bg-[#231911] border border-[#5c3d1e] text-[#e5a952] font-mono text-xs font-bold flex items-center justify-center shrink-0">
+              GU
+            </div>
 
-          <div class="min-w-0 flex-1">
-            <% if producer.present? %>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold text-[#f4f4f0] font-mono truncate">@<%= producer.username %></span>
-                <span class="px-1.5 py-0.5 rounded bg-[#231911] border border-[#5c3d1e] text-[9px] font-mono font-bold text-[#f59e0b] uppercase">
-                  <%= producer.role %>
-                </span>
-              </div>
-              <div class="text-[11px] font-mono text-[#7c7872] truncate mt-0.5">
-                <%= producer.email %> · <%= producer.studio_plan_label %>
-              </div>
-            <% else %>
+            <div class="min-w-0 flex-1">
               <div class="text-xs font-semibold text-[#f4f4f0]">Not Signed In</div>
               <div class="text-[11px] font-mono text-[#7c7872]">Sign in to access studio cloud &amp; roles</div>
-            <% end %>
-          </div>
-        </div>
-
-        <% if error_text.present? %>
-          <div role="alert" class="p-3 rounded-md bg-[#1c1010] border border-[#dc2626]/70 text-[#f87171] text-xs font-mono leading-relaxed">
-            ⚠ <%= error_text %>
-          </div>
-        <% end %>
-
-        <% if producer.present? %>
-          <%# 7. Authenticated State View %>
-          <div class="p-4 rounded-lg bg-[#111113] border border-[#242220] space-y-3 font-mono text-xs">
-            <div class="flex items-center justify-between pb-2 border-b border-[#1f1d1b]">
-              <span class="text-[#8e8a83]">STUDIO PLAN TIER</span>
-              <span class="text-[#f3be7a] font-semibold"><%= producer.studio_plan_label %></span>
-            </div>
-            <div class="flex items-center justify-between pb-2 border-b border-[#1f1d1b]">
-              <span class="text-[#8e8a83]">CRDT SYNC ENGINE</span>
-              <span class="text-[#14b8a6] font-semibold">● Active · Zero-Latency</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-[#8e8a83]">DSP HARDWARE MATRIX</span>
-              <span class="text-[#10b981] font-semibold">✓ Authorized (<%= producer.role %>)</span>
             </div>
           </div>
 
-          <%= button_to destroy_user_session_path,
-                method: :delete,
-                form: { data: { turbo: true } },
-                class: "w-full mt-2 py-2.5 px-4 rounded-md bg-[#1a1312] hover:bg-[#261816] border border-[#5c2b29] text-[#f87171] font-semibold text-xs flex items-center justify-center gap-2 transition cursor-pointer" do %>
-            <span>⏻</span>
-            <span>Sign Out of Studio</span>
+          <% if error_text.present? %>
+            <div role="alert" class="p-3 rounded-md bg-[#1c1010] border border-[#dc2626]/70 text-[#f87171] text-xs font-mono leading-relaxed">
+              ⚠ <%= error_text %>
+            </div>
           <% end %>
-
-        <% else %>
           <%# 2. Mode Switcher Tabs: Sign Up (New Producer) | Sign In (Existing) %>
           <div class="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-[#111113] border border-[#22201e]"
                role="tablist"
@@ -308,9 +277,8 @@
               </button>
             <% end %>
           </div>
-        <% end %>
-
-      </div>
+        </div>
+      <% end %>
     </aside>
   <% end %>
 </div>

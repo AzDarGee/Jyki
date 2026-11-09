@@ -1,0 +1,98 @@
+<%# Authenticated Studio Auth Drawer Content (Identity & Roles/ACL Tabs) %>
+<%
+  producer = local_assigns[:producer] || current_user
+  auth_tab = local_assigns[:active_auth_tab].presence || "identity"
+  error_text = local_assigns[:auth_error]
+  collaborators = local_assigns[:collaborators] || ProjectCollaborator.default_roster_for("proj_default")
+%>
+
+<%# 2B. Top 2-Tab Segmented Switcher (Identity | Roles & ACL) %>
+<div class="mx-4 mt-3 p-1 rounded-lg bg-[#111113] border border-[#22201e] grid grid-cols-2 gap-1.5 shrink-0"
+     role="tablist"
+     aria-label="Authenticated Studio Auth Sections">
+  <button type="button"
+          role="tab"
+          aria-selected="<%= auth_tab == 'identity' ? 'true' : 'false' %>"
+          data-auth-tab="identity"
+          data-auth-drawer-target="authTabButton"
+          data-action="click->auth-drawer#switchAuthTab"
+          class="py-1.5 px-3 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer <%= auth_tab == 'identity' ? 'bg-[#211811] border border-[#6b4926] text-[#f3be7a] shadow-sm' : 'text-[#8e8a83] hover:text-white border border-transparent' %>">
+    <span>👤</span>
+    <span>Identity</span>
+  </button>
+
+  <button type="button"
+          role="tab"
+          aria-selected="<%= auth_tab == 'roles_acl' ? 'true' : 'false' %>"
+          data-auth-tab="roles_acl"
+          data-auth-drawer-target="authTabButton"
+          data-action="click->auth-drawer#switchAuthTab"
+          class="py-1.5 px-3 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition cursor-pointer <%= auth_tab == 'roles_acl' ? 'bg-[#211811] border border-[#6b4926] text-[#f3be7a] shadow-sm' : 'text-[#8e8a83] hover:text-white border border-transparent' %>">
+    <span>🛡</span>
+    <span>Roles &amp; ACL</span>
+  </button>
+</div>
+
+<%# 2C. Persistent Producer Profile Card (Visible in Both Tabs) %>
+<div class="mx-4 mt-3 p-3.5 rounded-lg bg-[#121215] border border-[#222120] flex flex-col gap-3 shrink-0">
+  <%# Top Row of Card %>
+  <div class="flex items-center gap-3">
+    <%# Circular Golden Mandala/Sun Emblem Avatar %>
+    <div class="w-9 h-9 rounded-full border border-[#5c3d1e] bg-gradient-to-br from-[#fef3c7] via-[#f59e0b] to-[#78350f] flex items-center justify-center shadow-inner shrink-0"
+         title="<%= producer.display_name %> (@<%= producer.username %>)">
+      <span class="text-[#1c1309] text-sm font-bold leading-none">☀</span>
+    </div>
+
+    <%# Producer Name & Email %>
+    <div class="min-w-0 flex-1">
+      <div class="text-xs font-semibold text-[#f4f4f0] truncate">
+        <%= producer.display_name %> <span class="text-[#a19d95] font-mono">(@<%= producer.username %>)</span>
+      </div>
+      <div class="text-[11px] font-mono text-[#7c7872] truncate mt-0.5">
+        <%= producer.email %>
+      </div>
+    </div>
+
+    <%# Right Role Badge %>
+    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-[#241a10] border border-[#6b4926] text-[#f3be7a] uppercase shrink-0">
+      <%= producer.role %>
+    </span>
+  </div>
+
+  <%# Divider & Bottom Row %>
+  <div class="pt-2.5 border-t border-[#1e1d1b] flex items-center justify-between text-[11px] font-mono">
+    <div class="flex items-center gap-1.5">
+      <span class="text-[#2dd4bf] font-semibold">✔ Verified Token</span>
+      <span class="text-[#52504c]">·</span>
+      <span class="text-[#7c7872] uppercase">STUDIO PLAN</span>
+    </div>
+
+    <%= button_to destroy_user_session_path,
+          method: :delete,
+          form: { data: { turbo: true }, class: "inline" },
+          class: "text-[#f87171] hover:text-[#fca5a5] text-[11px] font-mono flex items-center gap-1 cursor-pointer transition-colors" do %>
+      <span>[→</span>
+      <span>Sign Out</span>
+    <% end %>
+  </div>
+</div>
+
+<% if error_text.present? %>
+  <div role="alert" class="mx-4 mt-3 p-2.5 rounded-md bg-[#1c1010] border border-[#dc2626]/70 text-[#f87171] text-xs font-mono">
+    ⚠ <%= error_text %>
+  </div>
+<% end %>
+
+<%# Scrollable Tab Panels Container %>
+<div class="flex-1 overflow-y-auto pb-5">
+  <%# 3. Tab 1 View: Identity %>
+  <div data-auth-drawer-target="identityTabPanel" class="<%= auth_tab == 'identity' ? '' : 'hidden' %>">
+    <%= render "studio_auth/identity_tab", producer: producer %>
+  </div>
+
+  <%# 4. Tab 2 View: Roles & ACL %>
+  <div data-auth-drawer-target="rolesAclTabPanel" class="<%= auth_tab == 'roles_acl' ? '' : 'hidden' %>">
+    <%= render "studio_auth/roles_acl_tab", producer: producer, collaborators: collaborators %>
+  </div>
+</div>
+
