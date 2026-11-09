@@ -1,0 +1,112 @@
+<%# DJ DUAL-DECK WORKSPACE (Swapped in Zone D when DJ pill is clicked in Zone A without URL change) %>
+<div class="hidden flex-1 bg-[#0b0a09] p-4 flex-col gap-4 overflow-y-auto"
+     data-workstation-target="djWorkspace"
+     aria-label="Jaku Dual-Deck DJ Workstation">
+  <div class="flex items-center justify-between border-b border-[#221f1d] pb-2.5">
+    <div class="flex items-center gap-2.5">
+      <span class="px-2 py-0.5 rounded bg-[#231911] border border-[#5c3d1e] font-mono text-[10px] text-[#f59e0b] font-semibold">
+        JAKU DJ ENGINE · WASM TURNTABLISM
+      </span>
+      <span class="font-mono text-xs text-[#8e8a83]">
+        Harmonic Key-Lock · Real-Time 4-Stem Neural Isolation (Drums / Bass / Synth / Vocal)
+      </span>
+    </div>
+    <button type="button"
+            data-mode="create"
+            data-action="click->workstation#switchMode"
+            class="h-7 px-3 rounded bg-[#161514] border border-[#4a3520] text-[#f59e0b] text-xs font-mono cursor-pointer hover:border-[#d97706]">
+      ← Return to Create DAW
+    </button>
+  </div>
+
+  <%# Dual Deck A + Central 4-Band EQ Crossfader Mixer + Deck B %>
+  <div class="grid grid-cols-12 gap-4 flex-1">
+    <%# DECK A %>
+    <div class="col-span-5 bg-[#121110] border border-[#262320] rounded-lg p-4 flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="px-1.5 py-0.5 rounded bg-[#14b8a6]/20 border border-[#14b8a6] font-mono text-[10px] text-[#2dd4bf] font-bold">DECK A · MASTER</span>
+          <h3 class="text-sm font-bold text-[#f4f4f0] mt-1">Saanskara 808 Sub Glide (VIP Dub)</h3>
+          <p class="text-[11px] font-mono text-[#8e8a83]">Key: 8A (A Minor) · 128.00 BPM · +0.0%</p>
+        </div>
+        <div class="text-right font-mono">
+          <div class="text-lg font-bold text-[#2dd4bf]">02:14.8</div>
+          <div class="text-[10px] text-[#8e8a83]">REMAIN -01:42</div>
+        </div>
+      </div>
+
+      <%# Jog Wheel & Phase Meter %>
+      <div class="my-3 flex items-center justify-center">
+        <div class="w-36 h-36 rounded-full bg-[#09090b] border-4 border-[#14b8a6]/60 shadow-[0_0_25px_rgba(20,184,166,0.2)] flex flex-col items-center justify-center font-mono">
+          <span class="text-xs font-bold text-[#f4f4f0]">DECK A</span>
+          <span class="text-[10px] text-[#2dd4bf]">128.0 BPM</span>
+          <span class="text-[9px] text-[#8e8a83] mt-1">VINYL SLIP ON</span>
+        </div>
+      </div>
+
+      <%# Stem Pads %>
+      <div class="grid grid-cols-4 gap-1.5 font-mono text-[10px]">
+        <button type="button" class="h-8 rounded bg-[#14b8a6]/20 border border-[#14b8a6] text-[#2dd4bf] font-semibold cursor-pointer">DRUMS</button>
+        <button type="button" class="h-8 rounded bg-[#14b8a6]/20 border border-[#14b8a6] text-[#2dd4bf] font-semibold cursor-pointer">808 SUB</button>
+        <button type="button" class="h-8 rounded bg-[#231911] border border-[#5c3d1e] text-[#f59e0b] font-semibold cursor-pointer">SYNTH</button>
+        <button type="button" class="h-8 rounded bg-[#161514] border border-[#262320] text-[#8e8a83] font-semibold cursor-pointer">VOCAL</button>
+      </div>
+    </div>
+
+    <%# CENTER X-FADER & ISOLATOR %>
+    <div class="col-span-2 bg-[#121110] border border-[#262320] rounded-lg p-3 flex flex-col justify-between items-center font-mono">
+      <div class="text-[10px] text-[#f59e0b] font-bold uppercase tracking-wider">X-FADER DSP</div>
+      <div class="w-full space-y-2.5 text-[10px]">
+        <div>
+          <div class="flex justify-between text-[#8e8a83] mb-0.5"><span>HIGH ISO</span><span>0 dB</span></div>
+          <input type="range" min="-24" max="6" value="0" class="jaku-fader w-full" />
+        </div>
+        <div>
+          <div class="flex justify-between text-[#8e8a83] mb-0.5"><span>MID ISO</span><span>0 dB</span></div>
+          <input type="range" min="-24" max="6" value="0" class="jaku-fader w-full" />
+        </div>
+        <div>
+          <div class="flex justify-between text-[#8e8a83] mb-0.5"><span>SUB CROSS</span><span>120 Hz</span></div>
+          <input type="range" min="40" max="250" value="120" class="jaku-fader w-full" />
+        </div>
+      </div>
+      <div class="w-full pt-2 border-t border-[#221f1d]">
+        <div class="flex justify-between text-[9px] text-[#8e8a83] mb-1"><span>A</span><span>CROSSFADER</span><span>B</span></div>
+        <input type="range" min="-100" max="100" value="0" class="jaku-fader w-full" />
+      </div>
+    </div>
+
+    <%# DECK B %>
+    <div class="col-span-5 bg-[#121110] border border-[#262320] rounded-lg p-4 flex flex-col justify-between">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="px-1.5 py-0.5 rounded bg-[#231911] border border-[#d97706] font-mono text-[10px] text-[#f59e0b] font-bold">DECK B · SYNC</span>
+          <h3 class="text-sm font-bold text-[#f4f4f0] mt-1">Modular Breakbeat 128bpm (Granular Stem)</h3>
+          <p class="text-[11px] font-mono text-[#8e8a83]">Key: 8A (A Minor) · 128.00 BPM · PHASE LOCKED</p>
+        </div>
+        <div class="text-right font-mono">
+          <div class="text-lg font-bold text-[#f59e0b]">01:08.4</div>
+          <div class="text-[10px] text-[#8e8a83]">REMAIN -03:11</div>
+        </div>
+      </div>
+
+      <%# Jog Wheel %>
+      <div class="my-3 flex items-center justify-center">
+        <div class="w-36 h-36 rounded-full bg-[#09090b] border-4 border-[#d97706]/70 shadow-[0_0_25px_rgba(217,119,6,0.2)] flex flex-col items-center justify-center font-mono">
+          <span class="text-xs font-bold text-[#f4f4f0]">DECK B</span>
+          <span class="text-[10px] text-[#f59e0b]">128.0 BPM</span>
+          <span class="text-[9px] text-[#8e8a83] mt-1">QUANT SYNC</span>
+        </div>
+      </div>
+
+      <%# Stem Pads %>
+      <div class="grid grid-cols-4 gap-1.5 font-mono text-[10px]">
+        <button type="button" class="h-8 rounded bg-[#231911] border border-[#d97706] text-[#f59e0b] font-semibold cursor-pointer">DRUMS</button>
+        <button type="button" class="h-8 rounded bg-[#161514] border border-[#262320] text-[#8e8a83] font-semibold cursor-pointer">808 SUB</button>
+        <button type="button" class="h-8 rounded bg-[#231911] border border-[#d97706] text-[#f59e0b] font-semibold cursor-pointer">SYNTH</button>
+        <button type="button" class="h-8 rounded bg-[#14b8a6]/20 border border-[#14b8a6] text-[#2dd4bf] font-semibold cursor-pointer">VOCAL</button>
+      </div>
+    </div>
+  </div>
+</div>
+

@@ -1,34 +1,139 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="midnight" class="dark h-screen w-screen overflow-hidden bg-[#0b0a09] text-[#e5e2dc]">
   <head>
-    <title><%= content_for(:title) || "Jyki" %></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title><%= content_for(:title) || "Jaku · Saanskara Studio DAW & DJ Workstation" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Jyki">
+    <meta name="application-name" content="Jaku by Saanskara Studios">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="view-transition" content="same-origin">
+    <%= turbo_refreshes_with method: :morph, scroll: :preserve %>
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
     <%= yield :head %>
 
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
     <%= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
 
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
 
-    <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+
+    <style>
+      :root {
+        --jaku-bg-canvas: #0b0a09;
+        --jaku-bg-obsidian: #09090b;
+        --jaku-bg-panel: #121110;
+        --jaku-bg-card: #161514;
+        --jaku-border-subtle: #221f1d;
+        --jaku-border-card: #262320;
+        --jaku-border-bronze: #4a3520;
+        --jaku-accent-amber: #d97706;
+        --jaku-accent-copper: #ea580c;
+        --jaku-accent-gold: #f59e0b;
+        --jaku-accent-cyan: #14b8a6;
+        --jaku-accent-teal: #2dd4bf;
+        --jaku-accent-crimson: #dc2626;
+        --jaku-text-primary: #f4f4f0;
+        --jaku-text-muted: #8e8a83;
+      }
+
+      /* Industrial DAW Tactile Range Sliders (matching reference screenshot) */
+      input[type="range"].jaku-fader {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+      }
+      input[type="range"].jaku-fader::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, #b89c72 0%, #786244 65%, #272523 65%);
+      }
+      input[type="range"].jaku-fader::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 11px;
+        height: 11px;
+        border-radius: 9999px;
+        background: #e2b887;
+        border: 1.5px solid #2b1d10;
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.55);
+        margin-top: -3.5px;
+        transition: transform 80ms ease, background-color 80ms ease;
+      }
+      input[type="range"].jaku-fader:hover::-webkit-slider-thumb {
+        transform: scale(1.15);
+        background: #f5cba0;
+      }
+      input[type="range"].jaku-fader::-moz-range-track {
+        height: 4px;
+        border-radius: 9999px;
+        background: #272523;
+      }
+      input[type="range"].jaku-fader::-moz-range-thumb {
+        width: 11px;
+        height: 11px;
+        border-radius: 9999px;
+        background: #e2b887;
+        border: 1.5px solid #2b1d10;
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.55);
+      }
+
+      /* Ultra-thin obsidian scrollbars */
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0b0a09;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #262320;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #4a3520;
+      }
+    </style>
+
+    <script>
+      // SPA URL Cloaking Guard: Lock browser address bar permanently at "/"
+      (() => {
+        const lockRootUrl = () => {
+          if (window.location.pathname !== "/" || window.location.search !== "" || window.location.hash !== "") {
+            window.history.replaceState(window.history.state, "", "/");
+          }
+        };
+        document.addEventListener("turbo:load", lockRootUrl);
+        document.addEventListener("turbo:frame-render", lockRootUrl);
+        document.addEventListener("turbo:before-fetch-request", (event) => {
+          event.detail.fetchOptions.headers["X-Jaku-SPA"] = "true";
+        });
+        window.addEventListener("popstate", lockRootUrl);
+      })();
+    </script>
   </head>
 
-  <body>
-    <main>
-      <%= yield %>
-      <p class="notice"><%= notice %></p>
-      <p class="alert"><%= alert %></p>
-    </main>
+  <body class="h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc] font-sans antialiased">
+    <%= yield %>
+
+    <% if notice.present? || alert.present? %>
+      <div id="jaku-toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-1.5 pointer-events-none">
+        <% if notice.present? %>
+          <div class="px-3 py-1.5 rounded bg-[#161514] border border-[#4a3520] text-[#f59e0b] text-xs font-mono shadow-lg">
+            <%= notice %>
+          </div>
+        <% end %>
+        <% if alert.present? %>
+          <div class="px-3 py-1.5 rounded bg-[#1c1010] border border-[#dc2626] text-[#ef4444] text-xs font-mono shadow-lg">
+            <%= alert %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
   </body>
 </html>

@@ -1,22 +1,27 @@
+# frozen_string_literal: true
+
 Rails.application.routes.draw do
   devise_for :users, controllers: {
     sessions: "users/sessions"
   }
 
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
-
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
-
-  # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
-  # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
-  # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
-
-  # Defines the root path route ("/")
-  root "home#index"
 
   # Render dynamic PWA files from app/views/pwa/*
   get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
   get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
+
+  # Stateless SPA Turbo Stream & JSON endpoints (never push browser URL history)
+  scope :workstation, controller: :workstation do
+    post "tracks", action: :create_track, as: :workstation_tracks
+    patch "mixer", action: :update_mixer, as: :workstation_mixer
+    post "ai_analysis", action: :ai_analysis, as: :workstation_ai_analysis
+  end
+
+  # Legacy home index route
+  get "home" => "home#index", as: :home
+
+  # Defines the root path route ("/") — Jaku by Saanskara Studios SPA Workstation
+  root "workstation#index"
 end

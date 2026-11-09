@@ -1,0 +1,80 @@
+<%# Sub-Column 2A: Track Headers List %>
+<aside class="w-60 border-r border-[#26221e] bg-[#121110] flex flex-col justify-between shrink-0"
+       data-zone="track-headers"
+       data-workstation-target="trackHeadersColumn"
+       aria-label="Track Headers List">
+  <%# Top Header + Track Rows %>
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <%# Header Bar: TRACKS (4) with collapse sidebar icon |◁ %>
+    <div class="h-7 px-3 border-b border-[#221f1d] bg-[#141312] flex items-center justify-between shrink-0">
+      <span class="font-mono text-[10px] font-semibold tracking-wider text-[#8e8a83] uppercase">
+        TRACKS (<span id="tracks_count_badge" data-workstation-target="trackCount"><%= tracks.size %></span>)
+      </span>
+      <button type="button"
+              data-action="click->workstation#toggleTrackHeaders"
+              title="Collapse Track Headers"
+              aria-label="Collapse Track Headers"
+              class="text-[10px] font-mono text-[#8e8a83] hover:text-[#f59e0b] cursor-pointer">
+        |◁
+      </button>
+    </div>
+
+    <%# Track Header Rows List %>
+    <div id="track_headers_list"
+         data-workstation-target="trackHeadersList"
+         class="flex-1 overflow-y-auto divide-y divide-[#221f1d]">
+      <% tracks.each do |track| %>
+        <%= render "workstation/track_header_row", track: track %>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Bottom Track Creator Box (ADD EMPTY TRACK) %>
+  <div class="p-2.5 border-t border-[#26221e] bg-[#0e0d0c] shrink-0">
+    <div class="flex items-center justify-between mb-2">
+      <span class="font-mono text-[9px] font-semibold tracking-widest text-[#8e8a83] uppercase">
+        ADD EMPTY TRACK
+      </span>
+      <span class="text-[10px] text-[#8e8a83]">⌄</span>
+    </div>
+
+    <div class="grid grid-cols-3 gap-1.5">
+      <%# Audio Track Creator %>
+      <button type="button"
+              data-track-kind="audio"
+              data-action="click->workstation#addEmptyTrack"
+              class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
+        <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
+          <span>〰</span>
+          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
+        </div>
+        <span class="text-[10px] text-[#e5e2dc] font-medium">Audio</span>
+      </button>
+
+      <%# MIDI Track Creator %>
+      <button type="button"
+              data-track-kind="midi"
+              data-action="click->workstation#addEmptyTrack"
+              class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
+        <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
+          <span>🎹</span>
+          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
+        </div>
+        <span class="text-[10px] text-[#e5e2dc] font-medium">MIDI</span>
+      </button>
+
+      <%# Bus Track Creator %>
+      <button type="button"
+              data-track-kind="bus"
+              data-action="click->workstation#addEmptyTrack"
+              class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
+        <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
+          <span>⑃</span>
+          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
+        </div>
+        <span class="text-[10px] text-[#e5e2dc] font-medium">Bus</span>
+      </button>
+    </div>
+  </div>
+</aside>
+

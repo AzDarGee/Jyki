@@ -1,0 +1,73 @@
+<%# IDEAS MODE: Session / Clip Launcher Matrix (Toggled via Ideas pill in Zone C without URL change) %>
+<div class="hidden flex-1 flex-col bg-[#0c0b0a] p-4 overflow-y-auto"
+     data-workstation-target="ideasView"
+     aria-label="Ideas Session Clip Matrix">
+  <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#221f1d]">
+    <div>
+      <h2 class="text-xs font-semibold text-[#f4f4f0] uppercase tracking-wider flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-[#f59e0b]"></span>
+        <span>Session Clip Matrix & Harmonic Sketchpad</span>
+      </h2>
+      <p class="text-[11px] text-[#8e8a83] font-mono mt-0.5">
+        Non-linear scene launcher synced to Rust/WASM AudioWorklet quantum clock (128 BPM · 4/4)
+      </p>
+    </div>
+    <button type="button"
+            data-submode="song"
+            data-action="click->workstation#switchSubmode"
+            class="h-7 px-3 rounded bg-[#231911] border border-[#5c3d1e] text-[#f5a623] text-xs font-mono cursor-pointer hover:border-[#d97706]">
+      → Commit Scene to Song Timeline
+    </button>
+  </div>
+
+  <%# 4-Column Track Clip Slots Grid + Scene Launch Column %>
+  <div class="grid grid-cols-5 gap-3 flex-1">
+    <% tracks.each do |track| %>
+      <div class="bg-[#121110] border border-[#262320] rounded p-2.5 flex flex-col gap-2">
+        <div class="flex items-center justify-between pb-1.5 border-b border-[#221f1d]">
+          <span class="text-xs font-semibold text-[#f4f4f0] truncate"><%= track[:name] %></span>
+          <span class="px-1.5 py-0.5 rounded bg-[#231911] border border-[#5c3d1e] font-mono text-[9px] text-[#f59e0b]"><%= track[:badge] %></span>
+        </div>
+
+        <% [ "SCENE 01 · INTRO DRONE", "SCENE 02 · SUB DROP", "SCENE 03 · BREAK ROLL", "SCENE 04 · OUTRO DUB" ].each_with_index do |scene_label, idx| %>
+          <% clip = track[:clips][idx] %>
+          <button type="button"
+                  data-action="click->workstation#triggerSessionClip"
+                  data-clip-name="<%= clip ? clip[:title] : scene_label %>"
+                  class="h-14 rounded p-2 text-left flex flex-col justify-between transition-all cursor-pointer <%= clip ? 'bg-[#171d1c] border border-[#14b8a6]/50 hover:border-[#2dd4bf]' : 'bg-[#161514] border border-[#221f1d] hover:border-[#4a3520]' %>">
+            <div class="flex items-center justify-between w-full">
+              <span class="font-mono text-[10px] font-semibold <%= clip ? 'text-[#2dd4bf]' : 'text-[#8e8a83]' %> truncate">
+                <%= clip ? clip[:title] : "EMPTY SLOT #{idx + 1}" %>
+              </span>
+              <span class="text-[10px] <%= clip ? 'text-[#f59e0b]' : 'text-[#52525b]' %>">▷</span>
+            </div>
+            <span class="font-mono text-[9px] text-[#8e8a83]">
+              <%= clip ? "#{clip[:length_bars].to_i} Bars · Loop Q: 1 Bar" : "Click to arm sketch" %>
+            </span>
+          </button>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%# Master Scene Launchers %>
+    <div class="bg-[#121110] border border-[#3a2a1a] rounded p-2.5 flex flex-col gap-2">
+      <div class="flex items-center justify-between pb-1.5 border-b border-[#221f1d]">
+        <span class="text-xs font-semibold text-[#f59e0b] font-mono">MASTER SCENES</span>
+        <span class="font-mono text-[9px] text-[#8e8a83]">QUANT 1 BAR</span>
+      </div>
+      <% [ "01 · BHAIRAV INTRO", "02 · 808 PEAK DROP", "03 · GRANULAR BRIDGE", "04 · ANALOG FINALE" ].each_with_index do |scene, idx| %>
+        <button type="button"
+                data-action="click->workstation#launchMasterScene"
+                data-scene-name="<%= scene %>"
+                class="h-14 rounded px-3 bg-[#1a140f] border border-[#4a3520] hover:border-[#f59e0b] flex items-center justify-between text-left cursor-pointer transition-colors">
+          <div>
+            <div class="font-mono text-[10px] font-bold text-[#f4f4f0]"><%= scene %></div>
+            <div class="font-mono text-[9px] text-[#8e8a83]">128.0 BPM · 4/4</div>
+          </div>
+          <span class="w-6 h-6 rounded-full bg-[#231911] border border-[#d97706] text-[#f59e0b] flex items-center justify-center text-xs">▶</span>
+        </button>
+      <% end %>
+    </div>
+  </div>
+</div>
+
