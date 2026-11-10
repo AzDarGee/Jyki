@@ -575,11 +575,12 @@ export default class extends Controller {
   // Append Empty Track (Audio / MIDI / Bus) via Turbo Stream + Timeline Sync
   async addEmptyTrack(event) {
     const kind = event.currentTarget.dataset.trackKind || "audio"
-    const existingIds = this.hasTrackHeadersListTarget
-      ? Array.from(this.trackHeadersListTarget.children).map((el) => Number(el.dataset.trackId) || 0)
-      : []
-    const currentCount = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1
+    const currentCount = this.hasTrackHeadersListTarget
+      ? this.trackHeadersListTarget.children.length + 1
+      : 1
 
+    let createdTrackId = null
+    let createdTrackName = null
     const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
     try {
       const response = await fetch("/workstation/tracks", {
@@ -614,13 +615,22 @@ export default class extends Controller {
     this.syncTrackRowsCollapseState(this.trackHeadersOpenValue)
     this.closeCollapsedTrackMenu()
 
-    if (this.hasTrackCountTarget && this.hasTrackHeadersListTarget) {
-      this.trackCountTarget.textContent = String(this.trackHeadersListTarget.children.length)
+    if (this.hasTrackHeadersListTarget) {
+      const lastChild = this.trackHeadersListTarget.lastElementChild
+      if (lastChild) {
+        createdTrackId = Number(lastChild.dataset.trackId) || null
+        createdTrackName = lastChild.dataset.trackName || null
+      }
+      if (this.hasTrackCountTarget) {
+        this.trackCountTarget.textContent = String(this.trackHeadersListTarget.children.length)
+      }
     }
 
     if (this.hasTimelineCanvasTarget) {
       this.timelineCanvasTarget.dispatchEvent(
-        new CustomEvent("daw-timeline:add-track", { detail: { kind, index: currentCount } })
+        new CustomEvent("daw-timeline:add-track", {
+          detail: { id: createdTrackId, name: createdTrackName, kind, index: currentCount }
+        })
       )
     }
     this.ensureRootUrlLocked()

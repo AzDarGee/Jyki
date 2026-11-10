@@ -4,15 +4,106 @@ class WorkstationController < ApplicationController
   before_action :set_isolation_headers
   before_action :load_workstation_state, only: [ :index ]
 
+  WORKSTATION_PROJECT_NAME = "Jaku Workstation Session"
+
+  DEFAULT_WORKSTATION_TRACKS = [
+    {
+      name: "01. Sub Bass 808",
+      short_name: "01. Sub Bass 808",
+      mixer_name: "01. Sub Bass 808",
+      track_type: "audio",
+      position: 0,
+      color_hex: "#14b8a6",
+      volume_db: -1.1,
+      pan: 0.0,
+      muted: false,
+      soloed: false,
+      armed: true,
+      nr: true,
+      fx_active: 4,
+      fx_total: 4,
+      wave_style: "sub808",
+      clips: [
+        { title: "808 SUB GLIDE A", start_bar: 1.0, length_bars: 2.0, color: "cyan" },
+        { title: "808 SUB GLIDE B", start_bar: 3.0, length_bars: 2.0, color: "cyan" },
+        { title: "808 DROP PEAK", start_bar: 5.0, length_bars: 3.0, color: "cyan" }
+      ]
+    },
+    {
+      name: "02. Prophet-6 Poly Synth",
+      short_name: "02. Prophet-6 Po...",
+      mixer_name: "02. Prophet-6 Poly ...",
+      track_type: "midi",
+      position: 1,
+      color_hex: "#f59e0b",
+      volume_db: -2.4,
+      pan: -0.36,
+      muted: false,
+      soloed: false,
+      armed: false,
+      nr: false,
+      fx_active: 2,
+      fx_total: 3,
+      wave_style: "midiArp",
+      clips: [
+        { title: "MIDI ARP PATTERN 01", start_bar: 1.0, length_bars: 4.0, color: "amber" },
+        { title: "MIDI COUNTER LEAD", start_bar: 5.0, length_bars: 3.0, color: "amber" }
+      ]
+    },
+    {
+      name: "03. Granular Texture Pad",
+      short_name: "03. Granular Text...",
+      mixer_name: "03. Granular Textu...",
+      track_type: "audio",
+      position: 2,
+      color_hex: "#2dd4bf",
+      volume_db: -2.9,
+      pan: 0.44,
+      muted: false,
+      soloed: false,
+      armed: false,
+      nr: true,
+      fx_active: 3,
+      fx_total: 3,
+      wave_style: "granular",
+      clips: [
+        { title: "ATMOS FOIL STEM", start_bar: 2.0, length_bars: 3.0, color: "teal" },
+        { title: "VOCAL RESAMPLE GRAIN", start_bar: 5.0, length_bars: 3.0, color: "teal" }
+      ]
+    },
+    {
+      name: "04. Analog Drum Bus",
+      short_name: "04. Analog Drum ...",
+      mixer_name: "04. Analog Drum Bus",
+      track_type: "bus",
+      position: 3,
+      color_hex: "#ea580c",
+      volume_db: -0.7,
+      pan: 0.0,
+      muted: false,
+      soloed: false,
+      armed: false,
+      nr: false,
+      fx_active: 2,
+      fx_total: 2,
+      wave_style: "drumBus",
+      clips: [
+        { title: "BREAKBEAT TRANSIENT LOOP", start_bar: 1.0, length_bars: 7.0, color: "terracotta" }
+      ]
+    }
+  ].freeze
+
   def index
   end
 
   def create_track
+    project = ensure_workstation_project!
     track_params = params.expect(track: [ :kind, :name ])
     kind = track_params[:kind].to_s.downcase
     kind = "audio" unless [ "audio", "midi", "bus" ].include?(kind)
 
-    next_index = (params[:current_count] || 5).to_i
+    next_pos = (project.tracks.maximum(:position) || -1) + 1
+    next_index = (params[:current_count].presence || (project.tracks.count + 1)).to_i
     formatted_num = format("%02d", next_index)
 
     default_names = {
@@ -20,27 +111,35 @@ class WorkstationController < ApplicationController
       "midi" => "Synth Lead #{next_index}",
       "bus" => "Aux Group #{next_index}"
     }
-    badge_map = { "audio" => "AUDIO", "midi" => "MIDI", "bus" => "BUS" }
+    color_map = { "audio" => "#14b8a6", "midi" => "#f59e0b", "bus" => "#ea580c" }
+    wave_map = { "audio" => "sub808", "midi" => "midiArp", "bus" => "drumBus" }
 
-    @new_track = {
-      id: next_index,
-      number: formatted_num,
-      name: track_params[:name].presence || "#{formatted_num}. #{default_names[kind]}",
-      short_name: track_params[:name].presence || "#{formatted_num}. #{default_names[kind]}",
-      kind: kind,
-      badge: badge_map[kind],
-      gain_db: 0.0,
-      pan: 0,
+    track_name = track_params[:name].presence || "#{formatted_num}. #{default_names[kind]}"
+    nr_enabled = kind == "audio"
+
+    db_track = project.tracks.create!(
+      name: track_name,
+      track_type: kind,
+      position: next_pos,
+      color_hex: color_map[kind] || "#f59e0b",
+      volume_db: 0.0,
+      pan: 0.0,
       muted: false,
       soloed: false,
       armed: false,
-      nr: kind == "audio",
-      fx_active: 1,
-      fx_total: 4,
-      mode_badge: kind == "audio" ? "NR ON" : "DIRECT",
-      clips: []
-    }
+      input_routing_jsonb: {
+        "number" => formatted_num,
+        "short_name" => track_name,
+        "mixer_name" => track_name,
+        "nr" => nr_enabled,
+        "fx_active" => 1,
+        "fx_total" => 4,
+        "wave_style" => wave_map[kind],
+        "clips" => []
+      }
+    )
 
+    @new_track = build_workstation_track_hash(db_track, next_index, selected: false)
     collapsed = ActiveModel::Type::Boolean.new.cast(params[:collapsed])
 
     respond_to do |format|
@@ -64,6 +163,7 @@ class WorkstationController < ApplicationController
 
   def destroy_track
     track_id = params[:id].to_i
+    Track.find_by(id: track_id)&.destroy
 
     respond_to do |format|
       format.turbo_stream do
@@ -79,6 +179,27 @@ class WorkstationController < ApplicationController
 
   def update_mixer
     mixer_params = params.expect(mixer: [ :track_id, :gain_db, :pan, :muted, :soloed, :armed, :nr ])
+    track = Track.find_by(id: mixer_params[:track_id])
+
+    if track
+      updates = {}
+      updates[:volume_db] = mixer_params[:gain_db].to_f if mixer_params.key?(:gain_db)
+      if mixer_params.key?(:pan)
+        pan_val = mixer_params[:pan].to_f
+        updates[:pan] = (pan_val.abs > 1.0 ? pan_val / 50.0 : pan_val).clamp(-1.0, 1.0)
+      end
+      updates[:muted] = ActiveModel::Type::Boolean.new.cast(mixer_params[:muted]) if mixer_params.key?(:muted)
+      updates[:soloed] = ActiveModel::Type::Boolean.new.cast(mixer_params[:soloed]) if mixer_params.key?(:soloed)
+      updates[:armed] = ActiveModel::Type::Boolean.new.cast(mixer_params[:armed]) if mixer_params.key?(:armed)
+
+      if mixer_params.key?(:nr)
+        routing = (track.input_routing_jsonb || {}).dup
+        routing["nr"] = ActiveModel::Type::Boolean.new.cast(mixer_params[:nr])
+        updates[:input_routing_jsonb] = routing
+      end
+
+      track.update(updates) if updates.any?
+    end
 
     respond_to do |format|
       format.json do
@@ -188,100 +309,10 @@ class WorkstationController < ApplicationController
         }
       ]
 
-      @tracks = [
-        {
-          id: 1,
-          number: "01",
-          name: "01. Sub Bass 808",
-          short_name: "01. Sub Bass 808",
-          mixer_name: "01. Sub Bass 808",
-          kind: "audio",
-          badge: "AUDIO",
-          gain_db: -1.1,
-          pan: 0,
-          muted: false,
-          soloed: false,
-          armed: true,
-          nr: true,
-          selected: true,
-          fx_active: 4,
-          fx_total: 4,
-          mode_badge: "NR ON",
-          clips: [
-            { title: "808 SUB GLIDE A", start_bar: 1.0, length_bars: 2.0, color: "cyan" },
-            { title: "808 SUB GLIDE B", start_bar: 3.0, length_bars: 2.0, color: "cyan" },
-            { title: "808 DROP PEAK", start_bar: 5.0, length_bars: 3.0, color: "cyan" }
-          ]
-        },
-        {
-          id: 2,
-          number: "02",
-          name: "02. Prophet-6 Poly Synth",
-          short_name: "02. Prophet-6 Po...",
-          mixer_name: "02. Prophet-6 Poly ...",
-          kind: "midi",
-          badge: "MIDI",
-          gain_db: -2.4,
-          pan: -18,
-          muted: false,
-          soloed: false,
-          armed: false,
-          nr: false,
-          selected: false,
-          fx_active: 2,
-          fx_total: 3,
-          mode_badge: "DIRECT",
-          clips: [
-            { title: "MIDI ARP PATTERN 01", start_bar: 1.0, length_bars: 4.0, color: "amber" },
-            { title: "MIDI COUNTER LEAD", start_bar: 5.0, length_bars: 3.0, color: "amber" }
-          ]
-        },
-        {
-          id: 3,
-          number: "03",
-          name: "03. Granular Texture Pad",
-          short_name: "03. Granular Text...",
-          mixer_name: "03. Granular Textu...",
-          kind: "audio",
-          badge: "AUDIO",
-          gain_db: -2.9,
-          pan: 22,
-          muted: false,
-          soloed: false,
-          armed: false,
-          nr: true,
-          selected: false,
-          fx_active: 3,
-          fx_total: 3,
-          mode_badge: "NR ON",
-          clips: [
-            { title: "ATMOS FOIL STEM", start_bar: 2.0, length_bars: 3.0, color: "teal" },
-            { title: "VOCAL RESAMPLE GRAIN", start_bar: 5.0, length_bars: 3.0, color: "teal" }
-          ]
-        },
-        {
-          id: 4,
-          number: "04",
-          name: "04. Analog Drum Bus",
-          short_name: "04. Analog Drum ...",
-          mixer_name: "04. Analog Drum Bus",
-          kind: "bus",
-          badge: "BUS",
-          gain_db: -0.7,
-          pan: 0,
-          muted: false,
-          soloed: false,
-          armed: false,
-          nr: false,
-          selected: false,
-          fx_active: 2,
-          fx_total: 2,
-          mode_badge: "DIRECT",
-          clips: [
-            { title: "BREAKBEAT TRANSIENT LOOP", start_bar: 1.0, length_bars: 7.0, color: "terracotta" }
-          ]
-        }
-      ]
+      project = ensure_workstation_project!
+      @tracks = project.tracks.order(:position, :id).each_with_index.map do |db_track, idx|
+        build_workstation_track_hash(db_track, idx + 1, selected: idx.zero?)
+      end
 
       @inserts = [
         { slot: 1, name: "Saanskara Sp...", full_name: "Saanskara Spanda EQ", type: "Stock DSP", cpu: "1.2%", active: true },
@@ -403,5 +434,103 @@ class WorkstationController < ApplicationController
 
       @chat_messages = StudioChatMessage.default_messages_for("project_room")
       @crdt_branches = CrdtBranch.default_branches
+    end
+
+    def ensure_workstation_project!
+      project = Project.find_by(name: WORKSTATION_PROJECT_NAME)
+
+      ActiveRecord::Base.transaction do
+        if project.nil?
+          owner = User.find_by(email: "saanskarastudios@gmail.com") || User.first
+          branch = CrdtBranch.find_by(name: "main") || CrdtBranch.first
+
+          project = Project.create!(
+            name: WORKSTATION_PROJECT_NAME,
+            user: owner,
+            crdt_branch: branch,
+            bpm: 128.0,
+            time_signature_numerator: 4,
+            time_signature_denominator: 4,
+            ppqn: 960,
+            sample_rate: 48000,
+            root_note: 60,
+            scale_name: "chromatic",
+            master_volume_db: 0.0,
+            swing_amount: 0.0,
+            workspace_mode: "daw",
+            theme_name: "midnight"
+          )
+        end
+
+        if project.tracks.empty?
+          DEFAULT_WORKSTATION_TRACKS.each_with_index do |attrs, idx|
+            formatted_num = format("%02d", idx + 1)
+            project.tracks.create!(
+              name: attrs[:name],
+              track_type: attrs[:track_type],
+              position: attrs[:position],
+              color_hex: attrs[:color_hex],
+              volume_db: attrs[:volume_db],
+              pan: attrs[:pan],
+              muted: attrs[:muted],
+              soloed: attrs[:soloed],
+              armed: attrs[:armed],
+              input_routing_jsonb: {
+                "number" => formatted_num,
+                "short_name" => attrs[:short_name],
+                "mixer_name" => attrs[:mixer_name],
+                "nr" => attrs[:nr],
+                "fx_active" => attrs[:fx_active],
+                "fx_total" => attrs[:fx_total],
+                "wave_style" => attrs[:wave_style],
+                "clips" => attrs[:clips].map(&:stringify_keys)
+              }
+            )
+          end
+        end
+      end
+
+      project
+    end
+
+    def build_workstation_track_hash(db_track, display_index, selected: false)
+      routing = db_track.input_routing_jsonb || {}
+      kind = [ "audio", "midi", "bus" ].include?(db_track.track_type) ? db_track.track_type : "audio"
+      badge_map = { "audio" => "AUDIO", "midi" => "MIDI", "bus" => "BUS" }
+      formatted_num = routing["number"].presence || format("%02d", display_index)
+      nr_enabled = routing.key?("nr") ? ActiveModel::Type::Boolean.new.cast(routing["nr"]) : (kind == "audio")
+      pan_int = (db_track.pan.to_f * 50.0).round
+
+      raw_clips = routing["clips"] || []
+      clips = raw_clips.map do |clip|
+        {
+          title: clip["title"] || clip[:title],
+          start_bar: (clip["start_bar"] || clip[:start_bar] || 1.0).to_f,
+          length_bars: (clip["length_bars"] || clip[:length_bars] || 2.0).to_f,
+          color: clip["color"] || clip[:color] || "cyan"
+        }
+      end
+
+      {
+        id: db_track.id,
+        number: formatted_num,
+        name: db_track.name,
+        short_name: routing["short_name"].presence || db_track.name,
+        mixer_name: routing["mixer_name"].presence || db_track.name,
+        kind: kind,
+        badge: badge_map[kind],
+        gain_db: db_track.volume_db.to_f.round(1),
+        pan: pan_int,
+        muted: db_track.muted,
+        soloed: db_track.soloed,
+        armed: db_track.armed,
+        nr: nr_enabled,
+        selected: selected,
+        fx_active: (routing["fx_active"] || 1).to_i,
+        fx_total: (routing["fx_total"] || 4).to_i,
+        mode_badge: nr_enabled ? "NR ON" : "DIRECT",
+        wave_style: routing["wave_style"].presence || (kind == "midi" ? "midiArp" : (kind == "bus" ? "drumBus" : "sub808")),
+        clips: clips
+      }
     end
 end

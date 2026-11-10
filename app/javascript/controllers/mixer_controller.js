@@ -28,12 +28,47 @@ export default class extends Controller {
   connect() {
     this.audioCtx = null
     this.trackNodes = new Map()
+    this.mixerDebounceTimers = new Map()
     this.boundTrackRemoved = this.onTrackRemoved.bind(this)
     this.element.addEventListener("mixer:track-removed", this.boundTrackRemoved)
   }
 
   disconnect() {
     this.element.removeEventListener("mixer:track-removed", this.boundTrackRemoved)
+    this.mixerDebounceTimers.forEach((timerId) => clearTimeout(timerId))
+    this.mixerDebounceTimers.clear()
+  }
+
+  persistMixerState(trackId, attrs, debounceMs = 150) {
+    if (!trackId) return
+    const key = `${trackId}:${Object.keys(attrs).join(",")}`
+    if (this.mixerDebounceTimers.has(key)) {
+      clearTimeout(this.mixerDebounceTimers.get(key))
+    }
+
+    const sendRequest = async () => {
+      this.mixerDebounceTimers.delete(key)
+      const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
+      try {
+        await fetch("/workstation/mixer", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-CSRF-Token": csrfToken || ""
+          },
+          body: JSON.stringify({ mixer: { track_id: trackId, ...attrs } })
+        })
+      } catch (_e) {
+        // Ignore network errors when offline
+      }
+    }
+
+    if (debounceMs <= 0) {
+      sendRequest()
+    } else {
+      this.mixerDebounceTimers.set(key, setTimeout(sendRequest, debounceMs))
+    }
   }
 
   onTrackRemoved(event) {
@@ -173,6 +208,8 @@ export default class extends Controller {
         el.value = String(dbValue)
       }
     })
+
+    this.persistMixerState(trackId, { gain_db: dbValue }, 150)
   }
 
   // Pan Slider Update + StereoPannerNode.pan.setTargetAtTime smoothing
@@ -201,6 +238,8 @@ export default class extends Controller {
         el.textContent = `PAN (${panVal})`
       }
     })
+
+    this.persistMixerState(trackId, { pan: panVal }, 150)
   }
 
   // Double-Click Fader Reset to 0.0 dB
@@ -251,6 +290,10 @@ export default class extends Controller {
         }
       })
     }
+
+    if (flag && flag !== "soloed") {
+      this.persistMixerState(trackId, { [flag]: active }, 0)
+    }
   }
 
   toggleSoloForTrack(trackId) {
@@ -287,6 +330,8 @@ export default class extends Controller {
         }`
       }
     })
+
+    this.persistMixerState(trackId, { soloed: active }, 0)
   }
 
   // Inserts Rack Actions

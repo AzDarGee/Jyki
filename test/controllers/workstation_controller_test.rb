@@ -71,49 +71,85 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-zone='mixer-console']", /INSERTS/
   end
 
-  test "appends a new track via turbo stream without redirecting URL" do
-    post workstation_tracks_url, params: { track: { kind: "audio" } }, as: :turbo_stream
+  test "appends a new track via turbo stream without redirecting URL and persists it in the database" do
+    get root_url
+    assert_response :success
+    initial_db_count = Track.count
+    assert_operator initial_db_count, :>=, 4
+
+    assert_difference -> { Track.count }, 1 do
+      post workstation_tracks_url, params: { track: { kind: "audio" } }, as: :turbo_stream
+    end
     assert_response :success
     assert_match(/turbo-stream/, response.media_type)
     assert_match(/data-workstation-target="expandedTrackContent"\s+class="flex/, response.body)
 
-    # When the Tracks panel is collapsed, adding a track (Audio / MIDI / Bus) renders it in collapsed state
+    created_track = Track.order(:id).last
+    assert_equal "audio", created_track.track_type
+    assert_includes response.body, "id=\"track_header_row_#{created_track.id}\""
+    assert_includes response.body, "id=\"mixer_channel_card_#{created_track.id}\""
+
+    # Reloading root URL renders the persisted track from the database
+    get root_url
+    assert_response :success
+    assert_select "#track_header_row_#{created_track.id}"
+    assert_select "#mixer_channel_card_#{created_track.id}"
+
+    # When the Tracks panel is collapsed, adding a track (Audio / MIDI / Bus) renders it in collapsed state and saves to DB
     [ "audio", "midi", "bus" ].each_with_index do |kind, idx|
-      post workstation_tracks_url, params: {
-        current_count: 5 + idx,
-        collapsed: true,
-        track: { kind: kind }
-      }, as: :turbo_stream
+      assert_difference -> { Track.count }, 1 do
+        post workstation_tracks_url, params: {
+          current_count: 5 + idx,
+          collapsed: true,
+          track: { kind: kind }
+        }, as: :turbo_stream
+      end
       assert_response :success
       assert_match(/turbo-stream/, response.media_type)
       assert_match(/data-workstation-target="expandedTrackContent"\s+class="hidden/, response.body)
       assert_match(/data-workstation-target="collapsedTrackContent"[\s\S]*?class="flex/, response.body)
+      assert_equal kind, Track.order(:id).last.track_type
     end
   end
 
-  test "deletes a track via turbo stream and json without redirecting URL" do
+  test "deletes a track via turbo stream and json without redirecting URL and removes it from the database" do
     get root_url
     assert_response :success
-    assert_select "#track_header_row_1 button[data-action*='deleteTrack']"
-    assert_select "#mixer_channel_card_1 button[data-action*='deleteTrack']"
+    first_track = Track.order(:position, :id).first
+    second_track = Track.order(:position, :id).second
+    assert_not_nil first_track
+    assert_not_nil second_track
 
-    delete workstation_track_url(1), as: :turbo_stream
+    assert_select "#track_header_row_#{first_track.id} button[data-action*='deleteTrack']"
+    assert_select "#mixer_channel_card_#{first_track.id} button[data-action*='deleteTrack']"
+
+    assert_difference -> { Track.count }, -1 do
+      delete workstation_track_url(first_track.id), as: :turbo_stream
+    end
     assert_response :success
     assert_match(/turbo-stream/, response.media_type)
-    assert_match(/action="remove" target="track_header_row_1"/, response.body)
-    assert_match(/action="remove" target="mixer_channel_card_1"/, response.body)
-    assert_match(/action="remove" target="ideas_track_column_1"/, response.body)
+    assert_match(/action="remove" target="track_header_row_#{first_track.id}"/, response.body)
+    assert_match(/action="remove" target="mixer_channel_card_#{first_track.id}"/, response.body)
+    assert_match(/action="remove" target="ideas_track_column_#{first_track.id}"/, response.body)
 
-    delete workstation_track_url(2), as: :json
+    assert_difference -> { Track.count }, -1 do
+      delete workstation_track_url(second_track.id), as: :json
+    end
     assert_response :success
     body = JSON.parse(response.body)
     assert_equal "ok", body["status"]
-    assert_equal 2, body["track_id"]
+    assert_equal second_track.id, body["track_id"]
   end
 
-  test "updates mixer state statelessly via turbo stream or json" do
-    patch workstation_mixer_url, params: { mixer: { track_id: 1, gain_db: -3.5, pan: 10 } }, as: :json
+  test "updates mixer state via turbo stream or json and persists to database" do
+    get root_url
+    track = Track.order(:position, :id).first
+    patch workstation_mixer_url, params: { mixer: { track_id: track.id, gain_db: -3.5, pan: 10, muted: true } }, as: :json
     assert_response :success
+    track.reload
+    assert_in_delta(-3.5, track.volume_db, 0.01)
+    assert_in_delta(0.2, track.pan, 0.01)
+    assert_equal true, track.muted
   end
 
   test "renders 6-deck Phase-Locked Parallel Beatgrid DJ workspace in #jaku_stage_body" do

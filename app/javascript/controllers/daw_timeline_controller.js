@@ -9,7 +9,8 @@ export default class extends Controller {
     zoom: { type: Number, default: 100 },
     autoLanes: { type: Boolean, default: true },
     playing: { type: Boolean, default: false },
-    bpm: { type: Number, default: 128 }
+    bpm: { type: Number, default: 128 },
+    tracks: { type: Array, default: [] }
   }
 
   initialize() {
@@ -27,6 +28,7 @@ export default class extends Controller {
 
   connect() {
     this.isReady = true
+    this.tracks = this.buildInitialTracks()
     this.initGpuBackends()
 
     this.boundResize = this.resizeAndRender.bind(this)
@@ -180,6 +182,59 @@ export default class extends Controller {
   }
 
   buildInitialTracks() {
+    if (this.hasTracksValue && Array.isArray(this.tracksValue) && this.tracksValue.length > 0) {
+      const waveMap = { audio: "sub808", midi: "midiArp", bus: "drumBus" }
+      const tintMap = { audio: "#14b8a6", midi: "#f59e0b", bus: "#ea580c" }
+      const bgMap = {
+        audio: "rgba(18, 45, 43, 0.55)",
+        midi: "rgba(48, 30, 20, 0.58)",
+        bus: "rgba(52, 26, 14, 0.60)"
+      }
+      const borderMap = { audio: "#1f5c54", midi: "#6b3e23", bus: "#7c3715" }
+
+      return this.tracksValue.map((t, idx) => {
+        const kind = t.kind || "audio"
+        const num = String(t.number || idx + 1).padStart(2, "0")
+        const rawClips = Array.isArray(t.clips) && t.clips.length > 0
+          ? t.clips.map((c) => {
+              const startBar = Number(c.start_bar || c.startBar || 1.0)
+              const lenBars = Number(c.length_bars || c.lengthBars || 2.0)
+              return {
+                title: c.title || `${kind.toUpperCase()} STEM ${num}`,
+                startBar,
+                endBar: c.endBar ? Number(c.endBar) : startBar + lenBars,
+                tint: tintMap[kind] || "#14b8a6",
+                bg: bgMap[kind] || "rgba(18, 45, 43, 0.55)",
+                border: borderMap[kind] || "#1f5c54"
+              }
+            })
+          : [
+              {
+                title: `${kind.toUpperCase()} STEM ${num}`,
+                startBar: 1.0,
+                endBar: 5.0,
+                tint: tintMap[kind] || "#14b8a6",
+                bg: bgMap[kind] || "rgba(18, 45, 43, 0.55)",
+                border: borderMap[kind] || "#1f5c54"
+              }
+            ]
+
+        return {
+          id: t.id || idx + 1,
+          name: t.name || `${num}. ${kind.toUpperCase()} Track`,
+          kind,
+          waveStyle: t.wave_style || waveMap[kind] || "sub808",
+          clips: rawClips,
+          automation: [
+            { bar: 1.25, value: 0.45 },
+            { bar: 2.95, value: 0.65 },
+            { bar: 4.85, value: 0.50 },
+            { bar: 6.75, value: 0.68 }
+          ]
+        }
+      })
+    }
+
     return [
       {
         id: 1,
@@ -424,7 +479,7 @@ export default class extends Controller {
   }
 
   onAddTrack(event) {
-    const { kind, index } = event.detail || {}
+    const { id, name, kind, index } = event.detail || {}
     const num = String(index || this.tracks.length + 1).padStart(2, "0")
     const waveMap = { audio: "sub808", midi: "midiArp", bus: "drumBus" }
     const tintMap = { audio: "#14b8a6", midi: "#f59e0b", bus: "#ea580c" }
@@ -436,8 +491,8 @@ export default class extends Controller {
     const borderMap = { audio: "#1f5c54", midi: "#6b3e23", bus: "#7c3715" }
 
     this.tracks.push({
-      id: index || this.tracks.length + 1,
-      name: `${num}. New ${kind.toUpperCase()} Track`,
+      id: id || index || this.tracks.length + 1,
+      name: name || `${num}. New ${kind.toUpperCase()} Track`,
       kind: kind || "audio",
       waveStyle: waveMap[kind] || "sub808",
       clips: [

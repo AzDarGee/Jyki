@@ -1,220 +1,482 @@
-<div class="daw-pwa-shell" id="saanskara-daw">
+<div class="daw-pwa-shell"
+     id="saanskara-daw"
+     data-controller="studio"
+     data-theme="<%= @project.theme_name %>"
+     data-studio-project-value="<%= @studio_payload_json %>">
 
-  <!-- 1. TOP TRANSPORT & THEME SWITCHER BAR -->
+  <!-- 1. TOP TRANSPORT, WORKSPACE MODE & RAGA THEME BAR -->
   <header class="daw-transport-bar">
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
       <span class="w-3 h-3 rounded-full animate-pulse" style="background-color: var(--saanskara-accent-alert)"></span>
-      <span class="font-bold tracking-wider uppercase text-sm">Saanskara Studio DAW</span>
-      <span class="text-xs px-2 py-0.5 rounded font-mono" style="background-color: var(--saanskara-bg-panel); color: var(--saanskara-text-muted)">
-        Rails <%= Rails.version %> • Zero-Node PWA
-      </span>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold tracking-wider uppercase text-sm">Saanskara Studio DAW</span>
+          <span class="text-xs px-2 py-0.5 rounded font-mono"
+                style="background-color: var(--saanskara-bg-panel); color: var(--saanskara-accent-primary)"
+                data-studio-target="projectName">
+            <%= @project.name %>
+          </span>
+        </div>
+        <div class="flex items-center gap-2 text-[11px] font-mono mt-0.5" style="color: var(--saanskara-text-muted)">
+          <span data-studio-target="saveStatus">✓ Saved • <%= @project.ppqn %> PPQN</span>
+          <span>•</span>
+          <span><%= @project.sample_rate / 1000 %>kHz</span>
+          <span>•</span>
+          <span data-studio-target="trackCountBadge"><%= @tracks.size %> Tracks</span>
+          <span>•</span>
+          <span data-studio-target="clipCountBadge"><%= @tracks.sum { |t| t.track_clips.size } %> Clips</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Digital Transport LCD -->
-    <div class="daw-lcd-readout">
-      <span>BPM <strong>120.0</strong></span>
-      <span class="opacity-40">|</span>
-      <span>TAAL <strong>4/4 (Teental)</strong></span>
-      <span class="opacity-40">|</span>
-      <span id="playhead-clock">001 : 02 : 038</span>
+    <!-- Transport Controls + Digital LCD Clock -->
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button"
+              id="toggle-playhead"
+              class="theme-pill-btn"
+              aria-pressed="true"
+              data-studio-target="playButton"
+              data-action="click->studio#togglePlay">
+        ⏸ Pause
+      </button>
+      <button type="button"
+              class="theme-pill-btn"
+              data-action="click->studio#stopTransport">
+        ⏹ Stop
+      </button>
+      <button type="button"
+              class="theme-pill-btn"
+              aria-pressed="true"
+              data-studio-target="loopButton"
+              data-action="click->studio#toggleLoop">
+        🔁 Loop 8B
+      </button>
+      <button type="button"
+              class="theme-pill-btn"
+              aria-pressed="false"
+              data-studio-target="synthButton"
+              data-action="click->studio#toggleSynth">
+        🔈 Synth Mute
+      </button>
+
+      <!-- Digital Transport LCD -->
+      <div class="daw-lcd-readout">
+        <label class="flex items-center gap-1.5">
+          <span>BPM</span>
+          <input type="number"
+                 step="0.5"
+                 min="40"
+                 max="240"
+                 value="<%= @project.bpm.to_f.round(1) %>"
+                 aria-label="Project BPM"
+                 data-studio-target="bpmInput"
+                 data-action="input->studio#changeBpm change->studio#changeBpm"
+                 class="w-16 bg-transparent font-bold text-center border rounded px-1 py-0.5"
+                 style="border-color: var(--saanskara-border-subtle); color: var(--saanskara-accent-primary)" />
+        </label>
+        <span class="opacity-40">|</span>
+        <span>TAAL <strong><%= @project.time_signature_numerator %>/<%= @project.time_signature_denominator %></strong></span>
+        <span class="opacity-40">|</span>
+        <label class="flex items-center gap-1">
+          <span>RAGA</span>
+          <select aria-label="Project Scale"
+                  data-studio-target="scaleSelect"
+                  data-action="change->studio#changeScale"
+                  class="bg-transparent font-bold uppercase text-xs cursor-pointer"
+                  style="color: var(--saanskara-accent-primary)">
+            <% [ "bhairavi", "yaman", "kafi", "todi", "chromatic" ].each do |scale| %>
+              <option value="<%= scale %>" <%= "selected" if @project.scale_name == scale %> style="background-color: #121110">
+                <%= scale.upcase %>
+              </option>
+            <% end %>
+          </select>
+        </label>
+        <span class="opacity-40">|</span>
+        <span id="playhead-clock" data-studio-target="clockReadout">001 : 01 : 000</span>
+      </div>
     </div>
 
-    <!-- Raga / Theme Switcher -->
-    <div class="flex items-center gap-2" role="group" aria-label="Studio Theme Switcher">
-      <span class="text-xs uppercase tracking-widest mr-1" style="color: var(--saanskara-text-muted)">Theme:</span>
-      <button type="button" class="theme-pill-btn" data-set-theme="midnight" aria-pressed="true">
-        🌙 Midnight Studio
-      </button>
-      <button type="button" class="theme-pill-btn" data-set-theme="saffron" aria-pressed="false">
-        🔥 Saffron Dusk
-      </button>
-      <button type="button" class="theme-pill-btn" data-set-theme="frost" aria-pressed="false">
-        ❄️ Ottawa Frost
-      </button>
+    <!-- Workspace Mode Switcher & Raga Theme Switcher -->
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex items-center gap-1.5" role="group" aria-label="Workspace Mode Switcher">
+        <button type="button"
+                class="theme-pill-btn"
+                data-studio-target="modeButton"
+                data-workspace-mode="daw"
+                aria-pressed="<%= @project.workspace_mode == 'daw' %>"
+                data-action="click->studio#switchWorkspaceMode">
+          🎛️ DAW Timeline
+        </button>
+        <button type="button"
+                class="theme-pill-btn"
+                data-studio-target="modeButton"
+                data-workspace-mode="dj_6deck"
+                aria-pressed="<%= @project.workspace_mode == 'dj_6deck' %>"
+                data-action="click->studio#switchWorkspaceMode">
+          💿 6-Deck DJ
+        </button>
+        <button type="button"
+                class="theme-pill-btn"
+                data-studio-target="modeButton"
+                data-workspace-mode="hybrid"
+                aria-pressed="<%= @project.workspace_mode == 'hybrid' %>"
+                data-action="click->studio#switchWorkspaceMode">
+          ⚡ Hybrid
+        </button>
+      </div>
+
+      <div class="flex items-center gap-1.5" role="group" aria-label="Studio Theme Switcher">
+        <button type="button"
+                class="theme-pill-btn"
+                data-studio-target="themeButton"
+                data-set-theme="midnight"
+                aria-pressed="<%= @project.theme_name == 'midnight' %>"
+                data-action="click->studio#switchTheme">
+          🌙 Midnight
+        </button>
+        <button type="button"
+                class="theme-pill-btn"
+                data-studio-target="themeButton"
+                data-set-theme="saffron"
+                aria-pressed="<%= @project.theme_name == 'saffron' %>"
+                data-action="click->studio#switchTheme">
+          🔥 Saffron
+        </button>
+        <button type="button"
+                class="theme-pill-btn"
+                data-studio-target="themeButton"
+                data-set-theme="frost"
+                aria-pressed="<%= @project.theme_name == 'frost' %>"
+                data-action="click->studio#switchTheme">
+          ❄️ Frost
+        </button>
+      </div>
     </div>
   </header>
 
-  <!-- 2. MAIN DAW WORKSPACE -->
-  <section class="daw-workspace">
+  <!-- 2. DAW ARRANGEMENT WORKSPACE -->
+  <section class="daw-workspace <%= 'hidden' if @project.workspace_mode == 'dj_6deck' %>"
+           id="daw-arrangement-panel"
+           data-studio-target="dawWorkspace">
 
-    <!-- Left Column: Channel Tracks & Live Theme Tokens Inspector -->
+    <!-- Left Column: Database Track Headers, Mixer Controls & Live CSS Token Inspector -->
     <aside class="daw-panel lg:col-span-1">
       <div>
-        <h2 class="text-xs font-bold uppercase tracking-widest mb-4" style="color: var(--saanskara-text-muted)">
-          Active Tracks
-        </h2>
-
-        <div class="track-row armed">
-          <div>
-            <div class="font-semibold">01 • Sitar Lead (Armed)</div>
-            <div class="text-xs" style="color: var(--saanskara-text-muted)">Input 1/2 • 48kHz</div>
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-xs font-bold uppercase tracking-widest" style="color: var(--saanskara-text-muted)">
+            Active Tracks (<%= @tracks.size %>)
+          </h2>
+          <div class="flex items-center gap-1">
+            <button type="button"
+                    class="theme-pill-btn !px-2 !py-1 !text-[11px]"
+                    data-track-type="audio"
+                    data-action="click->studio#addTrack">
+              + Audio
+            </button>
+            <button type="button"
+                    class="theme-pill-btn !px-2 !py-1 !text-[11px]"
+                    data-track-type="midi"
+                    data-action="click->studio#addTrack">
+              + MIDI
+            </button>
           </div>
-          <span class="px-2 py-0.5 text-xs font-mono rounded text-white" style="background-color: var(--saanskara-accent-alert)">REC</span>
         </div>
 
-        <div class="track-row">
-          <div>
-            <div class="font-semibold">02 • Tabla Groove</div>
-            <div class="text-xs" style="color: var(--saanskara-text-muted)">MIDI • Spanda Engine</div>
-          </div>
-          <span class="px-2 py-0.5 text-xs font-mono rounded" style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">M / S</span>
-        </div>
+        <div id="studio-track-list" data-studio-target="trackList">
+          <% @tracks.each do |track| %>
+            <div class="track-row <%= 'armed' if track.armed? %>"
+                 data-track-row-id="<%= track.id %>"
+                 style="border-left-color: <%= track.color_hex %>">
+              <div class="flex-1 min-w-0 pr-2">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-semibold truncate text-xs"><%= track.name %></span>
+                  <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-mono"
+                        style="background-color: var(--saanskara-bg-canvas); color: <%= track.color_hex %>">
+                    <%= track.track_type %>
+                  </span>
+                </div>
 
-        <div class="track-row">
-          <div>
-            <div class="font-semibold">03 • Sub Bass Drone</div>
-            <div class="text-xs" style="color: var(--saanskara-text-muted)">Synth • Tanpura Sub</div>
-          </div>
-          <span class="px-2 py-0.5 text-xs font-mono rounded" style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">M / S</span>
+                <div class="flex flex-wrap items-center gap-2 mt-1.5 text-[11px] font-mono" style="color: var(--saanskara-text-muted)">
+                  <label class="flex items-center gap-1">
+                    <span>Vol</span>
+                    <input type="range"
+                           min="-24"
+                           max="6"
+                           step="0.5"
+                           value="<%= track.volume_db %>"
+                           aria-label="<%= track.name %> Volume"
+                           data-track-id="<%= track.id %>"
+                           data-action="input->studio#changeTrackVolume"
+                           class="w-16 accent-amber-500 cursor-pointer" />
+                    <span data-track-volume-label="<%= track.id %>">
+                      <%= track.volume_db >= 0 ? "+#{track.volume_db.round(1)}" : track.volume_db.round(1) %> dB
+                    </span>
+                  </label>
+
+                  <label class="flex items-center gap-1">
+                    <span>Pan</span>
+                    <input type="range"
+                           min="-1"
+                           max="1"
+                           step="0.05"
+                           value="<%= track.pan %>"
+                           aria-label="<%= track.name %> Pan"
+                           data-track-id="<%= track.id %>"
+                           data-action="input->studio#changeTrackPan"
+                           class="w-12 accent-amber-500 cursor-pointer" />
+                    <span data-track-pan-label="<%= track.id %>">
+                      <%= track.pan.zero? ? "C" : (track.pan.negative? ? "L#{(track.pan.abs * 100).round}" : "R#{(track.pan * 100).round}") %>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-1">
+                <button type="button"
+                        class="daw-msr-btn <%= 'is-active' if track.muted? %>"
+                        title="Mute Track"
+                        data-track-id="<%= track.id %>"
+                        data-field="muted"
+                        aria-pressed="<%= track.muted? %>"
+                        data-action="click->studio#toggleTrackFlag">M</button>
+                <button type="button"
+                        class="daw-msr-btn <%= 'is-active' if track.soloed? %>"
+                        title="Solo Track"
+                        data-track-id="<%= track.id %>"
+                        data-field="soloed"
+                        aria-pressed="<%= track.soloed? %>"
+                        data-action="click->studio#toggleTrackFlag">S</button>
+                <button type="button"
+                        class="daw-msr-btn <%= 'is-active' if track.armed? %>"
+                        title="Record Arm Track"
+                        data-track-id="<%= track.id %>"
+                        data-field="armed"
+                        aria-pressed="<%= track.armed? %>"
+                        data-action="click->studio#toggleTrackFlag">R</button>
+              </div>
+            </div>
+          <% end %>
         </div>
       </div>
 
       <!-- Active CSS Variable Readout -->
-      <div class="mt-6 pt-4 border-t text-xs font-mono space-y-1.5" style="border-color: var(--saanskara-border-subtle); color: var(--saanskara-text-muted)">
-        <div class="uppercase font-bold mb-2">Live CSS Custom Props:</div>
+      <div class="mt-4 pt-3 border-t text-xs font-mono space-y-1.5"
+           style="border-color: var(--saanskara-border-subtle); color: var(--saanskara-text-muted)">
+        <div class="uppercase font-bold mb-1">Live CSS Custom Props:</div>
         <div class="flex justify-between">
           <span>--saanskara-bg-canvas:</span>
-          <span id="token-bg" class="font-bold" style="color: var(--saanskara-accent-primary)">#090d16</span>
+          <span id="token-bg"
+                data-studio-target="tokenBg"
+                class="font-bold"
+                style="color: var(--saanskara-accent-primary)">#0b0a09</span>
         </div>
         <div class="flex justify-between">
           <span>--saanskara-accent-primary:</span>
-          <span id="token-accent" class="font-bold" style="color: var(--saanskara-accent-primary)">#f59e0b</span>
+          <span id="token-accent"
+                data-studio-target="tokenAccent"
+                class="font-bold"
+                style="color: var(--saanskara-accent-primary)">#f59e0b</span>
         </div>
       </div>
     </aside>
 
-    <!-- Right Column (3 cols): DAW Timeline & Live HTML5 Canvas -->
+    <!-- Right Column (3 cols): Multi-Track DAW Arrangement Timeline & Live HTML5 Canvas -->
     <div class="daw-panel lg:col-span-3">
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div>
-          <h1 class="text-lg font-bold">DAW Canvas Timeline (`daw_canvas.scss`)</h1>
+          <h1 class="text-base font-bold">Multi-Track Arrangement Canvas (`960 PPQN` • Bars 1–8)</h1>
           <p class="text-xs" style="color: var(--saanskara-text-muted)">
-            Grid lines are pure SCSS (`theme("grid-bar")`), and the waveform below is an HTML5 <code>&lt;canvas&gt;</code> reading the exact same SCSS theme tokens at 60fps!
+            Click the top ruler to scrub playhead • Drag clips horizontally to move (`PATCH /track_clips/:id`) • Double-click an empty lane to create a 1-bar clip (`POST /tracks/:track_id/track_clips`).
           </p>
         </div>
-        <button type="button" id="toggle-playhead" class="theme-pill-btn">
-          ▶ Toggle Playhead
-        </button>
+
+        <div class="flex items-center gap-3 text-xs font-mono">
+          <label class="flex items-center gap-1.5">
+            <span style="color: var(--saanskara-text-muted)">Master Vol:</span>
+            <input type="range"
+                   min="-18"
+                   max="6"
+                   step="0.5"
+                   value="<%= @project.master_volume_db %>"
+                   aria-label="Master Volume dB"
+                   data-studio-target="masterVolumeInput"
+                   data-action="input->studio#changeMasterVolume"
+                   class="w-20 accent-amber-500 cursor-pointer" />
+            <span data-studio-target="masterVolumeDisplay" style="color: var(--saanskara-accent-primary)">
+              <%= @project.master_volume_db >= 0 ? "+#{@project.master_volume_db.round(1)}" : @project.master_volume_db.round(1) %> dB
+            </span>
+          </label>
+        </div>
       </div>
 
-      <!-- The SCSS Grid + HTML5 Waveform Canvas -->
-      <div class="daw-canvas-stage" id="timeline-stage">
-        <div class="playhead-line" id="playhead" style="left: 160px;"></div>
-        <canvas id="waveform-canvas" class="w-full h-full block"></canvas>
+      <!-- The SCSS Grid + Multi-Track HTML5 Arrangement Canvas -->
+      <div class="daw-canvas-stage"
+           id="timeline-stage"
+           data-studio-target="timelineStage">
+        <div class="playhead-line"
+             id="playhead"
+             data-studio-target="playheadLine"
+             style="left: 0px;"></div>
+        <canvas id="waveform-canvas"
+                data-studio-target="timelineCanvas"
+                data-action="pointerdown->studio#onCanvasPointerDown dblclick->studio#onCanvasDoubleClick"
+                class="w-full block cursor-crosshair"></canvas>
       </div>
 
-      <!-- Bottom Mixer Meter Bar -->
-      <div class="grid grid-cols-3 gap-4 mt-4 pt-4 border-t text-xs font-mono" style="border-color: var(--saanskara-border-subtle)">
+      <!-- Bottom Telemetry & Automation Summary Bar -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t text-xs font-mono"
+           style="border-color: var(--saanskara-border-subtle)">
         <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
-          <span style="color: var(--saanskara-text-muted)">ENGINE:</span>
-          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">Dart Sass → Tailwind v4</strong>
+          <span style="color: var(--saanskara-text-muted)">ENGINE & PIPELINE:</span>
+          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">
+            PostgreSQL JSONB/BYTEA → Canvas2D + WebAudio
+          </strong>
         </div>
         <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
-          <span style="color: var(--saanskara-text-muted)">THEME SWITCH LATENCY:</span>
-          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">0.0 ms (CSS Vars)</strong>
+          <span style="color: var(--saanskara-text-muted)">AUTOMATION LANES:</span>
+          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">
+            <%= @project.automation_lanes.size %> Active (<%= @project.automation_lanes.map(&:parameter_path).join(", ") %>)
+          </strong>
         </div>
         <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
-          <span style="color: var(--saanskara-text-muted)">ACTIVE RAGA:</span>
-          <strong id="active-theme-label" class="block mt-1 uppercase" style="color: var(--saanskara-accent-primary)">midnight</strong>
+          <span style="color: var(--saanskara-text-muted)">ACTIVE RAGA THEME:</span>
+          <strong id="active-theme-label"
+                  data-studio-target="activeThemeLabel"
+                  class="block mt-1 uppercase"
+                  style="color: var(--saanskara-accent-primary)"><%= @project.theme_name %></strong>
         </div>
       </div>
     </div>
+  </section>
 
+  <!-- 3. 6-DECK DJ WORKSTATION VIEW PANEL -->
+  <section class="px-6 pb-6 flex-1 flex flex-col gap-4 <%= 'hidden' if @project.workspace_mode == 'daw' %>"
+           id="dj-6deck-panel"
+           data-studio-target="djWorkspace">
+    <div class="daw-panel">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-base font-bold uppercase tracking-wider">
+            💿 6-Deck Phase-Locked Raga DJ Workstation
+          </h2>
+          <p class="text-xs" style="color: var(--saanskara-text-muted)">
+            6 independent decks mapped from PostgreSQL tracks (`deck_number: 1..6`) with live beatgrid waveforms, hot cues (`cue_points_jsonb`), pitch bend, and crossfader bus assignment.
+          </p>
+        </div>
+
+        <!-- Master Crossfader -->
+        <div class="flex items-center gap-3 px-4 py-2 rounded-lg font-mono text-xs"
+             style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
+          <span class="font-bold" style="color: var(--saanskara-accent-primary)">BUS A</span>
+          <input type="range"
+                 min="-1"
+                 max="1"
+                 step="0.02"
+                 value="0"
+                 aria-label="Master DJ Crossfader"
+                 data-studio-target="crossfaderInput"
+                 class="w-32 accent-amber-500 cursor-pointer" />
+          <span class="font-bold" style="color: var(--saanskara-accent-cyan)">BUS B</span>
+        </div>
+      </div>
+
+      <!-- 6-Deck 3x2 Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <% @tracks.first(6).each_with_index do |track, idx| %>
+          <% deck_num = track.deck_number || (idx + 1) %>
+          <% primary_sample = track.track_clips.detect(&:audio_sample)&.audio_sample %>
+          <% cue_points = primary_sample&.cue_points_jsonb.presence || [
+               { "slot" => 1, "tick" => 0, "label" => "CUE 1 • Sam", "color" => track.color_hex },
+               { "slot" => 2, "tick" => 3840, "label" => "CUE 2 • Drop", "color" => "#10b981" },
+               { "slot" => 3, "tick" => 7680, "label" => "CUE 3 • Alaap", "color" => "#38bdf8" },
+               { "slot" => 4, "tick" => 15360, "label" => "CUE 4 • Outro", "color" => "#ec4899" }
+             ] %>
+          <div class="dj-deck-card"
+               data-deck-number="<%= deck_num %>"
+               style="border-top: 3px solid <%= track.color_hex %>">
+            <!-- Deck Header -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="px-2 py-0.5 rounded text-xs font-mono font-bold text-black"
+                      style="background-color: <%= track.color_hex %>">
+                  DECK <%= deck_num %>
+                </span>
+                <span class="font-bold text-sm truncate"><%= track.name %></span>
+              </div>
+              <span class="text-xs font-mono px-2 py-0.5 rounded"
+                    data-deck-bpm-label="<%= track.id %>"
+                    style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
+                <%= (primary_sample&.detected_bpm || @project.bpm).to_f.round(2) %> BPM
+              </span>
+            </div>
+
+            <!-- Deck Waveform Strip Canvas -->
+            <div class="rounded overflow-hidden p-1"
+                 style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
+              <canvas class="w-full h-14 block"
+                      data-studio-target="deckCanvas"
+                      data-track-id="<%= track.id %>"></canvas>
+            </div>
+
+            <!-- 4 Hot Cue Pads (cue_points_jsonb) -->
+            <div class="grid grid-cols-2 gap-1.5">
+              <% cue_points.first(4).each do |cue| %>
+                <button type="button"
+                        class="dj-cue-pad"
+                        style="border-left: 3px solid <%= cue['color'] || track.color_hex %>"
+                        data-cue-tick="<%= cue['tick'] || 0 %>"
+                        data-action="click->studio#jumpToCuePoint">
+                  <%= cue["label"] || "CUE #{cue['slot']}" %>
+                </button>
+              <% end %>
+            </div>
+
+            <!-- Pitch Fader, Volume Fader & Crossfader Bus Assignment -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t text-[11px] font-mono"
+                 style="border-color: var(--saanskara-border-subtle); color: var(--saanskara-text-muted)">
+              <label class="flex items-center gap-1">
+                <span>Pitch</span>
+                <input type="range"
+                       min="-8"
+                       max="8"
+                       step="0.1"
+                       value="0"
+                       aria-label="Deck <%= deck_num %> Pitch Tempo"
+                       data-track-id="<%= track.id %>"
+                       data-deck-pitch="<%= track.id %>"
+                       data-action="input->studio#changeDeckPitch"
+                       class="w-16 accent-amber-500 cursor-pointer" />
+              </label>
+
+              <label class="flex items-center gap-1">
+                <span>Gain</span>
+                <input type="range"
+                       min="-24"
+                       max="6"
+                       step="0.5"
+                       value="<%= track.volume_db %>"
+                       aria-label="Deck <%= deck_num %> Gain"
+                       data-track-id="<%= track.id %>"
+                       data-action="input->studio#changeTrackVolume"
+                       class="w-16 accent-amber-500 cursor-pointer" />
+              </label>
+
+              <div class="flex items-center gap-1">
+                <button type="button"
+                        class="theme-pill-btn !px-2 !py-0.5 !text-[10px]"
+                        data-track-id="<%= track.id %>"
+                        data-action="click->studio#syncDeckToMaster">
+                  SYNC
+                </button>
+                <span class="px-1.5 py-0.5 rounded text-[10px]"
+                      style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-text-main)">
+                  XF: <%= deck_num.odd? ? "A" : "B" %>
+                </span>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
   </section>
 </div>
-
-<script>
-    (() => {
-        const root = document.documentElement;
-        const buttons = document.querySelectorAll("[data-set-theme]");
-        const canvas = document.getElementById("waveform-canvas");
-        const ctx = canvas.getContext("2d");
-        const playhead = document.getElementById("playhead");
-        const toggleBtn = document.getElementById("toggle-playhead");
-
-        let isPlaying = true;
-        let playheadX = 160;
-        let phase = 0;
-
-        // Read live SCSS theme variables straight from the DOM!
-        function getThemeToken(name) {
-            return getComputedStyle(root).getPropertyValue(`--saanskara-${name}`).trim();
-        }
-
-        function updateTokenInspector(themeName) {
-            document.getElementById("token-bg").textContent = getThemeToken("bg-canvas");
-            document.getElementById("token-accent").textContent = getThemeToken("accent-primary");
-            document.getElementById("active-theme-label").textContent = themeName;
-        }
-
-        // Theme switcher click handler
-        buttons.forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const theme = btn.dataset.setTheme;
-                root.setAttribute("data-theme", theme);
-                buttons.forEach((b) => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
-                requestAnimationFrame(() => updateTokenInspector(theme));
-            });
-        });
-
-        // Resize canvas cleanly
-        function resizeCanvas() {
-            canvas.width = canvas.clientWidth * window.devicePixelRatio;
-            canvas.height = canvas.clientHeight * window.devicePixelRatio;
-        }
-        window.addEventListener("resize", resizeCanvas);
-        resizeCanvas();
-
-        // Toggle playhead animation
-        toggleBtn.addEventListener("click", () => {
-            isPlaying = !isPlaying;
-            toggleBtn.textContent = isPlaying ? "⏸ Pause Playhead" : "▶ Resume Playhead";
-        });
-
-        // Draw 60fps synthesized waveform using live SCSS Theme colors!
-        function renderLoop() {
-            const w = canvas.width;
-            const h = canvas.height;
-            ctx.clearRect(0, 0, w, h);
-
-            const accent = getThemeToken("accent-primary") || "#f59e0b";
-            const alertColor = getThemeToken("accent-alert") || "#e11d48";
-
-            // Draw primary harmonic wave
-            ctx.beginPath();
-            ctx.strokeStyle = accent;
-            ctx.lineWidth = 2.5 * window.devicePixelRatio;
-
-            for (let x = 0; x < w; x += 3) {
-                const envelope = Math.sin((x / w) * Math.PI);
-                const y = h / 2 + Math.sin(x * 0.025 + phase) * Math.cos(x * 0.008 - phase * 0.5) * (h * 0.34) * envelope;
-                x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-
-            // Draw secondary subtle overtone wave
-            ctx.beginPath();
-            ctx.strokeStyle = alertColor;
-            ctx.globalAlpha = 0.45;
-            ctx.lineWidth = 1.5 * window.devicePixelRatio;
-            for (let x = 0; x < w; x += 4) {
-                const y = h / 2 + Math.cos(x * 0.04 - phase * 1.3) * (h * 0.18);
-                x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
-
-            if (isPlaying) {
-                phase += 0.04;
-                const stageWidth = document.getElementById("timeline-stage").clientWidth;
-                playheadX = (playheadX + 1.5) % stageWidth;
-                playhead.style.left = `${playheadX}px`;
-            }
-
-            requestAnimationFrame(renderLoop);
-        }
-
-        updateTokenInspector("midnight");
-        renderLoop();
-    })();
-</script>

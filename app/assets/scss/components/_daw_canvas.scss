@@ -71,7 +71,7 @@
           linear-gradient(to right, theme("grid-bar") 1px, transparent 1px),
           linear-gradient(to right, theme("grid-beat") 1px, transparent 1px);
   background-size: $daw-grid-bar-width 100%, $daw-grid-beat-width 100%;
-  @apply relative rounded-lg overflow-hidden h-56 flex items-center;
+  @apply relative rounded-lg overflow-hidden min-h-56 flex items-stretch;
 
   .playhead-line {
     background-color: theme("accent-primary");
@@ -82,10 +82,43 @@
 
 .track-row {
   background-color: theme("bg-panel");
+  border: 1px solid theme("border-subtle");
   border-left: 4px solid theme("accent-primary");
-  @apply flex items-center justify-between p-3 rounded-r-lg mb-3 text-sm;
+  @apply flex items-center justify-between p-2.5 rounded-r-lg mb-2.5 text-sm transition-colors;
 
   &.armed {
     border-left-color: theme("accent-alert");
+  }
+}
+
+.daw-msr-btn {
+  background-color: theme("bg-canvas");
+  border: 1px solid theme("border-subtle");
+  color: theme("text-muted");
+  @apply w-6 h-6 rounded text-[11px] font-mono font-bold flex items-center justify-center cursor-pointer transition-all;
+
+  &:hover,
+  &[aria-pressed="true"],
+  &.is-active {
+    background-color: theme("bg-active");
+    border-color: theme("accent-primary");
+    color: theme("accent-primary");
+  }
+}
+
+.dj-deck-card {
+  background-color: theme("bg-panel");
+  border: 1px solid theme("border-subtle");
+  @apply rounded-xl p-4 flex flex-col justify-between gap-3 shadow-md transition-colors;
+}
+
+.dj-cue-pad {
+  background-color: theme("bg-canvas");
+  border: 1px solid theme("border-subtle");
+  color: theme("text-main");
+  @apply px-2 py-1.5 rounded text-[10px] font-mono font-semibold text-left truncate cursor-pointer transition-all;
+
+  &:hover {
+    border-color: theme("accent-primary");
   }
 }
