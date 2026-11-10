@@ -6,7 +6,7 @@ default: &default
 development:
   primary: &primary_development
   <<: *default
-  database: jyki_development
+  url: <%= Rails.application.credentials.dig(:database, :dev, :url) %>
   cache:
     <<: *primary_development
 #    database: jyki_development_cache
