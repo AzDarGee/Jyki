@@ -146,10 +146,32 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     assert_select "#studio_auth_drawer", /Not Signed In/
     assert_select "#studio_auth_drawer button", /Sign Up \(New Producer\)/
     assert_select "#studio_auth_drawer button", /Sign In \(Existing\)/
-    assert_select "#studio_auth_drawer", /Sign Up with Google/
+    assert_select "#studio_auth_drawer form[action='#{user_google_oauth2_omniauth_authorize_path}'][method='post'] button[type='submit']", /Sign Up with Google/
     assert_select "#studio_auth_drawer", /OR WITH EMAIL & USERNAME/
     assert_select "#studio_auth_drawer", /Studio Master \(192kHz \/ 64-bit\)/
     assert_select "#studio_auth_drawer button[type='submit']", /Sign Up with Email & Username/
+  end
+
+  test "authenticates via Google OAuth2 callback and handles failure gracefully" do
+    OmniAuth.config.test_mode = true
+    OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
+      provider: "google_oauth2",
+      uid: "google-uid-42",
+      info: {
+        email: "raga_master@gmail.com",
+        name: "Raga Master",
+        image: "https://lh3.googleusercontent.com/a/raga-master"
+      }
+    )
+
+    get user_google_oauth2_omniauth_callback_url
+    assert_redirected_to root_path
+    follow_redirect!
+    assert_response :success
+    assert_select "#top_bar_auth_badge", /@raga_master/
+  ensure
+    OmniAuth.config.mock_auth[:google_oauth2] = nil
+    OmniAuth.config.test_mode = false
   end
 
   test "registers a new producer via Devise turbo stream without redirecting URL" do

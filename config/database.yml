@@ -46,6 +46,8 @@ test:
 production:
   primary: &primary_production
     <<: *default
+    host: <%= Rails.application.credentials.dig(:database, :prod, :host) %>
+    port: <%= Rails.application.credentials.dig(:database, :prod, :port) %>
     username: <%= Rails.application.credentials.dig(:database, :prod, :username) %>
     database: <%= Rails.application.credentials.dig(:database, :prod, :database) %>
 #    url: <%#= Rails.application.credentials.dig(:database, :prod, :url) %>

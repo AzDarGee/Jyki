@@ -27,7 +27,7 @@ class User < ApplicationRecord
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable,
          :confirmable, :lockable, :timeoutable, :trackable,
-         :omniauthable, omniauth_providers: [ :google_oauth2 ], stretches: 8
+         :omniauthable, omniauth_providers: [ :google_oauth2 ], stretches: 10
 
   normalizes :email, with: ->(e) { e.to_s.strip.downcase }
   normalizes :username, with: ->(u) { u.to_s.strip.sub(/\A@/, "").downcase }
@@ -120,21 +120,40 @@ class User < ApplicationRecord
   end
 
   def self.from_omniauth(auth)
-    where(provider: auth.provider, uid: auth.uid).first_or_initialize.tap do |user|
-      if user.new_record?
-        user.email = auth.info.email
-        base_handle = auth.info.email.to_s.split("@").first.to_s.gsub(/[^a-zA-Z0-9_]/, "_").downcase
-        user.username = base_handle.presence || "producer_#{SecureRandom.hex(3)}"
-        user.display_name = auth.info.name.presence || user.username.titleize
-        user.password = Devise.friendly_token[0, 20]
-        user.studio_plan_tier = "studio_master_192_64"
-        user.studio_plan = "studio_master"
-        user.project_role = "owner"
-        user.role = "OWNER"
-        user.skip_confirmation! if user.respond_to?(:skip_confirmation!)
-        user.save
+    email = auth&.info&.email.to_s.strip.downcase
+    user = find_by(provider: auth.provider, uid: auth.uid)
+    user ||= find_by(email: email) if email.present?
+    user ||= new
+
+    user.provider = auth.provider
+    user.uid = auth.uid
+    user.email = email if user.email.blank? && email.present?
+    user.avatar_url = auth&.info&.image if auth&.info&.image.present?
+
+    if user.new_record?
+      base_handle = email.split("@").first.to_s.gsub(/[^a-z0-9_]/, "_").squeeze("_").gsub(/\A_|_\z/, "")
+      base_handle = "producer_#{SecureRandom.hex(3)}" if base_handle.length < 2
+      base_handle = base_handle.slice(0, 32)
+
+      candidate = base_handle
+      while where("LOWER(username) = ?", candidate).exists?
+        candidate = "#{base_handle}_#{SecureRandom.hex(2)}"
       end
+
+      user.username = candidate
+      user.display_name = auth&.info&.name.presence || candidate.titleize
+      user.password = Devise.friendly_token[0, 20]
+      user.studio_plan_tier = "studio_master_192_64"
+      user.studio_plan = "studio_master"
+      user.project_role = "owner"
+      user.role = "OWNER"
+    elsif auth&.info&.name.present? && (user.display_name.blank? || user.display_name == "Saanskara")
+      user.display_name = auth.info.name
     end
+
+    user.skip_confirmation! if user.respond_to?(:skip_confirmation!) && user.confirmed_at.blank?
+    user.save if user.new_record? || user.changed?
+    user
   end
 
   private
