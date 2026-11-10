@@ -63,9 +63,16 @@
     <div class="py-2 flex items-center justify-between">
       <span class="text-[#7c7872] uppercase">PROFILE PHOTO</span>
       <div class="flex items-center gap-1.5">
-        <span class="w-4 h-4 rounded-full border border-[#5c3d1e] bg-gradient-to-br from-[#fef3c7] via-[#f59e0b] to-[#78350f] inline-flex items-center justify-center text-[8px] text-[#1c1309] font-bold">
-          ☀
-        </span>
+        <% if producer.avatar_url.present? %>
+          <img src="<%= producer.avatar_url %>"
+               alt=""
+               referrerpolicy="no-referrer"
+               class="w-4 h-4 rounded-full border border-[#5c3d1e] object-cover">
+        <% else %>
+          <span class="w-4 h-4 rounded-full border border-[#5c3d1e] bg-gradient-to-br from-[#fef3c7] via-[#f59e0b] to-[#78350f] inline-flex items-center justify-center text-[8px] text-[#1c1309] font-bold">
+            ☀
+          </span>
+        <% end %>
         <span class="text-[#2dd4bf] font-semibold uppercase">MAPPED</span>
       </div>
     </div>

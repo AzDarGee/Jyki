@@ -63,4 +63,62 @@ class UserTest < ActiveSupport::TestCase
     assert_includes branches.map(&:name), "main (master-bus-locked)"
     assert_includes branches.map(&:name), "alt-808-saturation-pass"
   end
+
+  test "from_omniauth creates a new user, links existing email, and resolves username collisions" do
+    existing_username_user = User.new(
+      username: "oauth_producer",
+      email: "taken_handle@saanskara.studio",
+      password: "Password123!",
+      password_confirmation: "Password123!"
+    )
+    existing_username_user.skip_confirmation!
+    existing_username_user.save!
+
+    auth = OmniAuth::AuthHash.new(
+      provider: "google_oauth2",
+      uid: "109876543210",
+      info: {
+        email: "oauth_producer@gmail.com",
+        name: "OAuth Producer",
+        image: "https://lh3.googleusercontent.com/a/default-user"
+      }
+    )
+
+    user = User.from_omniauth(auth)
+    assert user.persisted?
+    assert_equal "google_oauth2", user.provider
+    assert_equal "109876543210", user.uid
+    assert_equal "oauth_producer@gmail.com", user.email
+    assert_not_equal "oauth_producer", user.username
+    assert_match(/\Aoauth_producer_/, user.username)
+    assert_equal "OAuth Producer", user.display_name
+    assert_equal "https://lh3.googleusercontent.com/a/default-user", user.avatar_url
+    assert_not_nil user.confirmed_at
+
+    # Subsequent login with same email links existing account
+    email_user = User.new(
+      username: "existing_studio_member",
+      email: "member@saanskara.studio",
+      password: "Password123!",
+      password_confirmation: "Password123!"
+    )
+    email_user.skip_confirmation!
+    email_user.save!
+
+    link_auth = OmniAuth::AuthHash.new(
+      provider: "google_oauth2",
+      uid: "998877665544",
+      info: {
+        email: "member@saanskara.studio",
+        name: "Studio Member",
+        image: "https://lh3.googleusercontent.com/a/studio-member"
+      }
+    )
+
+    linked = User.from_omniauth(link_auth)
+    assert_equal email_user.id, linked.id
+    assert_equal "google_oauth2", linked.provider
+    assert_equal "998877665544", linked.uid
+    assert_equal "https://lh3.googleusercontent.com/a/studio-member", linked.avatar_url
+  end
 end

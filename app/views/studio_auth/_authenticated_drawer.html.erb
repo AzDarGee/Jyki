@@ -37,11 +37,19 @@
 <div class="mx-4 mt-3 p-3.5 rounded-lg bg-[#121215] border border-[#222120] flex flex-col gap-3 shrink-0">
   <%# Top Row of Card %>
   <div class="flex items-center gap-3">
-    <%# Circular Golden Mandala/Sun Emblem Avatar %>
-    <div class="w-9 h-9 rounded-full border border-[#5c3d1e] bg-gradient-to-br from-[#fef3c7] via-[#f59e0b] to-[#78350f] flex items-center justify-center shadow-inner shrink-0"
-         title="<%= producer.display_name %> (@<%= producer.username %>)">
-      <span class="text-[#1c1309] text-sm font-bold leading-none">☀</span>
-    </div>
+    <%# Circular Golden Mandala/Sun Emblem Avatar (or Google OAuth Profile Photo) %>
+    <% if producer.avatar_url.present? %>
+      <img src="<%= producer.avatar_url %>"
+           alt="<%= producer.display_name %>"
+           title="<%= producer.display_name %> (@<%= producer.username %>)"
+           referrerpolicy="no-referrer"
+           class="w-9 h-9 rounded-full border border-[#5c3d1e] object-cover shrink-0">
+    <% else %>
+      <div class="w-9 h-9 rounded-full border border-[#5c3d1e] bg-gradient-to-br from-[#fef3c7] via-[#f59e0b] to-[#78350f] flex items-center justify-center shadow-inner shrink-0"
+           title="<%= producer.display_name %> (@<%= producer.username %>)">
+        <span class="text-[#1c1309] text-sm font-bold leading-none">☀</span>
+      </div>
+    <% end %>
 
     <%# Producer Name & Email %>
     <div class="min-w-0 flex-1">

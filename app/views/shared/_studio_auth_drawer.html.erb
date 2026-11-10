@@ -93,16 +93,17 @@
           </div>
 
           <%# 3. OAuth Social Action Button %>
-          <button type="button"
-                  data-action="click->auth-drawer#triggerGoogleOauth"
-                  class="w-full py-2.5 px-4 rounded-md bg-[#181411] hover:bg-[#221c16] border border-[#4a3520] flex items-center justify-center gap-2.5 text-xs font-medium text-[#e5c08d] transition cursor-pointer">
+          <%= button_to user_google_oauth2_omniauth_authorize_path,
+                        method: :post,
+                        form: { data: { turbo: false }, class: "w-full" },
+                        class: "w-full py-2.5 px-4 rounded-md bg-[#181411] hover:bg-[#221c16] border border-[#4a3520] flex items-center justify-center gap-2.5 text-xs font-medium text-[#e5c08d] transition cursor-pointer" do %>
             <span class="w-4 h-4 rounded-full bg-[#e5a952] text-[#09090b] font-mono font-bold text-[10px] flex items-center justify-center leading-none">
               G
             </span>
             <span data-auth-drawer-target="googleButtonLabel">
               <%= tab == "signin" ? "Sign In with Google" : "Sign Up with Google" %>
             </span>
-          </button>
+          <% end %>
 
           <%# 4. Horizontal Divider %>
           <div class="flex items-center gap-3 my-0.5">
