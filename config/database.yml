@@ -5,16 +5,22 @@ default: &default
 
 development:
   primary: &primary_development
-  <<: *default
-  # url: <%= Rails.application.credentials.dig(:database, :dev, :url) %>
-  database: jyki_development
+    <<: *default
+#    url: <%#= Rails.application.credentials.dig(:database, :dev, :url) %>
+    host: <%= Rails.application.credentials.dig(:database, :dev, :host) %>
+    port: <%= Rails.application.credentials.dig(:database, :dev, :port) || 5432 %>
+    username: <%= Rails.application.credentials.dig(:database, :dev, :username) %>
+    password: <%= Rails.application.credentials.dig(:database, :dev, :password) %>
+    database: <%= Rails.application.credentials.dig(:database, :dev, :database) %>
+#    database: jyki_development
+    sslmode: require
   cache:
     <<: *primary_development
 #    database: jyki_development_cache
     migrations_paths: db/cache_migrate
   queue:
     <<: *primary_development
-#   database: jyki_development_queue
+#    database: jyki_development_queue
     migrations_paths: db/queue_migrate
   cable:
     <<: *primary_development
