@@ -33,6 +33,14 @@ FROM base AS build
 # Install packages needed to build gems and download prebuilt grass SCSS compiler binary
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential git libffi-dev libpq-dev libvips libyaml-dev pkg-config && \
+    ARCH="$(uname -m)" && \
+    case "$ARCH" in \
+      x86_64|amd64) GRASS_TARGET="x86_64-unknown-linux-musl" ;; \
+      aarch64|arm64) GRASS_TARGET="aarch64-unknown-linux-musl" ;; \
+      *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/cargo-bins/cargo-quickinstall/releases/download/grass-0.13.4/grass-0.13.4-${GRASS_TARGET}.tar.gz" | tar -xzf - -C /usr/local/bin grass && \
+    chmod +x /usr/local/bin/grass && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems

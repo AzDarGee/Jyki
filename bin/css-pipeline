@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "rbconfig"
 
 scss_dir   = File.expand_path("../app/assets/scss", __dir__)
 scss_input = File.join(scss_dir, "application.scss")
@@ -21,8 +22,29 @@ ENV["PATH"] = "#{cargo_bin_dir}:#{ENV.fetch('PATH', '')}" unless ENV.fetch("PATH
 grass_bin = [ "#{cargo_bin_dir}/grass", "/usr/local/bin/grass", `which grass 2>/dev/null`.strip ].find { |p| !p.empty? && File.executable?(p) }
 
 unless grass_bin
-  puts "🦀 [Saanskara CSS] `grass` not found! Building native binary via `cargo install grass_cli`..."
-  system("cargo", "install", "grass_cli", exception: true)
+  FileUtils.mkdir_p(cargo_bin_dir)
+  if !`which cargo 2>/dev/null`.strip.empty?
+    puts "🦀 [Saanskara CSS] `grass` not found! Building native binary via `cargo install grass_cli`..."
+    system("cargo", "install", "grass_cli", exception: true)
+  else
+    host_os = RbConfig::CONFIG["host_os"]
+    host_cpu = RbConfig::CONFIG["host_cpu"]
+    target = case [ host_os, host_cpu ]
+    in [ /linux/, /x86_64|amd64/ ] then "x86_64-unknown-linux-musl"
+    in [ /linux/, /aarch64|arm64/ ] then "aarch64-unknown-linux-musl"
+    in [ /darwin/, /x86_64/ ] then "x86_64-apple-darwin"
+    in [ /darwin/, /arm64|aarch64/ ] then "aarch64-apple-darwin"
+    else
+      abort("❌ [Saanskara CSS] Unsupported platform (#{host_os}/#{host_cpu}) and `cargo` not found!")
+    end
+    grass_url = "https://github.com/cargo-bins/cargo-quickinstall/releases/download/grass-0.13.4/grass-0.13.4-#{target}.tar.gz"
+    archive_path = File.join(cargo_bin_dir, "grass.tar.gz")
+    puts "🦀 [Saanskara CSS] `grass` and `cargo` not found! Downloading prebuilt `grass` (#{target})..."
+    system("curl", "-fsSL", grass_url, "-o", archive_path, exception: true)
+    system("tar", "-xzf", archive_path, "-C", cargo_bin_dir, "grass", exception: true)
+    FileUtils.rm_f(archive_path)
+    FileUtils.chmod(0o755, File.join(cargo_bin_dir, "grass"))
+  end
   grass_bin = "#{cargo_bin_dir}/grass"
 end
 
