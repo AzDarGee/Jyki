@@ -64,7 +64,7 @@ bin/rails runner "load 'db/cache_schema.rb'"
 
 When making bin/<file_name> files, make sure to run:
 ```bash
-ruby -i -pe 'gsub(/\r$/, "")' bin/*
+ruby -i -pe 'gsub(/\r$/, "")' bin/<file_name>
 
 # Example
 ruby -i -pe 'gsub(/\r$/, "")' bin/css-pipeline

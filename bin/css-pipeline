@@ -18,7 +18,7 @@ FileUtils.mkdir_p(File.dirname(final_css))
 cargo_bin_dir = File.expand_path("~/.cargo/bin")
 ENV["PATH"] = "#{cargo_bin_dir}:#{ENV.fetch('PATH', '')}" unless ENV.fetch("PATH", "").include?(cargo_bin_dir)
 
-grass_bin = ["#{cargo_bin_dir}/grass", `which grass 2>/dev/null`.strip].find { |p| !p.empty? && File.executable?(p) }
+grass_bin = [ "#{cargo_bin_dir}/grass", "/usr/local/bin/grass", `which grass 2>/dev/null`.strip ].find { |p| !p.empty? && File.executable?(p) }
 
 unless grass_bin
   puts "🦀 [Saanskara CSS] `grass` not found! Building native binary via `cargo install grass_cli`..."
@@ -59,7 +59,7 @@ if watch_mode
   trap("INT", &shutdown)
   trap("TERM", &shutdown)
 
-  snapshot = -> { Dir.glob("#{scss_dir}/**/*.scss").to_h { |f| [f, File.mtime(f).to_f] } }
+  snapshot = -> { Dir.glob("#{scss_dir}/**/*.scss").to_h { |f| [ f, File.mtime(f).to_f ] } }
   last_state = snapshot.call
 
   loop do
