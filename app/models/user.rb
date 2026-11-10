@@ -24,6 +24,8 @@ class User < ApplicationRecord
 
   attr_accessor :login
 
+  has_many :projects, dependent: :nullify, inverse_of: :user
+
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable,
          :confirmable, :lockable, :timeoutable, :trackable,

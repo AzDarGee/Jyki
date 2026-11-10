@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class CrdtBranch < ApplicationRecord
+  has_many :projects, dependent: :nullify, inverse_of: :crdt_branch
+
   validates :name, presence: true, length: { maximum: 120 }
   validates :delta_vector, presence: true
 
@@ -37,4 +39,3 @@ class CrdtBranch < ApplicationRecord
       self.committed_at_label = "#{Time.current.utc.strftime('%H:%M')} UTC" if committed_at_label.blank?
     end
 end
-
