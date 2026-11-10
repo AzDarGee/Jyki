@@ -8,7 +8,7 @@ development:
     <<: *default
 #    url: <%#= Rails.application.credentials.dig(:database, :dev, :url) %>
     host: <%= Rails.application.credentials.dig(:database, :dev, :host) %>
-    port: <%= Rails.application.credentials.dig(:database, :dev, :port) || 5432 %>
+    port: <%= Rails.application.credentials.dig(:database, :dev, :port) %>
     username: <%= Rails.application.credentials.dig(:database, :dev, :username) %>
     password: <%= Rails.application.credentials.dig(:database, :dev, :password) %>
     database: <%= Rails.application.credentials.dig(:database, :dev, :database) %>
