@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   # Stateless SPA Turbo Stream & JSON endpoints (never push browser URL history)
   scope :workstation, controller: :workstation do
     post "tracks", action: :create_track, as: :workstation_tracks
+    delete "tracks/:id", action: :destroy_track, as: :workstation_track
     patch "mixer", action: :update_mixer, as: :workstation_mixer
     post "ai_analysis", action: :ai_analysis, as: :workstation_ai_analysis
   end

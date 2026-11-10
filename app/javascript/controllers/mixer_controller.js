@@ -28,6 +28,40 @@ export default class extends Controller {
   connect() {
     this.audioCtx = null
     this.trackNodes = new Map()
+    this.boundTrackRemoved = this.onTrackRemoved.bind(this)
+    this.element.addEventListener("mixer:track-removed", this.boundTrackRemoved)
+  }
+
+  disconnect() {
+    this.element.removeEventListener("mixer:track-removed", this.boundTrackRemoved)
+  }
+
+  onTrackRemoved(event) {
+    const { trackId } = event.detail || {}
+    if (!trackId) return
+
+    const nodes = this.trackNodes.get(trackId)
+    if (nodes) {
+      try {
+        nodes.gainNode.disconnect()
+        nodes.panNode.disconnect()
+      } catch (_e) {
+        // Ignore if already disconnected
+      }
+      this.trackNodes.delete(trackId)
+    }
+
+    if (this.selectedTrackValue === trackId) {
+      const remainingRow = this.trackHeaderRowTargets.find((r) => Number(r.dataset.trackId) !== trackId)
+      if (remainingRow) {
+        this.selectTrack({ currentTarget: remainingRow })
+      } else {
+        this.selectedTrackValue = 0
+        if (this.hasInsertsTrackTitleTarget) {
+          this.insertsTrackTitleTarget.textContent = "No Track Selected"
+        }
+      }
+    }
   }
 
   // Lazy-initialize Web Audio API GainNode + StereoPannerNode graph for smooth setTargetAtTime automation

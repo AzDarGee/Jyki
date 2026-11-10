@@ -23,10 +23,20 @@
   <%# 4-Column Track Clip Slots Grid + Scene Launch Column %>
   <div class="grid grid-cols-5 gap-3 flex-1">
     <% tracks.each do |track| %>
-      <div class="bg-[#121110] border border-[#262320] rounded p-2.5 flex flex-col gap-2">
+      <div id="ideas_track_column_<%= track[:id] %>" class="bg-[#121110] border border-[#262320] rounded p-2.5 flex flex-col gap-2">
         <div class="flex items-center justify-between pb-1.5 border-b border-[#221f1d]">
           <span class="text-xs font-semibold text-[#f4f4f0] truncate"><%= track[:name] %></span>
-          <span class="px-1.5 py-0.5 rounded bg-[#231911] border border-[#5c3d1e] font-mono text-[9px] text-[#f59e0b]"><%= track[:badge] %></span>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="px-1.5 py-0.5 rounded bg-[#231911] border border-[#5c3d1e] font-mono text-[9px] text-[#f59e0b]"><%= track[:badge] %></span>
+            <button type="button"
+                    data-track-id="<%= track[:id] %>"
+                    data-action="click->workstation#deleteTrack:stop"
+                    title="Delete Track"
+                    aria-label="Delete <%= track[:name] %>"
+                    class="w-4 h-4 rounded-xs font-mono text-[10px] font-bold flex items-center justify-center text-[#8e8a83] hover:text-[#ef4444] hover:bg-[#2a1212] cursor-pointer transition-colors">
+              ×
+            </button>
+          </div>
         </div>
 
         <% [ "SCENE 01 · INTRO DRONE", "SCENE 02 · SUB DROP", "SCENE 03 · BREAK ROLL", "SCENE 04 · OUTRO DUB" ].each_with_index do |scene_label, idx| %>

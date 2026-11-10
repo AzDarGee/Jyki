@@ -32,11 +32,13 @@ export default class extends Controller {
     this.boundResize = this.resizeAndRender.bind(this)
     this.boundResetPlayhead = this.resetPlayhead.bind(this)
     this.boundAddTrack = this.onAddTrack.bind(this)
+    this.boundRemoveTrack = this.onRemoveTrack.bind(this)
     this.boundDropClip = this.onDropClip.bind(this)
 
     window.addEventListener("resize", this.boundResize)
     this.element.addEventListener("daw-timeline:reset-playhead", this.boundResetPlayhead)
     this.element.addEventListener("daw-timeline:add-track", this.boundAddTrack)
+    this.element.addEventListener("daw-timeline:remove-track", this.boundRemoveTrack)
     this.element.addEventListener("daw-timeline:drop-clip", this.boundDropClip)
 
     if (typeof ResizeObserver !== "undefined") {
@@ -53,6 +55,7 @@ export default class extends Controller {
     window.removeEventListener("resize", this.boundResize)
     this.element.removeEventListener("daw-timeline:reset-playhead", this.boundResetPlayhead)
     this.element.removeEventListener("daw-timeline:add-track", this.boundAddTrack)
+    this.element.removeEventListener("daw-timeline:remove-track", this.boundRemoveTrack)
     this.element.removeEventListener("daw-timeline:drop-clip", this.boundDropClip)
     if (this.resizeObserver) this.resizeObserver.disconnect()
     if (this.rafId) cancelAnimationFrame(this.rafId)
@@ -450,6 +453,15 @@ export default class extends Controller {
         { bar: 4.8, value: 0.55 }
       ]
     })
+    this.renderFrame()
+  }
+
+  onRemoveTrack(event) {
+    const { trackId } = event.detail || {}
+    if (!trackId) return
+    this.tracks = this.tracks.filter((t) => Number(t.id) !== Number(trackId))
+    this.draggingNode = null
+    this.hoveredNode = null
     this.renderFrame()
   }
 

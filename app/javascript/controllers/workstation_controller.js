@@ -484,9 +484,10 @@ export default class extends Controller {
   // Append Empty Track (Audio / MIDI / Bus) via Turbo Stream + Timeline Sync
   async addEmptyTrack(event) {
     const kind = event.currentTarget.dataset.trackKind || "audio"
-    const currentCount = this.hasTrackHeadersListTarget
-      ? this.trackHeadersListTarget.children.length + 1
-      : 5
+    const existingIds = this.hasTrackHeadersListTarget
+      ? Array.from(this.trackHeadersListTarget.children).map((el) => Number(el.dataset.trackId) || 0)
+      : []
+    const currentCount = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1
 
     const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
     try {
@@ -520,6 +521,54 @@ export default class extends Controller {
         new CustomEvent("daw-timeline:add-track", { detail: { kind, index: currentCount } })
       )
     }
+    this.ensureRootUrlLocked()
+  }
+
+  // Delete Track via Turbo Stream + Timeline & Mixer Sync
+  async deleteTrack(event) {
+    event.stopPropagation()
+    const trackId = Number(event.currentTarget.dataset.trackId)
+    if (!trackId) return
+
+    const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
+    let removedByStream = false
+    try {
+      const response = await fetch(`/workstation/tracks/${trackId}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "text/vnd.turbo-stream.html",
+          "X-CSRF-Token": csrfToken || ""
+        }
+      })
+
+      if (response.ok && window.Turbo) {
+        const streamHtml = await response.text()
+        window.Turbo.renderStreamMessage(streamHtml)
+        removedByStream = true
+      }
+    } catch (_e) {
+      // Fallback if offline
+    }
+
+    if (!removedByStream) {
+      document.getElementById(`track_header_row_${trackId}`)?.remove()
+      document.getElementById(`mixer_channel_card_${trackId}`)?.remove()
+      document.getElementById(`ideas_track_column_${trackId}`)?.remove()
+    }
+
+    if (this.hasTrackCountTarget && this.hasTrackHeadersListTarget) {
+      this.trackCountTarget.textContent = String(this.trackHeadersListTarget.children.length)
+    }
+
+    if (this.hasTimelineCanvasTarget) {
+      this.timelineCanvasTarget.dispatchEvent(
+        new CustomEvent("daw-timeline:remove-track", { detail: { trackId } })
+      )
+    }
+
+    this.element.dispatchEvent(
+      new CustomEvent("mixer:track-removed", { detail: { trackId } })
+    )
     this.ensureRootUrlLocked()
   }
 

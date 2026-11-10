@@ -60,6 +60,21 @@ class WorkstationController < ApplicationController
     end
   end
 
+  def destroy_track
+    track_id = params[:id].to_i
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: [
+          turbo_stream.remove("track_header_row_#{track_id}"),
+          turbo_stream.remove("mixer_channel_card_#{track_id}"),
+          turbo_stream.remove("ideas_track_column_#{track_id}")
+        ]
+      end
+      format.json { render json: { status: "ok", track_id: track_id }, status: :ok }
+    end
+  end
+
   def update_mixer
     mixer_params = params.expect(mixer: [ :track_id, :gain_db, :pan, :muted, :soloed, :armed, :nr ])
 

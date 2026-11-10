@@ -45,6 +45,26 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     assert_match(/turbo-stream/, response.media_type)
   end
 
+  test "deletes a track via turbo stream and json without redirecting URL" do
+    get root_url
+    assert_response :success
+    assert_select "#track_header_row_1 button[data-action*='deleteTrack']"
+    assert_select "#mixer_channel_card_1 button[data-action*='deleteTrack']"
+
+    delete workstation_track_url(1), as: :turbo_stream
+    assert_response :success
+    assert_match(/turbo-stream/, response.media_type)
+    assert_match(/action="remove" target="track_header_row_1"/, response.body)
+    assert_match(/action="remove" target="mixer_channel_card_1"/, response.body)
+    assert_match(/action="remove" target="ideas_track_column_1"/, response.body)
+
+    delete workstation_track_url(2), as: :json
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal "ok", body["status"]
+    assert_equal 2, body["track_id"]
+  end
+
   test "updates mixer state statelessly via turbo stream or json" do
     patch workstation_mixer_url, params: { mixer: { track_id: 1, gain_db: -3.5, pan: 10 } }, as: :json
     assert_response :success

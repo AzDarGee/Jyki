@@ -1,5 +1,6 @@
 <%# Single Track Header Row (height h-[68px] synchronized with timeline lane height) %>
-<div class="h-[68px] px-2.5 py-2 flex flex-col justify-between transition-colors cursor-pointer relative overflow-hidden <%= track[:selected] ? 'bg-[#191613] border-l-2 border-l-[#d97706]' : 'bg-[#121110] hover:bg-[#161513]' %>"
+<div id="track_header_row_<%= track[:id] %>"
+     class="h-[68px] px-2.5 py-2 flex flex-col justify-between transition-colors cursor-pointer relative overflow-hidden <%= track[:selected] ? 'bg-[#191613] border-l-2 border-l-[#d97706]' : 'bg-[#121110] hover:bg-[#161513]' %>"
      data-mixer-target="trackHeaderRow"
      data-track-id="<%= track[:id] %>"
      data-track-name="<%= track[:name] %>"
@@ -10,9 +11,9 @@
   <%# Expanded Track Header View (Visible when panel is w-60) %>
   <div data-workstation-target="expandedTrackContent"
        class="flex flex-col justify-between h-full w-full transition-all duration-200">
-    <%# Top Line: Track Name + M | S | R | NR Buttons %>
+    <%# Top Line: Track Name + M | S | R | NR | Delete Buttons %>
     <div class="flex items-center justify-between gap-1">
-      <span class="text-[11px] font-semibold text-[#f4f4f0] truncate max-w-[112px]" title="<%= track[:name] %>">
+      <span class="text-[11px] font-semibold text-[#f4f4f0] truncate max-w-[96px]" title="<%= track[:name] %>">
         <%= track[:short_name] || track[:name] %>
       </span>
 
@@ -56,6 +57,16 @@
                 aria-pressed="<%= track[:nr] ? 'true' : 'false' %>"
                 class="px-1 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:nr] ? 'bg-[#14b8a6] text-[#042f2e] border-[#2dd4bf] shadow-[0_0_6px_rgba(20,184,166,0.4)]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
           NR
+        </button>
+
+        <%# Delete Track (×) %>
+        <button type="button"
+                data-track-id="<%= track[:id] %>"
+                data-action="click->workstation#deleteTrack:stop"
+                title="Delete Track"
+                aria-label="Delete <%= track[:name] %>"
+                class="w-4 h-4 rounded-xs font-mono text-[10px] font-bold flex items-center justify-center border bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:bg-[#2a1212] hover:text-[#ef4444] hover:border-[#ef4444]/60 cursor-pointer transition-colors">
+          ×
         </button>
       </div>
     </div>
