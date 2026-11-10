@@ -55,6 +55,12 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-zone='track-headers'][class*='transition-all']", /01\. Sub Bass 808/
     assert_select "[data-mixer-target='trackHeaderRow'][data-action*='mixer#handleTrackRowClick']", minimum: 4
     assert_select "[data-mixer-target='collapsedTrackPill']", minimum: 4
+    assert_select "[data-zone='track-headers'] [data-workstation-target='trackCreatorBox'] [data-workstation-target='expandedTrackCreator']"
+    assert_select "[data-zone='track-headers'] [data-workstation-target='trackCreatorBox'] [data-workstation-target='collapsedTrackCreator']"
+    assert_select "[data-zone='track-headers'] [data-workstation-target='collapsedTrackCreator'] [data-workstation-target='collapsedTrackTrigger'][data-action*='workstation#toggleCollapsedTrackMenu']"
+    assert_select "[data-zone='track-headers'] [data-workstation-target='collapsedTrackMenu'] button[data-track-kind='audio'][data-action*='workstation#addEmptyTrack']"
+    assert_select "[data-zone='track-headers'] [data-workstation-target='collapsedTrackMenu'] button[data-track-kind='midi'][data-action*='workstation#addEmptyTrack']"
+    assert_select "[data-zone='track-headers'] [data-workstation-target='collapsedTrackMenu'] button[data-track-kind='bus'][data-action*='workstation#addEmptyTrack']"
     assert_select "[data-zone='timeline'] canvas[data-controller*='daw-timeline']"
     assert_select "[data-zone='utility-rail']"
 
@@ -67,6 +73,20 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     post workstation_tracks_url, params: { track: { kind: "audio" } }, as: :turbo_stream
     assert_response :success
     assert_match(/turbo-stream/, response.media_type)
+    assert_match(/data-workstation-target="expandedTrackContent"\s+class="flex/, response.body)
+
+    # When the Tracks panel is collapsed, adding a track (Audio / MIDI / Bus) renders it in collapsed state
+    [ "audio", "midi", "bus" ].each_with_index do |kind, idx|
+      post workstation_tracks_url, params: {
+        current_count: 5 + idx,
+        collapsed: true,
+        track: { kind: kind }
+      }, as: :turbo_stream
+      assert_response :success
+      assert_match(/turbo-stream/, response.media_type)
+      assert_match(/data-workstation-target="expandedTrackContent"\s+class="hidden/, response.body)
+      assert_match(/data-workstation-target="collapsedTrackContent"[\s\S]*?class="flex/, response.body)
+    end
   end
 
   test "deletes a track via turbo stream and json without redirecting URL" do

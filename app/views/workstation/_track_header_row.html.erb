@@ -1,4 +1,5 @@
 <%# Single Track Header Row (height h-[68px] synchronized with timeline lane height) %>
+<% is_collapsed = local_assigns.fetch(:collapsed, false) %>
 <div id="track_header_row_<%= track[:id] %>"
      class="h-[68px] px-2.5 py-2 flex flex-col justify-between transition-colors cursor-pointer relative overflow-hidden <%= track[:selected] ? 'bg-[#191613] border-l-2 border-l-[#d97706]' : 'bg-[#121110] hover:bg-[#161513]' %>"
      data-mixer-target="trackHeaderRow"
@@ -10,7 +11,7 @@
 
   <%# Expanded Track Header View (Visible when panel is w-60) %>
   <div data-workstation-target="expandedTrackContent"
-       class="flex flex-col justify-between h-full w-full transition-all duration-200">
+       class="<%= is_collapsed ? 'hidden' : 'flex' %> flex-col justify-between h-full w-full transition-all duration-200">
     <%# Top Line: Track Name + M | S | R | NR | Delete Buttons %>
     <div class="flex items-center justify-between gap-1">
       <span class="text-[11px] font-semibold text-[#f4f4f0] truncate max-w-[96px]" title="<%= track[:name] %>">
@@ -96,7 +97,7 @@
   <div data-workstation-target="collapsedTrackContent"
        data-mixer-target="collapsedTrackPill"
        data-track-id="<%= track[:id] %>"
-       class="hidden flex-col items-center justify-center gap-1 h-full w-full select-none">
+       class="<%= is_collapsed ? 'flex' : 'hidden' %> flex-col items-center justify-center gap-1 h-full w-full select-none">
     <span class="font-mono text-[11px] font-bold text-[#f4f4f0] leading-none">
       <%= track[:number] || format("%02d", track[:id]) %>
     </span>

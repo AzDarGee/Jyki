@@ -20,6 +20,18 @@
   [data-mixer-target="collapsedTrackPill"] {
     transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition;
   }
+
+  &[data-collapsed="true"] {
+    [data-workstation-target="expandedTrackContent"],
+    [data-workstation-target="expandedTrackCreator"] {
+      display: none !important;
+    }
+
+    [data-workstation-target="collapsedTrackContent"],
+    [data-workstation-target="collapsedTrackCreator"] {
+      display: flex !important;
+    }
+  }
 }
 
 // Zone D Column 2B: Center Multi-Backend DAW Timeline Canvas & Playhead

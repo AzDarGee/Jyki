@@ -33,51 +33,111 @@
     </div>
   </div>
 
-  <%# Bottom Track Creator Box (ADD EMPTY TRACK — slides out when panel is collapsed) %>
+  <%# Bottom Track Creator Box (Remains accessible at the bottom when panel is expanded or collapsed) %>
   <div data-workstation-target="trackCreatorBox"
        class="p-2.5 border-t border-[#26221e] bg-[#0e0d0c] shrink-0 transition-all duration-200">
-    <div class="flex items-center justify-between mb-2">
-      <span class="font-mono text-[9px] font-semibold tracking-widest text-[#8e8a83] uppercase">
-        ADD EMPTY TRACK
-      </span>
-      <span class="text-[10px] text-[#8e8a83]">⌄</span>
+    <%# Expanded 3-Column Track Creator (Visible when panel is w-60) %>
+    <div data-workstation-target="expandedTrackCreator" class="block">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-mono text-[9px] font-semibold tracking-widest text-[#8e8a83] uppercase">
+          ADD EMPTY TRACK
+        </span>
+        <span class="text-[10px] text-[#8e8a83]">⌄</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-1.5">
+        <%# Audio Track Creator %>
+        <button type="button"
+                data-track-kind="audio"
+                data-action="click->workstation#addEmptyTrack"
+                class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
+          <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
+            <span>〰</span>
+            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
+          </div>
+          <span class="text-[10px] text-[#e5e2dc] font-medium">Audio</span>
+        </button>
+
+        <%# MIDI Track Creator %>
+        <button type="button"
+                data-track-kind="midi"
+                data-action="click->workstation#addEmptyTrack"
+                class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
+          <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
+            <span>🎹</span>
+            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
+          </div>
+          <span class="text-[10px] text-[#e5e2dc] font-medium">MIDI</span>
+        </button>
+
+        <%# Bus Track Creator %>
+        <button type="button"
+                data-track-kind="bus"
+                data-action="click->workstation#addEmptyTrack"
+                class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
+          <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
+            <span>⑃</span>
+            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
+          </div>
+          <span class="text-[10px] text-[#e5e2dc] font-medium">Bus</span>
+        </button>
+      </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-1.5">
-      <%# Audio Track Creator %>
-      <button type="button"
-              data-track-kind="audio"
-              data-action="click->workstation#addEmptyTrack"
-              class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
-        <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
-          <span>〰</span>
-          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
-        </div>
-        <span class="text-[10px] text-[#e5e2dc] font-medium">Audio</span>
-      </button>
+    <%# Collapsed Compact Track Creator & Type Picker (Visible when panel is w-14) %>
+    <div data-workstation-target="collapsedTrackCreator"
+         class="hidden flex-col items-center gap-1.5 w-full">
+      <%# Expandable Track Type Picker Menu (Audio / MIDI / Bus) %>
+      <div data-workstation-target="collapsedTrackMenu"
+           role="menu"
+           aria-label="Choose Track Type to Add"
+           class="hidden flex-col gap-1 w-full pb-1.5 border-b border-[#26221e]">
+        <button type="button"
+                role="menuitem"
+                data-track-kind="audio"
+                data-action="click->workstation#addEmptyTrack"
+                title="Add Audio Track"
+                aria-label="Add Audio Track"
+                class="w-full py-1.5 rounded bg-[#151413] border border-[#262320] hover:border-[#d97706] hover:bg-[#1f1c19] flex flex-col items-center justify-center gap-0.5 group cursor-pointer transition-all">
+          <span class="text-[11px] text-[#e5c185] leading-none">〰</span>
+          <span class="font-mono text-[8px] font-semibold text-[#e5e2dc] uppercase tracking-tight leading-none">Audio</span>
+        </button>
 
-      <%# MIDI Track Creator %>
-      <button type="button"
-              data-track-kind="midi"
-              data-action="click->workstation#addEmptyTrack"
-              class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
-        <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
-          <span>🎹</span>
-          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
-        </div>
-        <span class="text-[10px] text-[#e5e2dc] font-medium">MIDI</span>
-      </button>
+        <button type="button"
+                role="menuitem"
+                data-track-kind="midi"
+                data-action="click->workstation#addEmptyTrack"
+                title="Add MIDI Track"
+                aria-label="Add MIDI Track"
+                class="w-full py-1.5 rounded bg-[#151413] border border-[#262320] hover:border-[#d97706] hover:bg-[#1f1c19] flex flex-col items-center justify-center gap-0.5 group cursor-pointer transition-all">
+          <span class="text-[11px] text-[#e5c185] leading-none">🎹</span>
+          <span class="font-mono text-[8px] font-semibold text-[#e5e2dc] uppercase tracking-tight leading-none">MIDI</span>
+        </button>
 
-      <%# Bus Track Creator %>
+        <button type="button"
+                role="menuitem"
+                data-track-kind="bus"
+                data-action="click->workstation#addEmptyTrack"
+                title="Add Bus Track"
+                aria-label="Add Bus Track"
+                class="w-full py-1.5 rounded bg-[#151413] border border-[#262320] hover:border-[#d97706] hover:bg-[#1f1c19] flex flex-col items-center justify-center gap-0.5 group cursor-pointer transition-all">
+          <span class="text-[11px] text-[#e5c185] leading-none">⑃</span>
+          <span class="font-mono text-[8px] font-semibold text-[#e5e2dc] uppercase tracking-tight leading-none">Bus</span>
+        </button>
+      </div>
+
+      <%# Primary "+" Trigger Button at Bottom of Collapsed Tracks Panel %>
       <button type="button"
-              data-track-kind="bus"
-              data-action="click->workstation#addEmptyTrack"
-              class="h-14 rounded bg-[#151413] border border-[#262320] hover:border-[#5c3d1e] flex flex-col items-center justify-center gap-1 group cursor-pointer transition-all relative">
-        <div class="w-6 h-6 rounded-full bg-[#1d1a17] border border-[#3a2e21] group-hover:border-[#d97706] flex items-center justify-center text-[11px] text-[#e5c185] relative">
-          <span>⑃</span>
-          <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[9px] flex items-center justify-center leading-none">+</span>
-        </div>
-        <span class="text-[10px] text-[#e5e2dc] font-medium">Bus</span>
+              data-workstation-target="collapsedTrackTrigger"
+              data-action="click->workstation#toggleCollapsedTrackMenu"
+              aria-expanded="false"
+              aria-haspopup="menu"
+              title="Add Track (Choose Audio, MIDI, or Bus)"
+              aria-label="Add Track — Choose Track Type"
+              class="w-full h-9 rounded bg-[#151413] border border-[#3a2e21] hover:border-[#d97706] hover:bg-[#1f1c19] flex flex-col items-center justify-center gap-0.5 group cursor-pointer transition-all">
+        <span data-workstation-target="collapsedTrackTriggerIcon"
+              class="w-4 h-4 rounded-full bg-[#d97706] text-[#09090b] font-bold text-[11px] flex items-center justify-center leading-none shadow-xs">+</span>
+        <span class="font-mono text-[7px] font-semibold tracking-wider text-[#8e8a83] group-hover:text-[#e5e2dc] uppercase leading-none">ADD</span>
       </button>
     </div>
   </div>

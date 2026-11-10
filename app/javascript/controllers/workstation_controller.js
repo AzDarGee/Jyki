@@ -18,7 +18,9 @@ export default class extends Controller {
     "autoLanesButton", "autoLanesLabel", "mixerToggleButton", "rendererButton",
     "zoomSlider", "zoomReadout",
     "trackHeadersColumn", "trackHeadersTitleLabel", "trackHeadersToggleBtn", "trackHeadersToggleIcon",
-    "trackCreatorBox", "expandedTrackContent", "collapsedTrackContent", "trackHeadersList", "trackCount",
+    "trackCreatorBox", "expandedTrackCreator", "collapsedTrackCreator", "collapsedTrackMenu",
+    "collapsedTrackTrigger", "collapsedTrackTriggerIcon",
+    "expandedTrackContent", "collapsedTrackContent", "trackHeadersList", "trackCount",
     "timelineCanvas", "playheadLine", "hudRendererLabel", "hudWasmStatus",
     "aiLabPanel", "aiRailButton", "aiModeButton", "aiPromptInput", "aiRunButton", "aiRunLabel", "aiResponseBox",
     "micStatusLabel", "micTranscribeButton", "micButtonLabel",
@@ -478,17 +480,18 @@ export default class extends Controller {
         this.trackHeadersToggleBtnTarget.setAttribute("aria-expanded", "true")
       }
       if (this.hasTrackCreatorBoxTarget) {
-        this.trackCreatorBoxTarget.classList.remove("hidden")
+        this.trackCreatorBoxTarget.classList.remove("p-1.5")
+        this.trackCreatorBoxTarget.classList.add("p-2.5")
       }
-
-      this.expandedTrackContentTargets.forEach((el) => {
-        el.classList.remove("hidden")
-        el.classList.add("flex")
-      })
-      this.collapsedTrackContentTargets.forEach((el) => {
-        el.classList.remove("flex")
-        el.classList.add("hidden")
-      })
+      if (this.hasExpandedTrackCreatorTarget) {
+        this.expandedTrackCreatorTarget.classList.remove("hidden")
+        this.expandedTrackCreatorTarget.classList.add("block")
+      }
+      if (this.hasCollapsedTrackCreatorTarget) {
+        this.collapsedTrackCreatorTarget.classList.remove("flex")
+        this.collapsedTrackCreatorTarget.classList.add("hidden")
+      }
+      this.closeCollapsedTrackMenu()
     } else {
       this.trackHeadersColumnTarget.classList.remove("w-60")
       this.trackHeadersColumnTarget.classList.add("w-14")
@@ -503,18 +506,20 @@ export default class extends Controller {
         this.trackHeadersToggleBtnTarget.setAttribute("aria-expanded", "false")
       }
       if (this.hasTrackCreatorBoxTarget) {
-        this.trackCreatorBoxTarget.classList.add("hidden")
+        this.trackCreatorBoxTarget.classList.remove("p-2.5")
+        this.trackCreatorBoxTarget.classList.add("p-1.5")
       }
-
-      this.expandedTrackContentTargets.forEach((el) => {
-        el.classList.remove("flex")
-        el.classList.add("hidden")
-      })
-      this.collapsedTrackContentTargets.forEach((el) => {
-        el.classList.remove("hidden")
-        el.classList.add("flex")
-      })
+      if (this.hasExpandedTrackCreatorTarget) {
+        this.expandedTrackCreatorTarget.classList.remove("block")
+        this.expandedTrackCreatorTarget.classList.add("hidden")
+      }
+      if (this.hasCollapsedTrackCreatorTarget) {
+        this.collapsedTrackCreatorTarget.classList.remove("hidden")
+        this.collapsedTrackCreatorTarget.classList.add("flex")
+      }
     }
+
+    this.syncTrackRowsCollapseState(isOpen)
 
     // Dispatch resize immediately and at the end of the 300ms slide transition
     window.dispatchEvent(new Event("resize"))
@@ -522,6 +527,49 @@ export default class extends Controller {
       window.dispatchEvent(new Event("resize"))
     }, 310)
     this.ensureRootUrlLocked()
+  }
+
+  toggleCollapsedTrackMenu(event) {
+    if (event) event.stopPropagation()
+    if (!this.hasCollapsedTrackMenuTarget) return
+    const isMenuHidden = this.collapsedTrackMenuTarget.classList.contains("hidden")
+    if (isMenuHidden) {
+      this.collapsedTrackMenuTarget.classList.remove("hidden")
+      this.collapsedTrackMenuTarget.classList.add("flex")
+      if (this.hasCollapsedTrackTriggerTarget) {
+        this.collapsedTrackTriggerTarget.setAttribute("aria-expanded", "true")
+      }
+      if (this.hasCollapsedTrackTriggerIconTarget) {
+        this.collapsedTrackTriggerIconTarget.textContent = "×"
+      }
+    } else {
+      this.closeCollapsedTrackMenu()
+    }
+    this.ensureRootUrlLocked()
+  }
+
+  closeCollapsedTrackMenu() {
+    if (this.hasCollapsedTrackMenuTarget) {
+      this.collapsedTrackMenuTarget.classList.remove("flex")
+      this.collapsedTrackMenuTarget.classList.add("hidden")
+    }
+    if (this.hasCollapsedTrackTriggerTarget) {
+      this.collapsedTrackTriggerTarget.setAttribute("aria-expanded", "false")
+    }
+    if (this.hasCollapsedTrackTriggerIconTarget) {
+      this.collapsedTrackTriggerIconTarget.textContent = "+"
+    }
+  }
+
+  syncTrackRowsCollapseState(isOpen = this.trackHeadersOpenValue) {
+    this.expandedTrackContentTargets.forEach((el) => {
+      el.classList.toggle("hidden", !isOpen)
+      el.classList.toggle("flex", isOpen)
+    })
+    this.collapsedTrackContentTargets.forEach((el) => {
+      el.classList.toggle("hidden", isOpen)
+      el.classList.toggle("flex", !isOpen)
+    })
   }
 
   // Append Empty Track (Audio / MIDI / Bus) via Turbo Stream + Timeline Sync
@@ -543,6 +591,7 @@ export default class extends Controller {
         },
         body: JSON.stringify({
           current_count: currentCount,
+          collapsed: !this.trackHeadersOpenValue,
           track: { kind, name: "" }
         })
       })
@@ -554,6 +603,16 @@ export default class extends Controller {
     } catch (_e) {
       // Fallback if offline
     }
+
+    // Ensure newly appended track row matches current expanded/collapsed state of the Tracks panel
+    requestAnimationFrame(() => {
+      this.syncTrackRowsCollapseState(this.trackHeadersOpenValue)
+      if (this.hasTrackCountTarget && this.hasTrackHeadersListTarget) {
+        this.trackCountTarget.textContent = String(this.trackHeadersListTarget.children.length)
+      }
+    })
+    this.syncTrackRowsCollapseState(this.trackHeadersOpenValue)
+    this.closeCollapsedTrackMenu()
 
     if (this.hasTrackCountTarget && this.hasTrackHeadersListTarget) {
       this.trackCountTarget.textContent = String(this.trackHeadersListTarget.children.length)

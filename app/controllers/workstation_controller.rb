@@ -41,13 +41,15 @@ class WorkstationController < ApplicationController
       clips: []
     }
 
+    collapsed = ActiveModel::Type::Boolean.new.cast(params[:collapsed])
+
     respond_to do |format|
       format.turbo_stream do
         render turbo_stream: [
           turbo_stream.append(
             "track_headers_list",
             partial: "workstation/track_header_row",
-            locals: { track: @new_track }
+            locals: { track: @new_track, collapsed: collapsed }
           ),
           turbo_stream.append(
             "mixer_channels_list",
@@ -56,7 +58,7 @@ class WorkstationController < ApplicationController
           )
         ]
       end
-      format.json { render json: { status: "ok", track: @new_track }, status: :created }
+      format.json { render json: { status: "ok", track: @new_track, collapsed: collapsed }, status: :created }
     end
   end
 
