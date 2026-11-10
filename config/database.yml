@@ -46,12 +46,12 @@ test:
 production:
   primary: &primary_production
     <<: *default
-    host: <%= Rails.application.credentials.dig(:database, :prod, :host) %>
-    port: <%= Rails.application.credentials.dig(:database, :prod, :port) %>
-    username: <%= Rails.application.credentials.dig(:database, :prod, :username) %>
-    database: <%= Rails.application.credentials.dig(:database, :prod, :database) %>
-#    url: <%#= Rails.application.credentials.dig(:database, :prod, :url) %>
-    password: <%= Rails.application.credentials.dig(:database, :prod, :password) %>
+    host: <%= Rails.application.credentials.dig(:database, :prod_local_supabase, :host) %>
+    port: <%= Rails.application.credentials.dig(:database, :prod_local_supabase, :port) %>
+    username: <%= Rails.application.credentials.dig(:database, :prod_local_supabase, :username) %>
+    database: <%= Rails.application.credentials.dig(:database, :prod_local_supabase, :database) %>
+#    url: <%#= Rails.application.credentials.dig(:database, :prod_local_supabase, :url) %>
+    password: <%= Rails.application.credentials.dig(:database, :prod_local_supabase, :password) %>
     sslmode: require
   cache:
     <<: *primary_production
