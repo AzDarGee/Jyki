@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="midnight" class="dark h-screen w-screen overflow-hidden bg-[#0b0a09] text-[#e5e2dc]">
+<html lang="en" data-theme="midnight" class="jaku-root-shell theme-midnight dark h-screen w-screen overflow-hidden bg-[#0b0a09] text-[#e5e2dc]">
   <head>
     <title><%= content_for(:title) || "Jaku · Saanskara Studio DAW & DJ Workstation" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -19,103 +19,36 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
 
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
-    <%= javascript_importmap_tags %>
-
-    <style>
-      :root {
-        --jaku-bg-canvas: #0b0a09;
-        --jaku-bg-obsidian: #09090b;
-        --jaku-bg-panel: #121110;
-        --jaku-bg-card: #161514;
-        --jaku-border-subtle: #221f1d;
-        --jaku-border-card: #262320;
-        --jaku-border-bronze: #4a3520;
-        --jaku-accent-amber: #d97706;
-        --jaku-accent-copper: #ea580c;
-        --jaku-accent-gold: #f59e0b;
-        --jaku-accent-cyan: #14b8a6;
-        --jaku-accent-teal: #2dd4bf;
-        --jaku-accent-crimson: #dc2626;
-        --jaku-text-primary: #f4f4f0;
-        --jaku-text-muted: #8e8a83;
-      }
-
-      /* Industrial DAW Tactile Range Sliders (matching reference screenshot) */
-      input[type="range"].jaku-fader {
-        -webkit-appearance: none;
-        appearance: none;
-        background: transparent;
-        cursor: pointer;
-      }
-      input[type="range"].jaku-fader::-webkit-slider-runnable-track {
-        height: 4px;
-        border-radius: 9999px;
-        background: linear-gradient(90deg, #b89c72 0%, #786244 65%, #272523 65%);
-      }
-      input[type="range"].jaku-fader::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 11px;
-        height: 11px;
-        border-radius: 9999px;
-        background: #e2b887;
-        border: 1.5px solid #2b1d10;
-        box-shadow: 0 0 6px rgba(245, 158, 11, 0.55);
-        margin-top: -3.5px;
-        transition: transform 80ms ease, background-color 80ms ease;
-      }
-      input[type="range"].jaku-fader:hover::-webkit-slider-thumb {
-        transform: scale(1.15);
-        background: #f5cba0;
-      }
-      input[type="range"].jaku-fader::-moz-range-track {
-        height: 4px;
-        border-radius: 9999px;
-        background: #272523;
-      }
-      input[type="range"].jaku-fader::-moz-range-thumb {
-        width: 11px;
-        height: 11px;
-        border-radius: 9999px;
-        background: #e2b887;
-        border: 1.5px solid #2b1d10;
-        box-shadow: 0 0 6px rgba(245, 158, 11, 0.55);
-      }
-
-      /* DJ Deck Signature Colored Tempo Sliders */
-      input[type="range"].jaku-deck-tempo::-webkit-slider-runnable-track {
-        height: 4px;
-        border-radius: 9999px;
-        background: linear-gradient(90deg, var(--deck-color, #d97706) 0%, var(--deck-color, #d97706) 50%, #272523 50%);
-      }
-      input[type="range"].jaku-deck-tempo::-webkit-slider-thumb {
-        background: var(--deck-color, #e2b887);
-        border: 1.5px solid #141210;
-        box-shadow: 0 0 7px var(--deck-color, rgba(245, 158, 11, 0.55));
-      }
-
-      /* Ultra-thin obsidian scrollbars */
-      ::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #0b0a09;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #262320;
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #4a3520;
-      }
-    </style>
-
     <script>
-      // SPA URL Cloaking Guard: Lock browser address bar permanently at "/"
+      // Synchronous FOUC-Free Studio Theme Bootstrap & SPA URL Cloaking Guard
       (() => {
+        const VALID_THEMES = ["midnight", "saffron", "frost"];
+        const applySavedTheme = () => {
+          let saved = "midnight";
+          try {
+            const stored = window.localStorage.getItem("jaku-studio-theme");
+            if (stored && VALID_THEMES.includes(stored)) saved = stored;
+          } catch (_e) {}
+
+          const root = document.documentElement;
+          root.setAttribute("data-theme", saved);
+          root.classList.remove("theme-midnight", "theme-saffron", "theme-frost", "dark", "light");
+          root.classList.add(`theme-${saved}`, saved === "frost" ? "light" : "dark");
+
+          if (document.body) {
+            document.body.setAttribute("data-theme", saved);
+          }
+          const frame = document.getElementById("jaku_workstation");
+          if (frame) {
+            frame.setAttribute("data-theme", saved);
+            frame.setAttribute("data-workstation-theme-value", saved);
+          }
+        };
+
+        applySavedTheme();
+
         const lockRootUrl = () => {
+          applySavedTheme();
           if (window.location.pathname !== "/" || window.location.search !== "" || window.location.hash !== "") {
             window.history.replaceState(window.history.state, "", "/");
           }
@@ -128,9 +61,12 @@
         window.addEventListener("popstate", lockRootUrl);
       })();
     </script>
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
   </head>
 
-  <body class="h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc] font-sans antialiased">
+  <body data-theme="midnight" class="jaku-root-shell h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc] font-sans antialiased">
     <%= yield %>
 
     <% if notice.present? || alert.present? %>

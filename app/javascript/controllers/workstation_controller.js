@@ -27,6 +27,7 @@ export default class extends Controller {
   ]
 
   static values = {
+    theme: { type: String, default: "midnight" },
     mode: { type: String, default: "create" },
     submode: { type: String, default: "song" },
     libraryTab: { type: String, default: "library" },
@@ -45,9 +46,18 @@ export default class extends Controller {
     this.themes = [
       { id: "midnight", icon: "🌙", label: "Dark" },
       { id: "saffron", icon: "🔥", label: "Saffron" },
-      { id: "frost", icon: "❄️", label: "Frost" }
+      { id: "frost", icon: "☀️", label: "Frost" }
     ]
-    this.themeIndex = 0
+    let savedTheme = null
+    try {
+      savedTheme = window.localStorage.getItem("jaku-studio-theme")
+    } catch (_e) {
+      // Ignore storage errors in restricted environments
+    }
+    const initialTheme = savedTheme || document.documentElement.getAttribute("data-theme") || this.themeValue || "midnight"
+    const foundIndex = this.themes.findIndex((t) => t.id === initialTheme)
+    this.themeIndex = foundIndex >= 0 ? foundIndex : 0
+
     this.sampleRates = ["48.0 kHz", "96.0 kHz", "192.0 kHz"]
     this.bitDepths = ["24-bit", "32-bit float", "64-bit DSP"]
     this.masterPhase = 0
@@ -59,6 +69,7 @@ export default class extends Controller {
     this.element.addEventListener("daw-timeline:tick", this.boundTimelineTick)
     this.element.addEventListener("daw-timeline:renderer-changed", this.boundRendererStatus)
 
+    this.applyTheme(this.themes[this.themeIndex].id, { persist: false })
     this.startMasterMeterLoop()
   }
 
@@ -82,13 +93,45 @@ export default class extends Controller {
     }
   }
 
-  // ZONE A: Theme Switcher
+  // ZONE A: Theme Switcher (Midnight Dark -> Saffron Dusk -> Ottawa Frost)
   toggleTheme() {
     this.themeIndex = (this.themeIndex + 1) % this.themes.length
     const nextTheme = this.themes[this.themeIndex]
-    document.documentElement.setAttribute("data-theme", nextTheme.id)
-    if (this.hasThemeIconTarget) this.themeIconTarget.textContent = nextTheme.icon
-    if (this.hasThemeLabelTarget) this.themeLabelTarget.textContent = nextTheme.label
+    this.applyTheme(nextTheme.id, { persist: true })
+    this.ensureRootUrlLocked()
+  }
+
+  applyTheme(themeId, { persist = true } = {}) {
+    const theme = this.themes.find((t) => t.id === themeId) || this.themes[0]
+    this.themeValue = theme.id
+
+    const root = document.documentElement
+    root.setAttribute("data-theme", theme.id)
+    root.classList.remove("theme-midnight", "theme-saffron", "theme-frost", "dark", "light")
+    root.classList.add(`theme-${theme.id}`, theme.id === "frost" ? "light" : "dark")
+
+    if (document.body) {
+      document.body.setAttribute("data-theme", theme.id)
+    }
+    this.element.setAttribute("data-theme", theme.id)
+
+    if (this.hasThemeButtonTarget) {
+      this.themeButtonTarget.setAttribute("data-theme-current", theme.id)
+    }
+    if (this.hasThemeIconTarget) this.themeIconTarget.textContent = theme.icon
+    if (this.hasThemeLabelTarget) this.themeLabelTarget.textContent = theme.label
+
+    if (persist) {
+      try {
+        window.localStorage.setItem("jaku-studio-theme", theme.id)
+      } catch (_e) {
+        // Ignore storage errors in restricted environments
+      }
+    }
+
+    const detail = { theme: theme.id, label: theme.label }
+    this.element.dispatchEvent(new CustomEvent("workstation:theme-changed", { bubbles: true, detail }))
+    window.dispatchEvent(new CustomEvent("workstation:theme-changed", { detail }))
   }
 
   // ZONE A: Top-Level Mode Switcher (Create <-> DJ) without URL mutation
@@ -684,9 +727,12 @@ export default class extends Controller {
           const ctx = canvas.getContext("2d")
           ctx.clearRect(0, 0, w, h)
 
+          const styles = getComputedStyle(document.documentElement)
+          const activeColor = styles.getPropertyValue("--saanskara-accent-cyan").trim() || "#14b8a6"
+          const idleColor = styles.getPropertyValue("--saanskara-border-bronze").trim() || "#5c3d1e"
           const midY = h / 2
           ctx.beginPath()
-          ctx.strokeStyle = this.playingValue ? "#14b8a6" : "#5c3d1e"
+          ctx.strokeStyle = this.playingValue ? activeColor : idleColor
           ctx.lineWidth = 1.25 * dpr
 
           for (let x = 0; x < w; x += 3) {

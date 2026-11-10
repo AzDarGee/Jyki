@@ -9,13 +9,37 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     get root_url
     assert_response :success
 
-    # Root Turbo Frame for SPA URL cloaking
-    assert_select "turbo-frame#jaku_workstation"
+    # Root Turbo Frame for SPA URL cloaking & SCSS Theme Engine binding
+    assert_select "turbo-frame#jaku_workstation.jaku-workstation-shell[data-workstation-theme-value='midnight'][data-theme='midnight']"
+    assert_select "style", count: 0
 
-    # Zone A: Top Global Header Bar
+    # Zone A: Top Global Header Bar & Top-Left Theme Toggle Pill
+    assert_select "[data-zone='header'] button[data-workstation-target='themeButton'][data-action*='workstation#toggleTheme'][data-theme-current='midnight']"
+    assert_select "[data-zone='header'] [data-workstation-target='themeIcon']", /🌙/
+    assert_select "[data-zone='header'] [data-workstation-target='themeLabel']", /Dark/
     assert_select "[data-zone='header'] #top_bar_auth_badge"
     assert_select "[data-zone='header'] button", /Create/
     assert_select "[data-zone='header'] button", /DJ/
+
+    # Verify compiled SCSS pipeline output (app/assets/builds/tailwind.css) defines all themes and zone selectors
+    compiled_css = Rails.root.join("app/assets/builds/tailwind.css").read
+    assert_match(/--saanskara-bg-obsidian/, compiled_css)
+    assert_match(/--jaku-bg-obsidian/, compiled_css)
+    assert_match(/\[data-theme=["']?midnight["']?\]/, compiled_css)
+    assert_match(/\[data-theme=["']?saffron["']?\]/, compiled_css)
+    assert_match(/\[data-theme=["']?frost["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?header["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?master-meter["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?transport["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?sound-browser["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?track-headers["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?timeline["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?dj-beatgrid["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?dj-deck-matrix["']?\]/, compiled_css)
+    assert_match(/\[data-zone=["']?mixer-console["']?\]/, compiled_css)
+    assert_match(/#jyki_right_sidebar/, compiled_css)
+    assert_match(/#studio_auth_drawer/, compiled_css)
+    assert_match(/input\[type=["']?range["']?\]\.jaku-fader/, compiled_css)
 
     # Zone B: Master Meter / Global Spectrogram Strip
     assert_select "[data-zone='master-meter']", /LUFS/

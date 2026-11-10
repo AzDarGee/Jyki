@@ -30,12 +30,14 @@ export default class extends Controller {
     this.initGpuBackends()
 
     this.boundResize = this.resizeAndRender.bind(this)
+    this.boundThemeChanged = this.renderFrame.bind(this)
     this.boundResetPlayhead = this.resetPlayhead.bind(this)
     this.boundAddTrack = this.onAddTrack.bind(this)
     this.boundRemoveTrack = this.onRemoveTrack.bind(this)
     this.boundDropClip = this.onDropClip.bind(this)
 
     window.addEventListener("resize", this.boundResize)
+    window.addEventListener("workstation:theme-changed", this.boundThemeChanged)
     this.element.addEventListener("daw-timeline:reset-playhead", this.boundResetPlayhead)
     this.element.addEventListener("daw-timeline:add-track", this.boundAddTrack)
     this.element.addEventListener("daw-timeline:remove-track", this.boundRemoveTrack)
@@ -53,6 +55,7 @@ export default class extends Controller {
   disconnect() {
     this.isReady = false
     window.removeEventListener("resize", this.boundResize)
+    window.removeEventListener("workstation:theme-changed", this.boundThemeChanged)
     this.element.removeEventListener("daw-timeline:reset-playhead", this.boundResetPlayhead)
     this.element.removeEventListener("daw-timeline:add-track", this.boundAddTrack)
     this.element.removeEventListener("daw-timeline:remove-track", this.boundRemoveTrack)
@@ -493,8 +496,15 @@ export default class extends Controller {
     ctx.save()
     ctx.scale(dpr, dpr)
 
-    // Base Obsidian Timeline Background
-    ctx.fillStyle = "#0c0b0a"
+    const rootStyles = getComputedStyle(document.documentElement)
+    const token = (name, fallback) => {
+      const val = rootStyles.getPropertyValue(name).trim()
+      return val || fallback
+    }
+    const isLightTheme = document.documentElement.getAttribute("data-theme") === "frost"
+
+    // Base Theme-Driven Timeline Background
+    ctx.fillStyle = token("--saanskara-bg-stage", token("--saanskara-bg-canvas", "#0c0b0a"))
     ctx.fillRect(0, 0, width, height)
 
     // Backend-specific shader tint/pass indicator
@@ -507,17 +517,17 @@ export default class extends Controller {
     }
 
     // 1. Vertical Bar & Beat Grid Lines across entire height
-    this.drawBeatGrid(ctx, width, height)
+    this.drawBeatGrid(ctx, width, height, token)
 
     // 2. Track Lanes, Clips, Waveforms / MIDI Notes, and Orange Automation Envelopes
     this.tracks.forEach((track, idx) => {
       const laneTop = this.rulerHeight + idx * this.laneHeight
-      this.drawTrackLane(ctx, track, laneTop, width)
+      this.drawTrackLane(ctx, track, laneTop, width, token, isLightTheme)
     })
 
     // Horizontal dividers for remaining empty space below tracks
     const bottomTracksY = this.rulerHeight + this.tracks.length * this.laneHeight
-    ctx.strokeStyle = "#181614"
+    ctx.strokeStyle = token("--saanskara-lane-border", "#181614")
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(0, bottomTracksY + 0.5)
@@ -525,20 +535,22 @@ export default class extends Controller {
     ctx.stroke()
 
     // 3. Top Ruler Bar (1.1, 2.1, 3.1 ... 18.1)
-    this.drawRuler(ctx, width)
+    this.drawRuler(ctx, width, token)
 
     ctx.restore()
   }
 
-  drawBeatGrid(ctx, width, height) {
+  drawBeatGrid(ctx, width, height, token) {
     const ppb = this.pixelsPerBar()
     const totalBars = Math.ceil(width / ppb) + 2
+    const barLineColor = token ? token("--saanskara-grid-bar", "#1e1b18") : "#1e1b18"
+    const beatLineColor = token ? token("--saanskara-grid-beat", "#141210") : "#141210"
 
     for (let bar = 1; bar <= totalBars; bar++) {
       const barX = Math.floor(this.barToX(bar)) + 0.5
 
       // Major bar line
-      ctx.strokeStyle = "#1e1b18"
+      ctx.strokeStyle = barLineColor
       ctx.lineWidth = 1
       ctx.beginPath()
       ctx.moveTo(barX, this.rulerHeight)
@@ -548,7 +560,7 @@ export default class extends Controller {
       // 4 Beat subdivisions per bar
       const beatStep = ppb / 4
       if (beatStep >= 12) {
-        ctx.strokeStyle = "#141210"
+        ctx.strokeStyle = beatLineColor
         for (let b = 1; b < 4; b++) {
           const bx = Math.floor(barX + b * beatStep) + 0.5
           ctx.beginPath()
@@ -560,11 +572,11 @@ export default class extends Controller {
     }
   }
 
-  drawRuler(ctx, width) {
-    ctx.fillStyle = "#11100f"
+  drawRuler(ctx, width, token) {
+    ctx.fillStyle = token ? token("--saanskara-ruler-bg", "#11100f") : "#11100f"
     ctx.fillRect(0, 0, width, this.rulerHeight)
 
-    ctx.strokeStyle = "#26221e"
+    ctx.strokeStyle = token ? token("--saanskara-border-card", "#26221e") : "#26221e"
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(0, this.rulerHeight - 0.5)
@@ -575,15 +587,18 @@ export default class extends Controller {
     const totalBars = Math.ceil(width / ppb) + 2
 
     ctx.font = "600 10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-    ctx.fillStyle = "#8e8a83"
+    ctx.fillStyle = token ? token("--saanskara-text-muted", "#8e8a83") : "#8e8a83"
     ctx.textBaseline = "middle"
+
+    const majorTickColor = token ? token("--saanskara-border-elevated", "#3a3530") : "#3a3530"
+    const minorTickColor = token ? token("--saanskara-border-subtle", "#24201d") : "#24201d"
 
     for (let bar = 1; bar <= totalBars; bar++) {
       const x = Math.floor(this.barToX(bar))
       ctx.fillText(`${bar}.1`, x + 4, 11)
 
       // Major tick mark
-      ctx.strokeStyle = "#3a3530"
+      ctx.strokeStyle = majorTickColor
       ctx.beginPath()
       ctx.moveTo(x + 0.5, this.rulerHeight - 8)
       ctx.lineTo(x + 0.5, this.rulerHeight)
@@ -591,7 +606,7 @@ export default class extends Controller {
 
       // Minor beat ticks
       const beatStep = ppb / 4
-      ctx.strokeStyle = "#24201d"
+      ctx.strokeStyle = minorTickColor
       for (let b = 1; b < 4; b++) {
         const bx = Math.floor(x + b * beatStep) + 0.5
         ctx.beginPath()
@@ -602,15 +617,15 @@ export default class extends Controller {
     }
   }
 
-  drawTrackLane(ctx, track, laneTop, width) {
+  drawTrackLane(ctx, track, laneTop, width, token, isLightTheme) {
     const h = this.laneHeight
 
     // Subtle alternating lane tint
-    ctx.fillStyle = "rgba(18, 17, 16, 0.35)"
+    ctx.fillStyle = token ? token("--saanskara-lane-tint", "rgba(18, 17, 16, 0.35)") : "rgba(18, 17, 16, 0.35)"
     ctx.fillRect(0, laneTop, width, h)
 
     // Bottom lane border
-    ctx.strokeStyle = "#1c1917"
+    ctx.strokeStyle = token ? token("--saanskara-lane-border", "#1c1917") : "#1c1917"
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(0, laneTop + h - 0.5)
@@ -619,16 +634,16 @@ export default class extends Controller {
 
     // Draw each clip in the track
     track.clips.forEach((clip) => {
-      this.drawClipBox(ctx, track, clip, laneTop)
+      this.drawClipBox(ctx, track, clip, laneTop, token, isLightTheme)
     })
 
-    // Draw Orange Automation Envelope Curve & Draggable Control Points
+    // Draw Automation Envelope Curve & Draggable Control Points
     if (this.autoLanesValue && track.automation && track.automation.length > 0) {
-      this.drawAutomationCurve(ctx, track, laneTop)
+      this.drawAutomationCurve(ctx, track, laneTop, token)
     }
   }
 
-  drawClipBox(ctx, track, clip, laneTop) {
+  drawClipBox(ctx, track, clip, laneTop, token, isLightTheme) {
     const x = this.barToX(clip.startBar)
     const w = Math.max(8, this.barToX(clip.endBar) - x - 1)
     const y = laneTop + 3
@@ -636,15 +651,15 @@ export default class extends Controller {
     const headerH = 15
 
     // Clip body fill
-    ctx.fillStyle = clip.bg
+    ctx.fillStyle = isLightTheme ? "rgba(255, 255, 255, 0.86)" : clip.bg
     ctx.fillRect(x, y, w, h)
 
     // Clip top header strip
-    ctx.fillStyle = "rgba(0, 0, 0, 0.38)"
+    ctx.fillStyle = isLightTheme ? "rgba(226, 232, 240, 0.92)" : "rgba(0, 0, 0, 0.38)"
     ctx.fillRect(x, y, w, headerH)
 
     // Clip 1px border
-    ctx.strokeStyle = clip.border
+    ctx.strokeStyle = isLightTheme ? (token ? token("--saanskara-border-card", "#94a3b8") : "#94a3b8") : clip.border
     ctx.lineWidth = 1
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
 
@@ -654,7 +669,7 @@ export default class extends Controller {
     ctx.rect(x + 2, y, w - 4, headerH)
     ctx.clip()
     ctx.font = "600 9.5px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-    ctx.fillStyle = "#e5e2dc"
+    ctx.fillStyle = isLightTheme ? "#0f172a" : (token ? token("--saanskara-text-secondary", "#e5e2dc") : "#e5e2dc")
     ctx.textBaseline = "middle"
     ctx.fillText(clip.title, x + 5, y + headerH / 2 + 0.5)
     ctx.restore()
@@ -672,15 +687,15 @@ export default class extends Controller {
     if (track.kind === "midi") {
       this.drawMidiNotes(ctx, x + 4, contentTop, w - 8, contentH, clip.tint)
     } else {
-      this.drawAudioWaveform(ctx, x + 2, midY, w - 4, contentH, track.waveStyle, clip.tint)
+      this.drawAudioWaveform(ctx, x + 2, midY, w - 4, contentH, track.waveStyle, clip.tint, isLightTheme)
     }
 
     ctx.restore()
   }
 
-  drawAudioWaveform(ctx, startX, midY, width, height, style, color) {
+  drawAudioWaveform(ctx, startX, midY, width, height, style, color, isLightTheme) {
     // Center zero-crossing reference line
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)"
+    ctx.strokeStyle = isLightTheme ? "rgba(15, 23, 42, 0.12)" : "rgba(255, 255, 255, 0.08)"
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(startX, midY)
@@ -742,17 +757,20 @@ export default class extends Controller {
     }
   }
 
-  drawAutomationCurve(ctx, track, laneTop) {
+  drawAutomationCurve(ctx, track, laneTop, token) {
     const pts = track.automation
     const padTop = 18
     const usableH = this.laneHeight - padTop - 8
+    const accentColor = token ? token("--saanskara-accent-amber", "#f97316") : "#f97316"
+    const hoverColor = token ? token("--saanskara-accent-warm", "#fde047") : "#fde047"
+    const strokeBorder = token ? token("--saanskara-bg-obsidian", "#18120b") : "#18120b"
 
     const screenPts = pts.map((pt) => ({
       x: this.barToX(pt.bar),
       y: laneTop + padTop + (1.0 - pt.value) * usableH
     }))
 
-    // Soft copper fill under the automation envelope
+    // Soft accent fill under the automation envelope
     ctx.save()
     ctx.beginPath()
     ctx.moveTo(screenPts[0].x, laneTop + this.laneHeight - 3)
@@ -762,13 +780,13 @@ export default class extends Controller {
     ctx.fillStyle = "rgba(234, 88, 12, 0.08)"
     ctx.fill()
 
-    // Glowing orange automation line
+    // Glowing automation line
     ctx.beginPath()
     screenPts.forEach((p, i) => {
       if (i === 0) ctx.moveTo(p.x, p.y)
       else ctx.lineTo(p.x, p.y)
     })
-    ctx.strokeStyle = "#f97316"
+    ctx.strokeStyle = accentColor
     ctx.lineWidth = 1.6
     ctx.stroke()
 
@@ -781,10 +799,10 @@ export default class extends Controller {
 
       ctx.beginPath()
       ctx.arc(p.x, p.y, isHovered ? 4.5 : 3.0, 0, Math.PI * 2)
-      ctx.fillStyle = isHovered ? "#fde047" : "#fb923c"
+      ctx.fillStyle = isHovered ? hoverColor : accentColor
       ctx.fill()
       ctx.lineWidth = 1.2
-      ctx.strokeStyle = "#18120b"
+      ctx.strokeStyle = strokeBorder
       ctx.stroke()
     })
     ctx.restore()

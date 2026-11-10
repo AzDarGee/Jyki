@@ -1,7 +1,9 @@
 <%= turbo_frame_tag "jaku_workstation",
-      class: "h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc]",
+      class: "jaku-workstation-shell h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc]",
       data: {
         controller: "workstation mixer auth-drawer right-sidebar",
+        theme: "midnight",
+        workstation_theme_value: "midnight",
         workstation_mode_value: "create",
         workstation_submode_value: "song",
         workstation_library_tab_value: "library",

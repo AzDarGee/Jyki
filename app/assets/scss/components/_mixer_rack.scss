@@ -1,0 +1,21 @@
+// app/assets/scss/components/_mixer_rack.scss
+@use "../abstracts" as *;
+
+// Zone E: Bottom Mixer Console & Smooth Gain Automation Drawer
+#jaku_mixer_drawer,
+[data-zone="mixer-console"] {
+  @include workstation-zone-surface("bg-surface", "border-subtle", "text-secondary");
+
+  #mixer_channels_strip {
+    border-color: theme("border-subtle") !important;
+  }
+
+  [data-mixer-target="channelCard"] {
+    @include workstation-card("bg-card", "border-card");
+    transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition;
+  }
+
+  [data-mixer-target="insertSlot"] {
+    transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition;
+  }
+}

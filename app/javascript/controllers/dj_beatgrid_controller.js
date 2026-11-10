@@ -38,12 +38,14 @@ export default class extends Controller {
   connect() {
     this.isReady = true
     this.boundResize = this.resizeAndRender.bind(this)
+    this.boundThemeChanged = this.renderFrame.bind(this)
     this.boundDeckChange = this.onDeckStateChanged.bind(this)
     this.boundMasterHandoff = this.onMasterHandoff.bind(this)
     this.boundDeckNudge = this.onDeckNudge.bind(this)
     this.boundDeckCue = this.onDeckCue.bind(this)
 
     window.addEventListener("resize", this.boundResize)
+    window.addEventListener("workstation:theme-changed", this.boundThemeChanged)
     this.element.addEventListener("dj-deck:state-changed", this.boundDeckChange)
     this.element.addEventListener("dj-deck:master-handoff", this.boundMasterHandoff)
     this.element.addEventListener("dj-deck:nudge", this.boundDeckNudge)
@@ -61,6 +63,7 @@ export default class extends Controller {
   disconnect() {
     this.isReady = false
     window.removeEventListener("resize", this.boundResize)
+    window.removeEventListener("workstation:theme-changed", this.boundThemeChanged)
     this.element.removeEventListener("dj-deck:state-changed", this.boundDeckChange)
     this.element.removeEventListener("dj-deck:master-handoff", this.boundMasterHandoff)
     this.element.removeEventListener("dj-deck:nudge", this.boundDeckNudge)
@@ -287,8 +290,16 @@ export default class extends Controller {
     ctx.save()
     ctx.scale(dpr, dpr)
 
-    // Deep Obsidian Backdrop
-    ctx.fillStyle = "#0b0a09"
+    const rootStyles = getComputedStyle(document.documentElement)
+    const token = (name, fallback) => {
+      const val = rootStyles.getPropertyValue(name).trim()
+      return val || fallback
+    }
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "midnight"
+    const isLight = currentTheme === "frost"
+
+    // Theme-Driven Beatgrid Backdrop
+    ctx.fillStyle = token("--saanskara-bg-canvas", "#0b0a09")
     ctx.fillRect(0, 0, width, height)
 
     const laneCount = this.lanes.length
@@ -301,12 +312,18 @@ export default class extends Controller {
       const midY = laneTop + laneHeight * 0.5
 
       // Alternating subtle swimlane background
-      ctx.fillStyle = idx % 2 === 0 ? "rgba(18, 17, 16, 0.55)" : "rgba(13, 12, 11, 0.55)"
+      if (isLight) {
+        ctx.fillStyle = idx % 2 === 0 ? "rgba(255, 255, 255, 0.72)" : "rgba(241, 245, 249, 0.72)"
+      } else if (currentTheme === "saffron") {
+        ctx.fillStyle = idx % 2 === 0 ? "rgba(49, 27, 18, 0.65)" : "rgba(38, 21, 14, 0.65)"
+      } else {
+        ctx.fillStyle = idx % 2 === 0 ? "rgba(18, 17, 16, 0.55)" : "rgba(13, 12, 11, 0.55)"
+      }
       ctx.fillRect(0, laneTop, width, laneHeight)
 
       // Bottom lane separator line
       if (idx < laneCount - 1) {
-        ctx.strokeStyle = "#1c1916"
+        ctx.strokeStyle = token("--saanskara-lane-border", "#1c1916")
         ctx.lineWidth = 1
         ctx.beginPath()
         ctx.moveTo(0, laneTop + laneHeight - 0.5)
@@ -316,7 +333,7 @@ export default class extends Controller {
 
       // Dashed horizontal zero-crossing centerline
       ctx.save()
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)"
+      ctx.strokeStyle = isLight ? "rgba(15, 23, 42, 0.14)" : "rgba(255, 255, 255, 0.08)"
       ctx.lineWidth = 1
       ctx.setLineDash([ 3, 4 ])
       ctx.beginPath()

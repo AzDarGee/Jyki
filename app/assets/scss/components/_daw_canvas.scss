@@ -1,6 +1,57 @@
 // app/assets/scss/components/_daw_canvas.scss
 @use "../abstracts" as *;
 
+// Zone D Column 1: Left Sound Library & Plugins Browser
+#jaku_sound_browser,
+[data-zone="sound-browser"] {
+  @include workstation-zone-surface("bg-surface", "border-subtle", "text-secondary");
+
+  [data-workstation-target="libraryCard"] {
+    transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition;
+  }
+}
+
+// Zone D Column 2A: Collapsible Track Headers List
+#jaku_track_headers_column,
+[data-zone="track-headers"] {
+  @include workstation-zone-surface("bg-panel", "border-subtle", "text-secondary");
+
+  [data-mixer-target="trackHeaderRow"],
+  [data-mixer-target="collapsedTrackPill"] {
+    transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition;
+  }
+}
+
+// Zone D Column 2B: Center Multi-Backend DAW Timeline Canvas & Playhead
+#jaku_timeline_stage,
+[data-zone="timeline"] {
+  @include workstation-zone-surface("bg-stage", "border-subtle", "text-secondary");
+
+  [data-workstation-target="playheadLine"] {
+    background-color: theme("accent-amber") !important;
+    box-shadow: 0 0 8px theme("fader-glow");
+  }
+}
+
+// Zone D Ideas Session / Clip Launcher Matrix
+[data-workstation-target="ideasView"] {
+  @include workstation-zone-surface("bg-stage", "border-subtle", "text-secondary");
+}
+
+// Zone D DJ Mode: 6-Deck Phase-Locked Parallel Beatgrid & Deck Matrix
+[data-zone="dj-beatgrid"] {
+  @include workstation-zone-surface("bg-surface", "border-subtle", "text-secondary");
+}
+
+[data-zone="dj-deck-matrix"] {
+  @include workstation-zone-surface("bg-stage", "border-subtle", "text-secondary");
+
+  [data-controller="dj-deck"] {
+    @include workstation-card("bg-card", "border-card");
+    transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition;
+  }
+}
+
 .daw-canvas-stage {
   background-color: theme("bg-canvas");
   border: 1px solid theme("border-subtle");
