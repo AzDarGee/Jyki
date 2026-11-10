@@ -47,8 +47,8 @@ production:
   primary: &primary_production
     <<: *default
     username: <%= Rails.application.credentials.dig(:database, :prod, :username) %>
-    database: <%= Rails.application.credentials.dig(:database, :prod, :database_name) %>
-    url: <%= Rails.application.credentials.dig(:database, :prod, :url) %>
+    database: <%= Rails.application.credentials.dig(:database, :prod, :database) %>
+#    url: <%#= Rails.application.credentials.dig(:database, :prod, :url) %>
     password: <%= Rails.application.credentials.dig(:database, :prod, :password) %>
     sslmode: require
   cache:
