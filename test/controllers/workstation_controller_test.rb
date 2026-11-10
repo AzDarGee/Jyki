@@ -28,7 +28,9 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
 
     # Zone D: Main Center Workstation Area (Library, Track Headers, Timeline Canvas, Utility Rail)
     assert_select "[data-zone='sound-browser']", /Sound Libraries & Plugins/
-    assert_select "[data-zone='track-headers']", /01\. Sub Bass 808/
+    assert_select "[data-zone='track-headers'][class*='transition-all']", /01\. Sub Bass 808/
+    assert_select "[data-mixer-target='trackHeaderRow'][data-action*='mixer#handleTrackRowClick']", minimum: 4
+    assert_select "[data-mixer-target='collapsedTrackPill']", minimum: 4
     assert_select "[data-zone='timeline'] canvas[data-controller*='daw-timeline']"
     assert_select "[data-zone='utility-rail']"
 

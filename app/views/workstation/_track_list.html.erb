@@ -1,21 +1,25 @@
-<%# Sub-Column 2A: Track Headers List %>
-<aside class="w-60 border-r border-[#26221e] bg-[#121110] flex flex-col justify-between shrink-0"
+<%# Sub-Column 2A: Collapsible Track Headers Panel with Sliding Animation (w-60 Expanded <-> w-14 Compact Strip) %>
+<aside class="w-60 border-r border-[#26221e] bg-[#121110] flex flex-col justify-between shrink-0 overflow-hidden transition-all duration-300 ease-in-out"
        data-zone="track-headers"
+       data-collapsed="false"
        data-workstation-target="trackHeadersColumn"
        aria-label="Track Headers List">
   <%# Top Header + Track Rows %>
   <div class="flex-1 flex flex-col overflow-hidden">
-    <%# Header Bar: TRACKS (4) with collapse sidebar icon |◁ %>
-    <div class="h-7 px-3 border-b border-[#221f1d] bg-[#141312] flex items-center justify-between shrink-0">
-      <span class="font-mono text-[10px] font-semibold tracking-wider text-[#8e8a83] uppercase">
+    <%# Header Bar: TRACKS (4) with collapse/expand sidebar icon |◁ / ▷| %>
+    <div class="h-7 px-2.5 border-b border-[#221f1d] bg-[#141312] flex items-center justify-between shrink-0">
+      <span data-workstation-target="trackHeadersTitleLabel"
+            class="font-mono text-[10px] font-semibold tracking-wider text-[#8e8a83] uppercase truncate transition-opacity duration-200">
         TRACKS (<span id="tracks_count_badge" data-workstation-target="trackCount"><%= tracks.size %></span>)
       </span>
       <button type="button"
               data-action="click->workstation#toggleTrackHeaders"
-              title="Collapse Track Headers"
-              aria-label="Collapse Track Headers"
-              class="text-[10px] font-mono text-[#8e8a83] hover:text-[#f59e0b] cursor-pointer">
-        |◁
+              data-workstation-target="trackHeadersToggleBtn"
+              title="Collapse / Expand Track Headers (Click a collapsed track to Solo)"
+              aria-label="Collapse or Expand Track Headers"
+              aria-expanded="true"
+              class="w-6 h-5 rounded flex items-center justify-center text-[10px] font-mono text-[#8e8a83] hover:text-[#f59e0b] hover:bg-[#1f1c19] cursor-pointer transition-colors shrink-0">
+        <span data-workstation-target="trackHeadersToggleIcon">|◁</span>
       </button>
     </div>
 
@@ -29,8 +33,9 @@
     </div>
   </div>
 
-  <%# Bottom Track Creator Box (ADD EMPTY TRACK) %>
-  <div class="p-2.5 border-t border-[#26221e] bg-[#0e0d0c] shrink-0">
+  <%# Bottom Track Creator Box (ADD EMPTY TRACK — slides out when panel is collapsed) %>
+  <div data-workstation-target="trackCreatorBox"
+       class="p-2.5 border-t border-[#26221e] bg-[#0e0d0c] shrink-0 transition-all duration-200">
     <div class="flex items-center justify-between mb-2">
       <span class="font-mono text-[9px] font-semibold tracking-widest text-[#8e8a83] uppercase">
         ADD EMPTY TRACK
@@ -77,4 +82,3 @@
     </div>
   </div>
 </aside>
-

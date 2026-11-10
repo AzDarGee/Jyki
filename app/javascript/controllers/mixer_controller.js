@@ -5,6 +5,9 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = [
     "trackHeaderRow",
+    "soloButton",
+    "collapsedTrackPill",
+    "collapsedSoloBadge",
     "headerGainSlider",
     "headerGainReadout",
     "channelStripCard",
@@ -61,7 +64,18 @@ export default class extends Controller {
     return `${num > 0 ? "+" : ""}${num.toFixed(1)} dB`
   }
 
-  // Select track and sync Left Track Header + Bottom Channel Strip + Inserts Rack header
+  // Select track and sync Left Track Header + Bottom Channel Strip + Inserts Rack header.
+  // When the Tracks panel is collapsed (data-collapsed="true"), clicking a track row also toggles Solo mode!
+  handleTrackRowClick(event) {
+    this.selectTrack(event)
+
+    const panel = event.currentTarget.closest("[data-zone='track-headers']")
+    if (panel && panel.dataset.collapsed === "true") {
+      const trackId = Number(event.currentTarget.dataset.trackId)
+      this.toggleSoloForTrack(trackId)
+    }
+  }
+
   selectTrack(event) {
     const trackId = Number(event.currentTarget.dataset.trackId)
     const trackName = event.currentTarget.dataset.trackName
@@ -71,7 +85,7 @@ export default class extends Controller {
 
     this.trackHeaderRowTargets.forEach((row) => {
       const active = Number(row.dataset.trackId) === trackId
-      row.className = `h-[68px] px-2.5 py-2 flex flex-col justify-between transition-colors cursor-pointer ${
+      row.className = `h-[68px] px-2.5 py-2 flex flex-col justify-between transition-colors cursor-pointer relative overflow-hidden ${
         active
           ? "bg-[#191613] border-l-2 border-l-[#d97706]"
           : "bg-[#121110] hover:bg-[#161513]"
@@ -182,11 +196,7 @@ export default class extends Controller {
           : "bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]"
       }`
     } else if (flag === "soloed") {
-      btn.className = `w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors ${
-        active
-          ? "bg-[#f59e0b] text-[#09090b] border-[#fbbf24]"
-          : "bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]"
-      }`
+      this.syncSoloState(trackId, active)
     } else if (flag === "armed") {
       btn.className = `w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors ${
         active
@@ -207,6 +217,42 @@ export default class extends Controller {
         }
       })
     }
+  }
+
+  toggleSoloForTrack(trackId) {
+    const row = this.trackHeaderRowTargets.find((r) => Number(r.dataset.trackId) === trackId)
+    const currentlySoloed = row ? row.dataset.soloed === "true" : false
+    this.syncSoloState(trackId, !currentlySoloed)
+  }
+
+  syncSoloState(trackId, active) {
+    this.trackHeaderRowTargets.forEach((row) => {
+      if (Number(row.dataset.trackId) === trackId) {
+        row.dataset.soloed = active ? "true" : "false"
+      }
+    })
+
+    this.soloButtonTargets.forEach((btn) => {
+      if (Number(btn.dataset.trackId) === trackId) {
+        btn.setAttribute("aria-pressed", active ? "true" : "false")
+        btn.className = `w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors ${
+          active
+            ? "bg-[#f59e0b] text-[#09090b] border-[#fbbf24]"
+            : "bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]"
+        }`
+      }
+    })
+
+    this.collapsedSoloBadgeTargets.forEach((badge) => {
+      if (Number(badge.dataset.trackId) === trackId) {
+        badge.textContent = active ? "SOLO" : "S"
+        badge.className = `px-1.5 py-0.5 rounded-xs font-mono text-[9px] font-bold border transition-colors ${
+          active
+            ? "bg-[#f59e0b] text-[#09090b] border-[#fbbf24] shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+            : "bg-[#1a1918] text-[#8e8a83] border-[#2b2825]"
+        }`
+      }
+    })
   }
 
   // Inserts Rack Actions

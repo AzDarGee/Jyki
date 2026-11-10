@@ -17,7 +17,8 @@ export default class extends Controller {
     "exportButton", "exportLabel",
     "autoLanesButton", "autoLanesLabel", "mixerToggleButton", "rendererButton",
     "zoomSlider", "zoomReadout",
-    "trackHeadersColumn", "trackHeadersList", "trackCount",
+    "trackHeadersColumn", "trackHeadersTitleLabel", "trackHeadersToggleBtn", "trackHeadersToggleIcon",
+    "trackCreatorBox", "expandedTrackContent", "collapsedTrackContent", "trackHeadersList", "trackCount",
     "timelineCanvas", "playheadLine", "hudRendererLabel", "hudWasmStatus",
     "aiLabPanel", "aiRailButton", "aiModeButton", "aiPromptInput", "aiRunButton", "aiRunLabel", "aiResponseBox",
     "micStatusLabel", "micTranscribeButton", "micButtonLabel",
@@ -34,6 +35,7 @@ export default class extends Controller {
     bpm: { type: Number, default: 128 },
     autoLanes: { type: Boolean, default: true },
     mixerOpen: { type: Boolean, default: true },
+    trackHeadersOpen: { type: Boolean, default: true },
     aiLabOpen: { type: Boolean, default: true },
     renderer: { type: String, default: "webgpu" },
     zoom: { type: Number, default: 100 }
@@ -414,9 +416,69 @@ export default class extends Controller {
 
   toggleTrackHeaders() {
     if (!this.hasTrackHeadersColumnTarget) return
-    this.trackHeadersColumnTarget.classList.toggle("w-60")
-    this.trackHeadersColumnTarget.classList.toggle("w-44")
+    this.trackHeadersOpenValue = !this.trackHeadersOpenValue
+    const isOpen = this.trackHeadersOpenValue
+
+    this.trackHeadersColumnTarget.dataset.collapsed = isOpen ? "false" : "true"
+
+    if (isOpen) {
+      this.trackHeadersColumnTarget.classList.remove("w-14")
+      this.trackHeadersColumnTarget.classList.add("w-60")
+
+      if (this.hasTrackHeadersTitleLabelTarget) {
+        this.trackHeadersTitleLabelTarget.classList.remove("hidden")
+      }
+      if (this.hasTrackHeadersToggleIconTarget) {
+        this.trackHeadersToggleIconTarget.textContent = "|◁"
+      }
+      if (this.hasTrackHeadersToggleBtnTarget) {
+        this.trackHeadersToggleBtnTarget.setAttribute("aria-expanded", "true")
+      }
+      if (this.hasTrackCreatorBoxTarget) {
+        this.trackCreatorBoxTarget.classList.remove("hidden")
+      }
+
+      this.expandedTrackContentTargets.forEach((el) => {
+        el.classList.remove("hidden")
+        el.classList.add("flex")
+      })
+      this.collapsedTrackContentTargets.forEach((el) => {
+        el.classList.remove("flex")
+        el.classList.add("hidden")
+      })
+    } else {
+      this.trackHeadersColumnTarget.classList.remove("w-60")
+      this.trackHeadersColumnTarget.classList.add("w-14")
+
+      if (this.hasTrackHeadersTitleLabelTarget) {
+        this.trackHeadersTitleLabelTarget.classList.add("hidden")
+      }
+      if (this.hasTrackHeadersToggleIconTarget) {
+        this.trackHeadersToggleIconTarget.textContent = "▷|"
+      }
+      if (this.hasTrackHeadersToggleBtnTarget) {
+        this.trackHeadersToggleBtnTarget.setAttribute("aria-expanded", "false")
+      }
+      if (this.hasTrackCreatorBoxTarget) {
+        this.trackCreatorBoxTarget.classList.add("hidden")
+      }
+
+      this.expandedTrackContentTargets.forEach((el) => {
+        el.classList.remove("flex")
+        el.classList.add("hidden")
+      })
+      this.collapsedTrackContentTargets.forEach((el) => {
+        el.classList.remove("hidden")
+        el.classList.add("flex")
+      })
+    }
+
+    // Dispatch resize immediately and at the end of the 300ms slide transition
     window.dispatchEvent(new Event("resize"))
+    setTimeout(() => {
+      window.dispatchEvent(new Event("resize"))
+    }, 310)
+    this.ensureRootUrlLocked()
   }
 
   // Append Empty Track (Audio / MIDI / Bus) via Turbo Stream + Timeline Sync

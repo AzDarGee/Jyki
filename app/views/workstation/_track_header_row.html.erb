@@ -1,76 +1,98 @@
 <%# Single Track Header Row (height h-[68px] synchronized with timeline lane height) %>
-<div class="h-[68px] px-2.5 py-2 flex flex-col justify-between transition-colors cursor-pointer <%= track[:selected] ? 'bg-[#191613] border-l-2 border-l-[#d97706]' : 'bg-[#121110] hover:bg-[#161513]' %>"
+<div class="h-[68px] px-2.5 py-2 flex flex-col justify-between transition-colors cursor-pointer relative overflow-hidden <%= track[:selected] ? 'bg-[#191613] border-l-2 border-l-[#d97706]' : 'bg-[#121110] hover:bg-[#161513]' %>"
      data-mixer-target="trackHeaderRow"
      data-track-id="<%= track[:id] %>"
      data-track-name="<%= track[:name] %>"
-     data-action="click->mixer#selectTrack">
-  <%# Top Line: Track Name + M | S | R | NR Buttons %>
-  <div class="flex items-center justify-between gap-1">
-    <span class="text-[11px] font-semibold text-[#f4f4f0] truncate max-w-[112px]" title="<%= track[:name] %>">
-      <%= track[:short_name] || track[:name] %>
-    </span>
+     data-soloed="<%= track[:soloed] ? 'true' : 'false' %>"
+     title="<%= track[:name] %> (Click when collapsed to toggle Solo)"
+     data-action="click->mixer#handleTrackRowClick">
 
-    <div class="flex items-center gap-1 shrink-0">
-      <%# Mute (M) %>
-      <button type="button"
-              data-track-id="<%= track[:id] %>"
-              data-flag="muted"
-              data-action="click->mixer#toggleTrackFlag:stop"
-              aria-pressed="<%= track[:muted] ? 'true' : 'false' %>"
-              class="w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:muted] ? 'bg-[#d97706] text-[#09090b] border-[#f59e0b]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
-        M
-      </button>
+  <%# Expanded Track Header View (Visible when panel is w-60) %>
+  <div data-workstation-target="expandedTrackContent"
+       class="flex flex-col justify-between h-full w-full transition-all duration-200">
+    <%# Top Line: Track Name + M | S | R | NR Buttons %>
+    <div class="flex items-center justify-between gap-1">
+      <span class="text-[11px] font-semibold text-[#f4f4f0] truncate max-w-[112px]" title="<%= track[:name] %>">
+        <%= track[:short_name] || track[:name] %>
+      </span>
 
-      <%# Solo (S) %>
-      <button type="button"
-              data-track-id="<%= track[:id] %>"
-              data-flag="soloed"
-              data-action="click->mixer#toggleTrackFlag:stop"
-              aria-pressed="<%= track[:soloed] ? 'true' : 'false' %>"
-              class="w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:soloed] ? 'bg-[#f59e0b] text-[#09090b] border-[#fbbf24]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
-        S
-      </button>
+      <div class="flex items-center gap-1 shrink-0">
+        <%# Mute (M) %>
+        <button type="button"
+                data-track-id="<%= track[:id] %>"
+                data-flag="muted"
+                data-action="click->mixer#toggleTrackFlag:stop"
+                aria-pressed="<%= track[:muted] ? 'true' : 'false' %>"
+                class="w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:muted] ? 'bg-[#d97706] text-[#09090b] border-[#f59e0b]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
+          M
+        </button>
 
-      <%# Record Arm (R) %>
-      <button type="button"
-              data-track-id="<%= track[:id] %>"
-              data-flag="armed"
-              data-action="click->mixer#toggleTrackFlag:stop"
-              aria-pressed="<%= track[:armed] ? 'true' : 'false' %>"
-              class="w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:armed] ? 'bg-[#dc2626] text-white border-[#ef4444] shadow-[0_0_6px_rgba(220,38,38,0.5)]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
-        R
-      </button>
+        <%# Solo (S) %>
+        <button type="button"
+                data-track-id="<%= track[:id] %>"
+                data-flag="soloed"
+                data-mixer-target="soloButton"
+                data-action="click->mixer#toggleTrackFlag:stop"
+                aria-pressed="<%= track[:soloed] ? 'true' : 'false' %>"
+                class="w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:soloed] ? 'bg-[#f59e0b] text-[#09090b] border-[#fbbf24]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
+          S
+        </button>
 
-      <%# Neural / Noise Reduction DSP (NR) %>
-      <button type="button"
-              data-track-id="<%= track[:id] %>"
-              data-flag="nr"
-              data-action="click->mixer#toggleTrackFlag:stop"
-              aria-pressed="<%= track[:nr] ? 'true' : 'false' %>"
-              class="px-1 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:nr] ? 'bg-[#14b8a6] text-[#042f2e] border-[#2dd4bf] shadow-[0_0_6px_rgba(20,184,166,0.4)]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
-        NR
-      </button>
+        <%# Record Arm (R) %>
+        <button type="button"
+                data-track-id="<%= track[:id] %>"
+                data-flag="armed"
+                data-action="click->mixer#toggleTrackFlag:stop"
+                aria-pressed="<%= track[:armed] ? 'true' : 'false' %>"
+                class="w-4 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:armed] ? 'bg-[#dc2626] text-white border-[#ef4444] shadow-[0_0_6px_rgba(220,38,38,0.5)]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
+          R
+        </button>
+
+        <%# Neural / Noise Reduction DSP (NR) %>
+        <button type="button"
+                data-track-id="<%= track[:id] %>"
+                data-flag="nr"
+                data-action="click->mixer#toggleTrackFlag:stop"
+                aria-pressed="<%= track[:nr] ? 'true' : 'false' %>"
+                class="px-1 h-4 rounded-xs font-mono text-[9px] font-bold flex items-center justify-center border cursor-pointer transition-colors <%= track[:nr] ? 'bg-[#14b8a6] text-[#042f2e] border-[#2dd4bf] shadow-[0_0_6px_rgba(20,184,166,0.4)]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825] hover:text-[#f4f4f0]' %>">
+          NR
+        </button>
+      </div>
+    </div>
+
+    <%# Bottom Line: Horizontal Volume Slider + dB Readout %>
+    <div class="flex items-center justify-between gap-2">
+      <input type="range"
+             min="-24"
+             max="6"
+             step="0.1"
+             value="<%= track[:gain_db] %>"
+             aria-label="<%= track[:name] %> Track Gain"
+             data-track-id="<%= track[:id] %>"
+             data-default-value="0.0"
+             data-mixer-target="headerGainSlider"
+             data-action="input->mixer#updateTrackGain dblclick->mixer#resetFader:stop"
+             class="jaku-fader flex-1" />
+      <span data-mixer-target="headerGainReadout"
+            data-track-id="<%= track[:id] %>"
+            class="font-mono text-[10px] text-[#8e8a83] min-w-[42px] text-right">
+        <%= format("%+.1f dB", track[:gain_db]).sub("+0.0", "0.0").sub("+-", "-") %>
+      </span>
     </div>
   </div>
 
-  <%# Bottom Line: Horizontal Volume Slider + dB Readout %>
-  <div class="flex items-center justify-between gap-2">
-    <input type="range"
-           min="-24"
-           max="6"
-           step="0.1"
-           value="<%= track[:gain_db] %>"
-           aria-label="<%= track[:name] %> Track Gain"
-           data-track-id="<%= track[:id] %>"
-           data-default-value="0.0"
-           data-mixer-target="headerGainSlider"
-           data-action="input->mixer#updateTrackGain dblclick->mixer#resetFader:stop"
-           class="jaku-fader flex-1" />
-    <span data-mixer-target="headerGainReadout"
+  <%# Collapsed Compact Track Pill (Visible when panel slides down to w-14; clicking row toggles Solo) %>
+  <div data-workstation-target="collapsedTrackContent"
+       data-mixer-target="collapsedTrackPill"
+       data-track-id="<%= track[:id] %>"
+       class="hidden flex-col items-center justify-center gap-1 h-full w-full select-none">
+    <span class="font-mono text-[11px] font-bold text-[#f4f4f0] leading-none">
+      <%= track[:number] || format("%02d", track[:id]) %>
+    </span>
+    <span data-mixer-target="collapsedSoloBadge"
           data-track-id="<%= track[:id] %>"
-          class="font-mono text-[10px] text-[#8e8a83] min-w-[42px] text-right">
-      <%= format("%+.1f dB", track[:gain_db]).sub("+0.0", "0.0").sub("+-", "-") %>
+          class="px-1.5 py-0.5 rounded-xs font-mono text-[9px] font-bold border transition-colors <%= track[:soloed] ? 'bg-[#f59e0b] text-[#09090b] border-[#fbbf24] shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-[#1a1918] text-[#8e8a83] border-[#2b2825]' %>">
+      <%= track[:soloed] ? "SOLO" : "S" %>
     </span>
   </div>
 </div>
-
