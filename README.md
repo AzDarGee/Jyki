@@ -105,8 +105,45 @@ app/assets/scss/
 ```
 
 
+## Connect to Saanskara Server Local SupaBase
+Spin up a SupaBase resource. Select connect to a predefined coolify network.
 
+Find the uid of the supabase-db container:
+```
+docker ps | grep supabase-db
+```
 
+Find the docker uid for the postgres db for supabase and run:
+```
+docker exec -i supabase-db-<uid> psql -U supabase_admin -d postgres -c "
+  GRANT ALL ON SCHEMA public TO postgres;
+  GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;
+  GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres;
+"
+```
+
+Run this as well:
+```
+docker exec -i supabase-db-<uid> psql -U supabase_admin -d postgres -c "
+  ALTER ROLE postgres WITH SUPERUSER CREATEDB;
+  GRANT ALL ON SCHEMA public TO postgres;
+"
+```
+
+Add the environment variables in production:
+```
+database:
+  prod_local_supabase:
+    host: supabase-db-<uid>
+    port: <port>
+    username: <username>
+    database: <database_name>
+    password: <password>
+```
+
+Push the changes to your branch and restart the SupaBase resource.
 
 
 

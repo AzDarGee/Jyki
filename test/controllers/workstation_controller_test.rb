@@ -10,6 +10,8 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     # Root Turbo Frame for SPA URL cloaking & SCSS Theme Engine binding
+    assert_select "html[data-controller*='theme-bootstrap'][data-action*='turbo:load@document->theme-bootstrap#lockRootUrl'][data-action*='turbo:frame-render@document->theme-bootstrap#lockRootUrl'][data-action*='turbo:before-fetch-request@document->theme-bootstrap#injectSpaHeader'][data-action*='popstate@window->theme-bootstrap#lockRootUrl']"
+    assert_select "head script:not([type])", count: 0
     assert_select "turbo-frame#jaku_workstation.jaku-workstation-shell[data-workstation-theme-value='midnight'][data-theme='midnight']"
     assert_select "style", count: 0
 
