@@ -1,6 +1,30 @@
 @use "functions" as *;
+@use "tokens" as *;
 
 @mixin glow-ring($token-name: "accent-primary") {
   border-color: theme($token-name);
   box-shadow: 0 0 12px -2px theme($token-name);
+}
+
+@mixin workstation-zone-surface($bg-token: "bg-surface", $border-token: "border-subtle", $text-token: "text-secondary") {
+  background-color: theme($bg-token);
+  border-color: theme($border-token);
+  color: theme($text-token);
+  transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition, color $jaku-theme-transition;
+}
+
+@mixin workstation-card($bg-token: "bg-card", $border-token: "border-card") {
+  background-color: theme($bg-token);
+  border-color: theme($border-token);
+}
+
+@mixin theme-variants {
+  [data-theme="saffron"],
+  [data-theme="frost"],
+  [data-theme="light"],
+  .theme-saffron,
+  .theme-frost,
+  .theme-light {
+    @content;
+  }
 }

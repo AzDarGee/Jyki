@@ -1,0 +1,238 @@
+<%# Individual DJ Deck Card (Rendered 6 times for Decks A–F via collection partial) %>
+<%
+  badge_classes = case deck[:status_kind]
+                  when "master"
+                    "border-[#f59e0b]/50 text-[#f59e0b] bg-[#f59e0b]/10"
+                  when "clash"
+                    "border-[#eab308]/50 text-[#eab308] bg-[#eab308]/10"
+                  else
+                    "border-[#10b981]/50 text-[#10b981] bg-[#10b981]/10"
+                  end
+%>
+<article class="bg-[#111113] border border-[#232220] rounded overflow-hidden flex flex-col justify-between p-3 pt-3.5 relative"
+         data-controller="dj-deck"
+         data-deck-letter="<%= deck[:letter] %>"
+         data-dj-deck-letter-value="<%= deck[:letter] %>"
+         data-dj-deck-bpm-value="<%= deck[:bpm] %>"
+         data-dj-deck-base-bpm-value="<%= deck[:bpm] %>"
+         data-dj-deck-halftime-value="<%= deck[:halftime] %>"
+         data-dj-deck-master-value="<%= deck[:is_master] %>"
+         data-dj-deck-synced-value="<%= deck[:synced] %>"
+         data-dj-deck-playing-value="false"
+         data-dj-deck-color-value="<%= deck[:color_hex] %>"
+         data-dj-deck-accent-value="<%= deck[:accent_hex] %>">
+
+  <%# 1. Top Edge Progress / Accent Strip (2px bar in deck signature color) %>
+  <div class="absolute top-0 left-0 right-0 h-[2px] bg-[#1c1b19]">
+    <div data-dj-deck-target="progressBar"
+         class="h-full transition-all duration-150"
+         style="width: <%= deck[:progress_pct] %>%; background-color: <%= deck[:accent_hex] %>;"></div>
+  </div>
+
+  <%# 2. Row 1: Deck Header & BPM Readout %>
+  <div class="flex items-start justify-between gap-2">
+    <div class="min-w-0">
+      <div class="flex items-center gap-1.5 font-mono text-[10px] tracking-tight">
+        <span data-dj-deck-target="statusDot" style="color: <%= deck[:accent_hex] %>;">●</span>
+        <span class="font-bold text-[#e5e2dc]">DECK <%= deck[:letter] %></span>
+        <span class="text-[#8e8a83]">· KEY <%= deck[:key_camelot] %> (<%= deck[:key_musical] %>)</span>
+        <span data-dj-deck-target="harmonicBadge"
+              class="px-1.5 py-0.2 rounded border text-[9px] font-semibold uppercase <%= badge_classes %>">
+          <%= deck[:status_badge] %>
+        </span>
+      </div>
+      <h3 class="text-sm font-semibold text-[#f4f4f0] leading-tight mt-0.5 truncate" title="<%= deck[:title] %>">
+        <%= deck[:title] %>
+      </h3>
+      <p class="text-xs text-[#8e8a83] leading-tight truncate">
+        <%= deck[:artist] %>
+      </p>
+    </div>
+
+    <div class="text-right font-mono shrink-0">
+      <div data-dj-deck-target="bpmReadout" class="text-base font-mono font-bold text-[#e5e2dc] leading-tight">
+        <%= format("%.2f BPM", deck[:bpm]) %>
+      </div>
+      <div data-dj-deck-target="pitchReadout" class="text-[11px] font-mono text-[#14b8a6]">
+        Pitch: <%= deck[:pitch] %>
+      </div>
+    </div>
+  </div>
+
+  <%# 3. Row 2: Transport & Sync Button Strip %>
+  <div class="flex items-center gap-1.5 my-1">
+    <button type="button"
+            data-dj-deck-target="playButton"
+            data-action="click->dj-deck#togglePlay"
+            aria-pressed="false"
+            class="border border-[#33312e] bg-[#1a1918] hover:border-[#5c3d1e] text-xs px-2.5 py-1 rounded text-white font-mono cursor-pointer transition-colors">
+      ▷ Play
+    </button>
+
+    <button type="button"
+            data-dj-deck-target="syncButton"
+            data-action="click->dj-deck#toggleSync"
+            aria-pressed="<%= deck[:synced] ? 'true' : 'false' %>"
+            class="text-[10px] font-mono px-2 py-1 rounded border cursor-pointer transition-colors <%= deck[:synced] ? 'border-[#14b8a6]/70 bg-[#0f2422] text-[#2dd4bf]' : 'border-[#2a2826] bg-[#151413] text-[#8e8a83] hover:text-[#e5e2dc]' %>">
+      ♾ SYNC
+    </button>
+
+    <button type="button"
+            data-dj-deck-target="snapButton"
+            data-action="click->dj-deck#toggleSnap"
+            aria-pressed="true"
+            class="text-[10px] font-mono px-2 py-1 rounded border border-[#2a2826] bg-[#151413] text-[#8e8a83] hover:text-[#e5e2dc] cursor-pointer transition-colors">
+      ◎ SNAP
+    </button>
+
+    <button type="button"
+            data-dj-deck-target="masterButton"
+            data-action="click->dj-deck#handOffMaster"
+            aria-pressed="<%= deck[:is_master] ? 'true' : 'false' %>"
+            class="text-[10px] font-mono px-2 py-1 rounded border cursor-pointer transition-colors <%= deck[:is_master] ? 'border-[#d97706] bg-[#291b0e] text-[#f59e0b] font-semibold' : 'border-[#2a2826] bg-[#151413] text-[#8e8a83] hover:text-[#f59e0b]' %>">
+      👑 MASTER
+    </button>
+
+    <button type="button"
+            data-action="click->dj-deck#resetPitch"
+            class="text-[10px] font-mono px-2 py-1 rounded border border-[#2a2826] bg-[#151413] text-[#8e8a83] hover:text-[#e5e2dc] cursor-pointer transition-colors">
+      ↻ 0.0%
+    </button>
+  </div>
+
+  <%# 4. Row 3: Hot Cues & Phase Nudge Strip %>
+  <div class="flex items-center justify-between my-1 gap-1">
+    <%# Left: 4 Hot Cue Pads %>
+    <div class="flex items-center gap-1">
+      <button type="button"
+              data-cue="1"
+              data-dj-deck-target="cueButton"
+              data-action="click->dj-deck#triggerCue"
+              class="bg-[#ea580c] text-black font-mono font-bold text-[10px] px-2 py-0.5 rounded cursor-pointer">
+        CUE 1
+      </button>
+      <% (2..4).each do |cue_num| %>
+        <button type="button"
+                data-cue="<%= cue_num %>"
+                data-dj-deck-target="cueButton"
+                data-action="click->dj-deck#triggerCue"
+                class="bg-[#18181a] border border-[#27272a] hover:border-[#4a3520] text-[#a1a1aa] text-[10px] font-mono px-2 py-0.5 rounded cursor-pointer">
+          CUE <%= cue_num %>
+        </button>
+      <% end %>
+    </div>
+
+    <%# Center: Phase Nudge %>
+    <div class="flex items-center bg-[#161618] border border-[#27272a] rounded text-[10px] font-mono text-zinc-400">
+      <button type="button"
+              data-dir="-1"
+              data-action="click->dj-deck#nudgePhase"
+              aria-label="Nudge Deck <%= deck[:letter] %> Phase Back"
+              class="px-1.5 py-0.5 hover:text-white cursor-pointer">&lt;</button>
+      <span class="px-1 text-[9px] tracking-wider">NUDGE</span>
+      <button type="button"
+              data-dir="1"
+              data-action="click->dj-deck#nudgePhase"
+              aria-label="Nudge Deck <%= deck[:letter] %> Phase Forward"
+              class="px-1.5 py-0.5 hover:text-white cursor-pointer">&gt;</button>
+    </div>
+
+    <%# Right: Crossfader Assign (L | THRU | R) %>
+    <div class="flex items-center bg-[#141416] border border-[#27272a] rounded p-0.5 font-mono text-[9px]">
+      <% [ "L", "THRU", "R" ].each do |side| %>
+        <button type="button"
+                data-xfade="<%= side %>"
+                data-dj-deck-target="xfadeButton"
+                data-action="click->dj-deck#assignCrossfader"
+                class="px-1.5 py-0.2 rounded-xs cursor-pointer transition-colors <%= side == 'THRU' ? 'bg-[#272522] text-[#e5e2dc] font-semibold' : 'text-[#8e8a83] hover:text-[#e5e2dc]' %>">
+          <%= side %>
+        </button>
+      <% end %>
+    </div>
+  </div>
+
+  <%# 5. Row 4: 5-Slider EQ, Tempo & Volume Strip %>
+  <div class="grid grid-cols-5 gap-2 pt-1.5 border-t border-[#1c1b19] font-mono text-[9px] text-[#8e8a83]">
+    <%# 1. LOW (0) %>
+    <div>
+      <div data-dj-deck-target="lowLabel" class="truncate mb-1">LOW (0)</div>
+      <input type="range"
+             min="-24"
+             max="6"
+             step="1"
+             value="0"
+             aria-label="Deck <%= deck[:letter] %> Low EQ"
+             data-param="low"
+             data-default="0"
+             data-dj-deck-target="lowSlider"
+             data-action="input->dj-deck#updateEq dblclick->dj-deck#resetSlider"
+             class="jaku-fader w-full" />
+    </div>
+
+    <%# 2. MID (0) %>
+    <div>
+      <div data-dj-deck-target="midLabel" class="truncate mb-1">MID (0)</div>
+      <input type="range"
+             min="-24"
+             max="6"
+             step="1"
+             value="0"
+             aria-label="Deck <%= deck[:letter] %> Mid EQ"
+             data-param="mid"
+             data-default="0"
+             data-dj-deck-target="midSlider"
+             data-action="input->dj-deck#updateEq dblclick->dj-deck#resetSlider"
+             class="jaku-fader w-full" />
+    </div>
+
+    <%# 3. HIGH (0) %>
+    <div>
+      <div data-dj-deck-target="highLabel" class="truncate mb-1">HIGH (0)</div>
+      <input type="range"
+             min="-24"
+             max="6"
+             step="1"
+             value="0"
+             aria-label="Deck <%= deck[:letter] %> High EQ"
+             data-param="high"
+             data-default="0"
+             data-dj-deck-target="highSlider"
+             data-action="input->dj-deck#updateEq dblclick->dj-deck#resetSlider"
+             class="jaku-fader w-full" />
+    </div>
+
+    <%# 4. TEMPO (Colored track fill matching deck signature color) %>
+    <div>
+      <div data-dj-deck-target="tempoLabel" class="truncate mb-1">TEMPO</div>
+      <input type="range"
+             min="-8"
+             max="8"
+             step="0.05"
+             value="0"
+             aria-label="Deck <%= deck[:letter] %> Tempo Pitch"
+             data-param="tempo"
+             data-default="0"
+             data-dj-deck-target="tempoSlider"
+             data-action="input->dj-deck#updateTempo dblclick->dj-deck#resetTempo"
+             style="--deck-color: <%= deck[:accent_hex] %>;"
+             class="jaku-fader jaku-deck-tempo w-full" />
+    </div>
+
+    <%# 5. VOL (85) %>
+    <div>
+      <div data-dj-deck-target="volLabel" class="truncate mb-1">VOL (85)</div>
+      <input type="range"
+             min="0"
+             max="100"
+             step="1"
+             value="85"
+             aria-label="Deck <%= deck[:letter] %> Channel Volume"
+             data-param="vol"
+             data-default="85"
+             data-dj-deck-target="volSlider"
+             data-action="input->dj-deck#updateVol dblclick->dj-deck#resetSlider"
+             class="jaku-fader w-full" />
+    </div>
+  </div>
+</article>
+

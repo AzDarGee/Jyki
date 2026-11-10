@@ -2,3 +2,7 @@
 @function theme($key) {
   @return var(--saanskara-#{$key});
 }
+
+@function jaku($key) {
+  @return var(--jaku-#{$key});
+}

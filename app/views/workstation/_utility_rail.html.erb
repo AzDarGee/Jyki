@@ -1,0 +1,54 @@
+<%# Column 4: Far-Right Vertical Icon Utility Rail %>
+<aside class="w-10 border-l border-[#221f1d] bg-[#0e0d0c] flex flex-col items-center py-3 gap-5 shrink-0"
+       data-zone="utility-rail"
+       aria-label="Workstation Utility Rail">
+  <%# 1. Sidebar Toggle %>
+  <button type="button"
+          data-action="click->workstation#toggleAiLab"
+          title="Toggle Right Inspector Drawer"
+          aria-label="Toggle Right Inspector Drawer"
+          class="w-7 h-7 rounded bg-[#141312] border border-[#262320] hover:border-[#4a3520] text-[#8e8a83] hover:text-[#f4f4f0] flex items-center justify-center text-xs cursor-pointer transition-colors">
+    ◨
+  </button>
+
+  <%# 2. AI Sparkle / Generator (✨) %>
+  <button type="button"
+          data-action="click->workstation#toggleAiLab"
+          data-workstation-target="aiRailButton"
+          title="AI Lab (Gemini Studio Intelligence)"
+          aria-label="AI Lab"
+          class="w-7 h-7 rounded bg-[#231911] border border-[#5c3d1e] text-[#f59e0b] flex items-center justify-center text-xs cursor-pointer transition-colors shadow-xs">
+    ✨
+  </button>
+
+  <%# 3. Comments / Notes (💬) %>
+  <button type="button"
+          data-action="click->workstation#selectUtilityTool"
+          data-utility="comments"
+          title="Session Notes & Timestamp Comments"
+          aria-label="Session Comments"
+          class="w-7 h-7 rounded bg-transparent border border-transparent hover:border-[#262320] text-[#8e8a83] hover:text-[#f4f4f0] flex items-center justify-center text-xs cursor-pointer transition-colors">
+    💬
+  </button>
+
+  <%# 4. Git / Version Tree (⑂) %>
+  <button type="button"
+          data-action="click->workstation#selectUtilityTool"
+          data-utility="git-tree"
+          title="CRDT Snapshot & Branch Version Tree"
+          aria-label="CRDT Version Tree"
+          class="w-7 h-7 rounded bg-transparent border border-transparent hover:border-[#262320] text-[#8e8a83] hover:text-[#f4f4f0] flex items-center justify-center text-xs cursor-pointer transition-colors font-mono">
+    ⑂
+  </button>
+
+  <%# 5. Device / Mobile Preview (📱) %>
+  <button type="button"
+          data-action="click->workstation#selectUtilityTool"
+          data-utility="device-preview"
+          title="Remote Companion & Spatial Monitoring"
+          aria-label="Device Monitoring"
+          class="w-7 h-7 rounded bg-transparent border border-transparent hover:border-[#262320] text-[#8e8a83] hover:text-[#f4f4f0] flex items-center justify-center text-xs cursor-pointer transition-colors">
+    📱
+  </button>
+</aside>
+

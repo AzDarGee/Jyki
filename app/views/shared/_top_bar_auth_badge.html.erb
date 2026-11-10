@@ -1,0 +1,31 @@
+<%# Top-Right Header Auth Trigger Pill (#top_bar_auth_badge) %>
+<% producer = local_assigns.key?(:current_producer) ? current_producer : (defined?(current_user) ? current_user : nil) %>
+<div id="top_bar_auth_badge" class="flex items-center">
+  <% if producer.present? %>
+    <button type="button"
+            data-action="click->auth-drawer#open"
+            aria-label="Open Studio Auth Drawer (@<%= producer.username %>)"
+            class="h-6 px-2.5 rounded-full bg-[#141210] border border-[#4a3520] hover:border-[#d97706] flex items-center gap-1.5 text-[11px] transition-colors cursor-pointer">
+      <span class="w-3.5 h-3.5 rounded-full bg-[#2a1d11] border border-[#d97706] flex items-center justify-center text-[8px] font-mono font-bold text-[#f59e0b]">
+        <%= producer.initials %>
+      </span>
+      <span class="font-mono text-[#e5e2dc] tracking-tight">@<%= producer.username %></span>
+      <span class="px-1 py-0.2 rounded bg-[#231911] border border-[#5c3d1e] text-[9px] font-mono font-semibold text-[#f59e0b] uppercase tracking-wider">
+        <%= producer.role %>
+      </span>
+      <span class="text-[#d97706] text-[10px]" title="Studio Hardware DSP Key Verified">🔑</span>
+    </button>
+  <% else %>
+    <button type="button"
+            data-action="click->auth-drawer#open"
+            aria-label="Sign In to Studio Auth"
+            class="h-6 px-2.5 rounded-full bg-[#141210] border border-[#4a3520] hover:border-[#d97706] flex items-center gap-1.5 text-[11px] text-[#e5e2dc] transition-colors cursor-pointer">
+      <span class="w-3.5 h-3.5 rounded-full bg-[#231911] border border-[#5c3d1e] flex items-center justify-center text-[9px] text-[#f59e0b]">
+        👤
+      </span>
+      <span class="font-medium tracking-tight">Sign In</span>
+      <span class="text-[#d97706] text-[10px]">🔑</span>
+    </button>
+  <% end %>
+</div>
+

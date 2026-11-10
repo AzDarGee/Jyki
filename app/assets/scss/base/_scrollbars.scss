@@ -1,0 +1,83 @@
+// app/assets/scss/base/_scrollbars.scss
+@use "../abstracts" as *;
+
+// Ultra-thin studio scrollbars driven by active theme tokens
+::-webkit-scrollbar {
+  width: $jaku-scrollbar-size;
+  height: $jaku-scrollbar-size;
+}
+
+::-webkit-scrollbar-track {
+  background: theme("scrollbar-track");
+}
+
+::-webkit-scrollbar-thumb {
+  background: theme("scrollbar-thumb");
+  border-radius: 3px;
+
+  &:hover {
+    background: theme("scrollbar-thumb-hover");
+  }
+}
+
+// Industrial DAW Tactile Range Sliders
+input[type="range"].jaku-fader {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+
+  &::-webkit-slider-runnable-track {
+    height: $jaku-fader-track-height;
+    border-radius: 9999px;
+    background: theme("fader-track");
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: $jaku-fader-thumb-size;
+    height: $jaku-fader-thumb-size;
+    border-radius: 9999px;
+    background: theme("fader-thumb");
+    border: 1.5px solid theme("fader-thumb-border");
+    box-shadow: 0 0 6px theme("fader-glow");
+    margin-top: -3.5px;
+    transition: transform 80ms ease, background-color 80ms ease;
+  }
+
+  &:hover::-webkit-slider-thumb {
+    transform: scale(1.15);
+    background: theme("fader-thumb-hover");
+  }
+
+  &::-moz-range-track {
+    height: $jaku-fader-track-height;
+    border-radius: 9999px;
+    background: theme("fader-track-solid");
+  }
+
+  &::-moz-range-thumb {
+    width: $jaku-fader-thumb-size;
+    height: $jaku-fader-thumb-size;
+    border-radius: 9999px;
+    background: theme("fader-thumb");
+    border: 1.5px solid theme("fader-thumb-border");
+    box-shadow: 0 0 6px theme("fader-glow");
+  }
+}
+
+// DJ Deck Signature Colored Tempo Sliders
+input[type="range"].jaku-deck-tempo {
+  &::-webkit-slider-runnable-track {
+    height: $jaku-fader-track-height;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--deck-color, #d97706) 0%, var(--deck-color, #d97706) 50%, theme("fader-track-solid") 50%);
+  }
+
+  &::-webkit-slider-thumb {
+    background: var(--deck-color, #e2b887);
+    border: 1.5px solid theme("fader-thumb-border");
+    box-shadow: 0 0 7px var(--deck-color, rgba(245, 158, 11, 0.55));
+  }
+}

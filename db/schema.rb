@@ -10,9 +10,31 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_04_180303) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_09_234500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "crdt_branches", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "delta_vector", null: false
+    t.string "committed_at_label", default: "17:12 UTC", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_crdt_branches_on_name"
+  end
+
+  create_table "project_collaborators", force: :cascade do |t|
+    t.string "project_slug", default: "proj_default", null: false
+    t.string "username", null: false
+    t.string "external_user_id", null: false
+    t.string "email", default: "", null: false
+    t.string "role", default: "EDITOR", null: false
+    t.string "added_at_label", default: "Added 17:00 UTC", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_slug", "username"], name: "index_project_collaborators_on_project_slug_and_username", unique: true
+    t.index ["project_slug"], name: "index_project_collaborators_on_project_slug"
+  end
 
   create_table "solid_cable_messages", force: :cascade do |t|
     t.binary "channel", null: false
@@ -184,6 +206,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_180303) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "studio_chat_messages", force: :cascade do |t|
+    t.string "sender_name", default: "Saanskara (Owner)", null: false
+    t.string "sender_role", default: "OWNER", null: false
+    t.text "body", null: false
+    t.string "room_type", default: "project_room", null: false
+    t.string "recipient_handle"
+    t.string "sent_at_label", default: "17:12", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["room_type"], name: "index_studio_chat_messages_on_room_type"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -204,10 +238,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_04_180303) do
     t.datetime "locked_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "username"
+    t.string "studio_plan_tier", default: "studio_master_192_64", null: false
+    t.string "role", default: "OWNER", null: false
+    t.string "provider"
+    t.string "uid"
+    t.string "display_name", default: "Saanskara", null: false
+    t.string "avatar_url"
+    t.string "storage_node_id", default: "4PS1G6fg...", null: false
+    t.string "project_role", default: "owner", null: false
+    t.string "studio_plan", default: "studio_master", null: false
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["provider", "uid"], name: "index_users_on_provider_and_uid"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
+    t.index ["username"], name: "index_users_on_username", unique: true
   end
 
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade

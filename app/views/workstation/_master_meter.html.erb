@@ -1,0 +1,33 @@
+<%# ZONE B: Master Meter / Global Spectrogram Strip %>
+<section class="h-12 mx-2 my-1 rounded border border-[#26221e] bg-[#0e0d0c] flex items-center justify-between px-4 shrink-0 relative overflow-hidden"
+         data-zone="master-meter"
+         aria-label="Master Oscilloscope and LUFS Loudness Meter">
+  <%# Full-width horizontal master oscilloscope / baseline dotted meter line %>
+  <div class="flex-1 h-full relative flex items-center pr-4">
+    <div class="w-full border-b border-dashed border-[#33291f] absolute top-1/2 left-0 right-4 pointer-events-none"></div>
+    <canvas data-workstation-target="masterMeterCanvas"
+            class="w-full h-9 block relative z-10 pointer-events-none"></canvas>
+  </div>
+
+  <%# Right side: Dual vertical stereo peak meter bars + -∞ LUFS monospace readout %>
+  <div class="flex items-center gap-2.5 pl-3 border-l border-[#221f1d] shrink-0">
+    <div class="flex items-end gap-1 h-7 bg-[#09090b] px-1.5 py-1 rounded border border-[#221f1d]"
+         title="Master Stereo Peak L/R">
+      <div class="w-1.5 h-full bg-[#18181b] rounded-xs overflow-hidden flex flex-col justify-end">
+        <div data-workstation-target="meterBarL"
+             class="w-full bg-gradient-to-t from-[#14b8a6] via-[#f59e0b] to-[#ef4444] transition-all duration-75"
+             style="height: 18%;"></div>
+      </div>
+      <div class="w-1.5 h-full bg-[#18181b] rounded-xs overflow-hidden flex flex-col justify-end">
+        <div data-workstation-target="meterBarR"
+             class="w-full bg-gradient-to-t from-[#14b8a6] via-[#f59e0b] to-[#ef4444] transition-all duration-75"
+             style="height: 16%;"></div>
+      </div>
+    </div>
+    <span data-workstation-target="lufsReadout"
+          class="font-mono text-[11px] text-[#8e8a83] tracking-tight min-w-[60px] text-right">
+      <%= transport[:lufs] %>
+    </span>
+  </div>
+</section>
+

@@ -1,34 +1,87 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="midnight" class="jaku-root-shell theme-midnight dark h-screen w-screen overflow-hidden bg-[#0b0a09] text-[#e5e2dc]">
   <head>
-    <title><%= content_for(:title) || "Jyki" %></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title><%= content_for(:title) || "Jaku · Saanskara Studio DAW & DJ Workstation" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Jyki">
+    <meta name="application-name" content="Jaku by Saanskara Studios">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="view-transition" content="same-origin">
+    <%= turbo_refreshes_with method: :morph, scroll: :preserve %>
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
     <%= yield :head %>
 
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
     <%= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
 
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
 
-    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <script>
+      // Synchronous FOUC-Free Studio Theme Bootstrap & SPA URL Cloaking Guard
+      (() => {
+        const VALID_THEMES = ["midnight", "saffron", "frost"];
+        const applySavedTheme = () => {
+          let saved = "midnight";
+          try {
+            const stored = window.localStorage.getItem("jaku-studio-theme");
+            if (stored && VALID_THEMES.includes(stored)) saved = stored;
+          } catch (_e) {}
+
+          const root = document.documentElement;
+          root.setAttribute("data-theme", saved);
+          root.classList.remove("theme-midnight", "theme-saffron", "theme-frost", "dark", "light");
+          root.classList.add(`theme-${saved}`, saved === "frost" ? "light" : "dark");
+
+          if (document.body) {
+            document.body.setAttribute("data-theme", saved);
+          }
+          const frame = document.getElementById("jaku_workstation");
+          if (frame) {
+            frame.setAttribute("data-theme", saved);
+            frame.setAttribute("data-workstation-theme-value", saved);
+          }
+        };
+
+        applySavedTheme();
+
+        const lockRootUrl = () => {
+          applySavedTheme();
+          if (window.location.pathname !== "/" || window.location.search !== "" || window.location.hash !== "") {
+            window.history.replaceState(window.history.state, "", "/");
+          }
+        };
+        document.addEventListener("turbo:load", lockRootUrl);
+        document.addEventListener("turbo:frame-render", lockRootUrl);
+        document.addEventListener("turbo:before-fetch-request", (event) => {
+          event.detail.fetchOptions.headers["X-Jaku-SPA"] = "true";
+        });
+        window.addEventListener("popstate", lockRootUrl);
+      })();
+    </script>
+
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
-    <main>
-      <%= yield %>
-      <p class="notice"><%= notice %></p>
-      <p class="alert"><%= alert %></p>
-    </main>
+  <body data-theme="midnight" class="jaku-root-shell h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc] font-sans antialiased">
+    <%= yield %>
+
+    <% if notice.present? || alert.present? %>
+      <div id="jaku-toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-1.5 pointer-events-none">
+        <% if notice.present? %>
+          <div class="px-3 py-1.5 rounded bg-[#161514] border border-[#4a3520] text-[#f59e0b] text-xs font-mono shadow-lg">
+            <%= notice %>
+          </div>
+        <% end %>
+        <% if alert.present? %>
+          <div class="px-3 py-1.5 rounded bg-[#1c1010] border border-[#dc2626] text-[#ef4444] text-xs font-mono shadow-lg">
+            <%= alert %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
   </body>
 </html>

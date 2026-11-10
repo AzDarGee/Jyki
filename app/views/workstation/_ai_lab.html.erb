@@ -1,0 +1,96 @@
+<%# Right-Side AI Lab Panel (Matches the reference screenshot's ✨ AI Lab panel) %>
+<aside class="w-72 border-l border-[#221f1d] bg-[#0e0d0c] flex flex-col justify-between p-3 shrink-0"
+       data-zone="ai-lab"
+       data-workstation-target="aiLabPanel"
+       aria-label="AI Studio Intelligence Lab">
+  <div class="space-y-3">
+    <%# Header: ✨ AI Lab + close button %>
+    <div class="flex items-center justify-between border-b border-[#221f1d] pb-2">
+      <div class="flex items-center gap-1.5 text-xs font-semibold text-[#f4f4f0]">
+        <span class="text-[#f59e0b]">✨</span>
+        <span>AI Lab</span>
+      </div>
+      <button type="button"
+              data-action="click->workstation#toggleAiLab"
+              aria-label="Toggle AI Lab Panel"
+              class="text-xs text-[#8e8a83] hover:text-[#f4f4f0] font-mono cursor-pointer">
+        ◧
+      </button>
+    </div>
+
+    <%# Gemini Studio Intelligence Metadata %>
+    <div class="flex items-center justify-between text-[10px] font-mono">
+      <span class="text-[#8e8a83]">Gemini Studio<br>Intelligence</span>
+      <div class="text-right">
+        <div class="text-[#e5c185]">gemini-4-argon</div>
+        <div class="text-[#8e8a83] text-[9px]">(Global Layout AI)</div>
+      </div>
+    </div>
+
+    <%# 3 Mode Pills: 🎛 Mix Critic | 💡 Idea Gen | 🎙 Producer %>
+    <div class="grid grid-cols-3 gap-1 bg-[#141312] p-0.5 rounded border border-[#262320]">
+      <button type="button"
+              data-ai-mode="Mix Critic"
+              data-workstation-target="aiModeButton"
+              data-action="click->workstation#switchAiMode"
+              class="h-6 rounded-xs text-[10px] font-medium flex items-center justify-center gap-1 cursor-pointer bg-[#231911] text-[#f5a623] border border-[#5c3d1e]">
+        <span>🎛</span>
+        <span>Mix Critic</span>
+      </button>
+      <button type="button"
+              data-ai-mode="Idea Gen"
+              data-workstation-target="aiModeButton"
+              data-action="click->workstation#switchAiMode"
+              class="h-6 rounded-xs text-[10px] font-medium flex items-center justify-center gap-1 cursor-pointer text-[#8e8a83] hover:text-[#e5e2dc] border border-transparent">
+        <span>💡</span>
+        <span>Idea Gen</span>
+      </button>
+      <button type="button"
+              data-ai-mode="Producer"
+              data-workstation-target="aiModeButton"
+              data-action="click->workstation#switchAiMode"
+              class="h-6 rounded-xs text-[10px] font-medium flex items-center justify-center gap-1 cursor-pointer text-[#8e8a83] hover:text-[#e5e2dc] border border-transparent">
+        <span>🎙</span>
+        <span>Producer</span>
+      </button>
+    </div>
+
+    <%# Prompt Textarea %>
+    <div>
+      <textarea rows="3"
+                aria-label="AI Mix Analysis Prompt"
+                data-workstation-target="aiPromptInput"
+                class="w-full rounded bg-[#141312] border border-[#262320] focus:border-[#5c3d1e] focus:outline-none p-2 text-[11px] text-[#e5e2dc] leading-relaxed resize-none">Analyze my 128 BPM sub bass and granular pad routing for phase cancellation and suggest mastering EQ settings.</textarea>
+    </div>
+
+    <%# CTA Button: Run Deep Mix Analysis (gemini-4-argon) %>
+    <button type="button"
+            data-action="click->workstation#runAiMixAnalysis"
+            data-workstation-target="aiRunButton"
+            class="w-full h-8 rounded bg-[#d6b88a] hover:bg-[#e3c79b] text-[#09090b] font-semibold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs">
+      <span data-workstation-target="aiRunLabel">Run Deep Mix Analysis (gemini-4-argon)</span>
+    </button>
+
+    <%# Dynamic AI Analysis Output Frame %>
+    <div id="ai_lab_response" data-workstation-target="aiResponseBox" class="text-[10px] font-mono text-[#8e8a83]"></div>
+
+    <%# Voice Memo Transcriber Section %>
+    <div class="pt-3 border-t border-[#221f1d] space-y-2">
+      <div class="flex items-center justify-between text-[10px] font-mono">
+        <span class="text-[#e5e2dc] font-sans font-medium">Voice Memo Transcriber</span>
+        <span class="text-[#8e8a83]">gemini-4-transcribe</span>
+      </div>
+      <div class="text-[10px] text-[#8e8a83]" data-workstation-target="micStatusLabel">
+        Ready for mic voice-note
+      </div>
+      <button type="button"
+              data-action="click->workstation#toggleVoiceTranscriber"
+              data-workstation-target="micTranscribeButton"
+              class="w-full h-8 rounded bg-[#161514] border border-[#262320] hover:border-[#4a3520] text-[#e5e2dc] text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors">
+        <span class="text-[#ef4444]">🎙</span>
+        <span data-workstation-target="micButtonLabel">Record & Transcribe Mic Audio</span>
+      </button>
+    </div>
+  </div>
+</aside>
+

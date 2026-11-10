@@ -1,6 +1,23 @@
 // app/assets/scss/base/_pwa_shell.scss
 @use "../abstracts" as *;
 
+html[data-theme],
+body,
+.jaku-root-shell,
+#jaku_workstation,
+.jaku-workstation-shell {
+  color-scheme: theme("color-scheme");
+  background-color: theme("bg-canvas") !important;
+  color: theme("text-secondary") !important;
+  transition: background-color $jaku-theme-transition, color $jaku-theme-transition;
+}
+
+#jaku_stage_body,
+[data-zone="center-workstation"] {
+  background-color: theme("bg-stage") !important;
+  color: theme("text-secondary") !important;
+}
+
 .daw-pwa-shell {
   background-color: theme("bg-canvas");
   color: theme("text-main");
@@ -15,5 +32,237 @@
     background-color: theme("bg-surface");
     border: 1px solid theme("border-subtle");
     @apply rounded-xl p-5 flex flex-col justify-between shadow-lg transition-colors;
+  }
+}
+
+// Theme-driven token remapping for workstation utility classes across Saffron & Frost
+@include theme-variants {
+  // Deep Canvas / Stage / Input Well Surfaces
+  & [class~="bg-[#09090b]"],
+  & [class~="bg-[#09090b]/90"],
+  & [class~="bg-[#0b0a09]"],
+  & [class~="bg-[#0b0b0d]"],
+  & [class~="bg-[#0c0b0a]"],
+  & [class~="bg-[#0d0d0f]"],
+  & [class~="bg-[#0e0d0c]"] {
+    background-color: theme("bg-stage") !important;
+  }
+
+  // Card & Panel Surfaces
+  & [class~="bg-[#100f0e]"],
+  & [class~="bg-[#101012]"],
+  & [class~="bg-[#11100f]"],
+  & [class~="bg-[#111113]"],
+  & [class~="bg-[#111315]"],
+  & [class~="bg-[#121110]"],
+  & [class~="bg-[#121214]"],
+  & [class~="bg-[#121215]"],
+  & [class~="bg-[#121316]"] {
+    background-color: theme("bg-card") !important;
+  }
+
+  // Elevated Controls, Buttons, Slots & Pills
+  & [class~="bg-[#141210]"],
+  & [class~="bg-[#141312]"],
+  & [class~="bg-[#141416]"],
+  & [class~="bg-[#151413]"],
+  & [class~="bg-[#161514]"],
+  & [class~="bg-[#161618]"],
+  & [class~="bg-[#17171a]"],
+  & [class~="bg-[#17191e]"],
+  & [class~="bg-[#181411]"],
+  & [class~="bg-[#18181a]"],
+  & [class~="bg-[#18181b]"],
+  & [class~="bg-[#1a1816]"],
+  & [class~="bg-[#1a1918]"],
+  & [class~="bg-[#1c1b19]"],
+  & [class~="bg-[#1d1a17]"],
+  & [class~="bg-[#1f1e1c]"],
+  & [class~="bg-[#1f2229]"],
+  & [class~="bg-[#232220]"],
+  & [class~="bg-[#272522]"] {
+    background-color: theme("bg-elevated") !important;
+  }
+
+  // Active / Selected / Highlighted Surfaces
+  & [class~="bg-[#171411]"],
+  & [class~="bg-[#191613]"],
+  & [class~="bg-[#1a140f]"],
+  & [class~="bg-[#1c150e]"],
+  & [class~="bg-[#1e1712]"],
+  & [class~="bg-[#1f160e]"],
+  & [class~="bg-[#211811]"],
+  & [class~="bg-[#231911]"],
+  & [class~="bg-[#241a10]"],
+  & [class~="bg-[#271b11]"],
+  & [class~="bg-[#291b0e]"],
+  & [class~="bg-[#2a1d11]"],
+  & [class~="bg-[#2a1f14]"],
+  & [class~="bg-[#2b1911]"] {
+    background-color: theme("bg-active") !important;
+  }
+
+  // Teal / DSP / Armed / CTA Special Surfaces
+  & [class~="bg-[#0d2822]"],
+  & [class~="bg-[#0f2422]"],
+  & [class~="bg-[#0f2926]"],
+  & [class~="bg-[#171d1c]"] {
+    background-color: theme("bg-teal-badge") !important;
+  }
+
+  & [class~="bg-[#1b1111]"],
+  & [class~="bg-[#1c1010]"] {
+    background-color: theme("bg-danger-soft") !important;
+  }
+
+  & [class~="bg-[#d6b88a]"],
+  & [class~="bg-[#d8b98a]"] {
+    background-color: theme("bg-cta") !important;
+    color: theme("text-cta") !important;
+  }
+
+  & [class~="hover:bg-[#e2c699]"]:hover,
+  & [class~="hover:bg-[#e3c79b]"]:hover,
+  & [class~="hover:bg-[#e3c79c]"]:hover {
+    background-color: theme("bg-cta-hover") !important;
+  }
+
+  & [class~="hover:bg-[#161513]"]:hover,
+  & [class~="hover:bg-[#161514]"]:hover,
+  & [class~="hover:bg-[#1f1c19]"]:hover,
+  & [class~="hover:bg-[#221c16]"]:hover,
+  & [class~="hover:bg-[#222226]"]:hover,
+  & [class~="hover:bg-[#38291b]"]:hover {
+    background-color: theme("bg-hover") !important;
+  }
+
+  // Structural & Card Borders + Dividers
+  & [class~="border-[#191816]"],
+  & [class~="border-[#1c1b19]"],
+  & [class~="border-[#1c1f24]"],
+  & [class~="border-[#1d1a17]"],
+  & [class~="border-[#1e1d1b]"],
+  & [class~="border-[#1f1d1b]"],
+  & [class~="border-[#1f1e1c]"],
+  & [class~="border-[#1f2229]"],
+  & [class~="border-[#221f1d]"],
+  & [class~="border-[#22201e]"],
+  & [class~="border-[#222120]"],
+  & [class~="border-[#22252a]"],
+  & [class~="border-[#232220]"],
+  & [class~="border-[#23262d]"],
+  & [class~="border-[#24211e]"],
+  & [class~="border-[#242220]"],
+  & [class~="border-[#242830]"],
+  & [class~="border-[#252830]"],
+  & [class~="border-[#26221e]"],
+  & [class~="border-[#262320]"],
+  & [class~="border-[#262421]"],
+  & [class~="border-[#27272a]"],
+  & [class~="border-[#2a2826]"],
+  & [class~="border-[#2b2825]"],
+  & [class~="border-[#2c2a27]"],
+  & [class~="border-[#2e2c29]"],
+  & [class~="border-[#33291f]"],
+  & [class~="border-[#33312e]"],
+  & [class~="border-[#3a2a1a]"],
+  & [class~="border-[#3a2c1e]"],
+  & [class~="border-[#3a2e21]"],
+  & [class~="border-[#3a342e]"],
+  & [class~="border-[#3a3632]"],
+  & [class~="border-[#3f3f46]"] {
+    border-color: theme("border-subtle") !important;
+  }
+
+  & [class~="divide-[#221f1d]"] > :not([hidden]) ~ :not([hidden]),
+  & [class~="divide-[#1c1b19]"] > :not([hidden]) ~ :not([hidden]),
+  & [class~="divide-[#1a1918]"] > :not([hidden]) ~ :not([hidden]) {
+    border-color: theme("border-subtle") !important;
+  }
+
+  & [class~="border-[#4a3520]"],
+  & [class~="border-[#5c3d1e]"],
+  & [class~="border-[#6b4926]"],
+  & [class~="border-[#6b4c2b]"],
+  & [class~="border-[#7c3f1c]"],
+  & [class~="border-[#d97706]"] {
+    border-color: theme("border-bronze") !important;
+  }
+
+  & [class~="border-[#115e59]"],
+  & [class~="border-[#14b8a6]/30"],
+  & [class~="border-[#14b8a6]/35"],
+  & [class~="border-[#14b8a6]/40"] {
+    border-color: theme("border-teal") !important;
+  }
+
+  & [class~="border-l-[#d97706]"] {
+    border-left-color: theme("accent-amber") !important;
+  }
+
+  // Primary, Secondary, Muted & Accent Typography
+  & [class~="text-[#f4f4f0]"],
+  & [class~="text-[#e5e2dc]"],
+  & [class~="text-[#d6d3cd]"],
+  & [class~="text-[#d4d0c8]"],
+  & [class~="text-[#c4bfb6]"],
+  & [class~="text-white"]:not([class~="bg-[#dc2626]"]),
+  & [class~="text-zinc-100"],
+  & [class~="text-zinc-200"] {
+    color: theme("text-primary") !important;
+  }
+
+  & [class~="text-[#a8a29e]"],
+  & [class~="text-[#a1a1aa]"],
+  & [class~="text-[#8e8a83]"],
+  & [class~="text-[#78716c]"],
+  & [class~="text-[#6e6a64]"],
+  & [class~="text-[#635f59]"],
+  & [class~="text-[#5e5a54]"],
+  & [class~="text-[#57534e]"],
+  & [class~="text-[#52525b]"],
+  & [class~="text-zinc-400"],
+  & [class~="text-zinc-500"] {
+    color: theme("text-muted") !important;
+  }
+
+  & [class~="placeholder-[#52525b]"]::placeholder,
+  & [class~="placeholder-[#57534e]"]::placeholder,
+  & [class~="placeholder-[#5e5a54]"]::placeholder {
+    color: theme("text-dim") !important;
+  }
+
+  & [class~="text-[#f59e0b]"],
+  & [class~="text-[#f5a623]"],
+  & [class~="text-[#fbbf24]"],
+  & [class~="text-[#e5a952]"],
+  & [class~="text-[#d97706]"],
+  & [class~="text-[#d6b88a]"],
+  & [class~="text-[#d4a359]"],
+  & [class~="text-[#c28e5c]"] {
+    color: theme("accent-amber") !important;
+  }
+
+  & [class~="text-[#f3be7a]"],
+  & [class~="text-[#e8d5b5]"] {
+    color: theme("accent-warm") !important;
+  }
+
+  & [class~="text-[#2dd4bf]"],
+  & [class~="text-[#14b8a6]"] {
+    color: theme("accent-cyan") !important;
+  }
+
+  & [class~="hover:text-[#f4f4f0]"]:hover,
+  & [class~="hover:text-[#e5e2dc]"]:hover,
+  & [class~="hover:text-white"]:hover,
+  & [class~="hover:text-zinc-200"]:hover {
+    color: theme("text-primary") !important;
+  }
+
+  & [class~="hover:text-[#f59e0b]"]:hover,
+  & [class~="hover:text-[#f5a623]"]:hover,
+  & [class~="hover:text-[#fbbf24]"]:hover {
+    color: theme("accent-amber") !important;
   }
 }

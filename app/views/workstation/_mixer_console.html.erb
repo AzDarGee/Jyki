@@ -1,0 +1,86 @@
+<%# ZONE E: Bottom Mixer Console & Smooth Gain Automation Drawer %>
+<footer class="h-56 border-t border-[#26221e] bg-[#0e0d0c] px-4 py-2 flex flex-col shrink-0 transition-all"
+        data-zone="mixer-console"
+        data-workstation-target="mixerDrawer"
+        aria-label="Mixer Console and Smooth Gain Automation">
+  <%# Header Row %>
+  <div class="flex items-center justify-between mb-2 shrink-0">
+    <div class="flex items-center gap-2 font-mono text-[10px] font-semibold tracking-wider text-[#8e8a83] uppercase">
+      <span>🎚</span>
+      <span>MIXER CONSOLE & SMOOTH GAIN AUTOMATION (<code class="text-[#e5c185]">GainNode.setTargetAtTime</code>)</span>
+    </div>
+    <div class="font-mono text-[10px] text-[#8e8a83]">
+      Inserts follow the selected track · Double-click fader to reset
+    </div>
+  </div>
+
+  <%# Horizontal Cards Grid %>
+  <div class="flex gap-3 flex-1 overflow-x-auto pb-1">
+    <%# 1. Left Card — INSERTS Rack %>
+    <div class="w-80 bg-[#121316] border border-[#23262d] rounded p-2.5 flex flex-col justify-between shrink-0">
+      <%# Header: INSERTS 01. Sub Bass 808 | 4/8 · 5.9% %>
+      <div class="flex items-center justify-between pb-1.5 border-b border-[#1f2229] font-mono text-[10px]">
+        <div class="flex items-center gap-1.5 truncate">
+          <span class="text-[#8e8a83] font-semibold">INSERTS</span>
+          <span data-mixer-target="insertsTrackTitle" class="text-[#f4f4f0] font-semibold truncate">01. Sub Bass 808</span>
+        </div>
+        <span data-mixer-target="insertsCpuSummary" class="text-[#8e8a83] shrink-0">4/8 · 5.9%</span>
+      </div>
+
+      <%# 4 Plugin Slots %>
+      <div class="space-y-1 my-1 flex-1 flex flex-col justify-center" data-mixer-target="insertsList">
+        <% inserts.each do |plugin| %>
+          <div class="h-6 px-2 rounded bg-[#17191e] border border-[#242830] flex items-center justify-between gap-2 text-[10px] font-mono"
+               data-mixer-target="pluginSlot"
+               data-slot="<%= plugin[:slot] %>">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <button type="button"
+                      data-action="click->mixer#togglePluginSlot"
+                      aria-pressed="true"
+                      title="Bypass / Enable Plugin"
+                      class="w-3.5 h-3.5 rounded-full bg-[#14b8a6]/20 border border-[#14b8a6] text-[#2dd4bf] flex items-center justify-center text-[8px] cursor-pointer shrink-0">
+                ⏻
+              </button>
+              <span class="text-[#e5e2dc] truncate" title="<%= plugin[:full_name] %>"><%= plugin[:name] %></span>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <% if plugin[:type] == "Stock DSP" %>
+                <span class="px-1.5 py-0.2 rounded bg-[#0f2926] border border-[#14b8a6]/50 text-[#2dd4bf] text-[9px]">
+                  Stock DSP
+                </span>
+              <% else %>
+                <span class="px-1.5 py-0.2 rounded bg-[#271b11] border border-[#d97706]/50 text-[#f59e0b] text-[9px]">
+                  VST3
+                </span>
+              <% end %>
+              <span class="text-[#8e8a83] w-8 text-right"><%= plugin[:cpu] %></span>
+              <button type="button"
+                      data-action="click->mixer#removePluginSlot"
+                      title="Remove Insert"
+                      class="text-[#8e8a83] hover:text-[#ef4444] cursor-pointer px-0.5">
+                ×
+              </button>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <%# Bottom Button: + Add plugin... ⌄ %>
+      <button type="button"
+              data-action="click->mixer#addPluginSlot"
+              class="h-6 px-2.5 rounded bg-[#17191e] border border-[#252830] hover:border-[#4a3520] text-[#8e8a83] hover:text-[#f4f4f0] font-mono text-[10px] flex items-center justify-between cursor-pointer transition-colors">
+        <span>+ Add plugin...</span>
+        <span>⌄</span>
+      </button>
+    </div>
+
+    <%# 2. 4 Channel Strip Cards %>
+    <div id="mixer_channels_list" class="flex gap-3 flex-1">
+      <% tracks.each do |track| %>
+        <%= render "workstation/mixer_channel_card", track: track %>
+      <% end %>
+    </div>
+  </div>
+</footer>
+

@@ -1,12 +1,19 @@
 @use "sass:map";
+@use "sass:list";
 
-// Automatically converts an SCSS Map into CSS Custom Properties + RGB channels for opacity!
-@mixin register-theme($name, $palette, $is-default: false) {
-  $selector: if($is-default, ":root, [data-theme='#{$name}']", "[data-theme='#{$name}']");
+// Converts a Studio Theme SCSS Map into both --saanskara-* and --jaku-* CSS Custom Properties
+@mixin register-theme($name, $palette, $is-default: false, $aliases: ()) {
+  $selectors: if($is-default, (":root", "[data-theme='#{$name}']", ".theme-#{$name}"), ("[data-theme='#{$name}']", ".theme-#{$name}"));
 
-  #{$selector} {
+  @each $alias in $aliases {
+    $selectors: list.append($selectors, "[data-theme='#{$alias}']", comma);
+    $selectors: list.append($selectors, ".theme-#{$alias}", comma);
+  }
+
+  #{$selectors} {
     @each $key, $value in $palette {
       --saanskara-#{$key}: #{$value};
+      --jaku-#{$key}: #{$value};
     }
   }
 }

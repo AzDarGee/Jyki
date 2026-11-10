@@ -1,0 +1,86 @@
+<%# Workspace Control Sub-Bar %>
+<div class="h-9 px-3 border-b border-[#221f1d] bg-[#100f0e] flex items-center justify-between shrink-0"
+     data-zone="workspace-subbar">
+  <%# Left Controls %>
+  <div class="flex items-center gap-2">
+    <%# Auto Lanes ON %>
+    <button type="button"
+            data-action="click->workstation#toggleAutoLanes"
+            data-workstation-target="autoLanesButton"
+            aria-pressed="true"
+            class="h-6 px-2.5 rounded bg-[#2b1911] border border-[#7c3f1c] text-[#f5a623] text-[11px] font-medium flex items-center gap-1 cursor-pointer transition-colors">
+      <span data-workstation-target="autoLanesLabel">Auto Lanes ON</span>
+    </button>
+
+    <%# 🎚 Mixer Console %>
+    <button type="button"
+            data-action="click->workstation#toggleMixerDrawer"
+            data-workstation-target="mixerToggleButton"
+            aria-pressed="true"
+            class="h-6 px-2.5 rounded bg-[#1e1712] border border-[#5c3d1e] text-[#e5c185] hover:border-[#d97706] text-[11px] font-medium flex items-center gap-1.5 cursor-pointer transition-colors">
+      <span>🎚</span>
+      <span>Mixer Console</span>
+    </button>
+
+    <%# Graphics Renderer Switcher Pill (CRITICAL): WebGPU | WebGL2 | Canvas2D %>
+    <div class="flex items-center bg-[#09090b] p-0.5 rounded border border-[#262320] ml-1"
+         role="radiogroup"
+         aria-label="Graphics Renderer Engine Switcher">
+      <button type="button"
+              role="radio"
+              aria-checked="true"
+              data-renderer="webgpu"
+              data-workstation-target="rendererButton"
+              data-action="click->workstation#switchRenderer"
+              class="h-5 px-2 rounded-xs font-mono text-[10px] font-semibold transition-all cursor-pointer bg-[#231911] text-[#f5a623] border border-[#5c3d1e]">
+        WebGPU
+      </button>
+      <button type="button"
+              role="radio"
+              aria-checked="false"
+              data-renderer="webgl2"
+              data-workstation-target="rendererButton"
+              data-action="click->workstation#switchRenderer"
+              class="h-5 px-2 rounded-xs font-mono text-[10px] transition-all cursor-pointer text-[#8e8a83] hover:text-[#e5e2dc] border border-transparent">
+        WebGL2
+      </button>
+      <button type="button"
+              role="radio"
+              aria-checked="false"
+              data-renderer="canvas2d"
+              data-workstation-target="rendererButton"
+              data-action="click->workstation#switchRenderer"
+              class="h-5 px-2 rounded-xs font-mono text-[10px] transition-all cursor-pointer text-[#8e8a83] hover:text-[#e5e2dc] border border-transparent">
+        Canvas2D
+      </button>
+    </div>
+  </div>
+
+  <%# Right Controls: TIMELINE ZOOM + - + slider + + + 100% %>
+  <div class="flex items-center gap-2 font-mono text-[10px]">
+    <span class="text-[#8e8a83] uppercase tracking-wider">TIMELINE ZOOM</span>
+    <button type="button"
+            data-action="click->workstation#zoomOut"
+            aria-label="Zoom Out Timeline"
+            class="w-5 h-5 rounded bg-[#161514] border border-[#262320] hover:border-[#4a3520] text-[#e5e2dc] flex items-center justify-center cursor-pointer">
+      -
+    </button>
+    <input type="range"
+           min="50"
+           max="250"
+           step="5"
+           value="100"
+           aria-label="Timeline Zoom Percentage"
+           data-workstation-target="zoomSlider"
+           data-action="input->workstation#updateZoom"
+           class="jaku-fader w-24" />
+    <button type="button"
+            data-action="click->workstation#zoomIn"
+            aria-label="Zoom In Timeline"
+            class="w-5 h-5 rounded bg-[#161514] border border-[#262320] hover:border-[#4a3520] text-[#e5e2dc] flex items-center justify-center cursor-pointer">
+      +
+    </button>
+    <span data-workstation-target="zoomReadout" class="text-[#e5e2dc] min-w-[32px] text-right">100%</span>
+  </div>
+</div>
+

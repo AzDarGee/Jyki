@@ -1,0 +1,77 @@
+<%= turbo_frame_tag "jaku_workstation",
+      class: "jaku-workstation-shell h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc]",
+      data: {
+        controller: "workstation mixer auth-drawer right-sidebar",
+        theme: "midnight",
+        workstation_theme_value: "midnight",
+        workstation_mode_value: "create",
+        workstation_submode_value: "song",
+        workstation_library_tab_value: "library",
+        workstation_playing_value: false,
+        workstation_recording_value: false,
+        workstation_bpm_value: @transport[:bpm],
+        workstation_auto_lanes_value: true,
+        workstation_mixer_open_value: true,
+        workstation_ai_lab_open_value: true,
+        workstation_renderer_value: "webgpu",
+        workstation_zoom_value: 100,
+        mixer_selected_track_value: 1,
+        action: "keydown@window->workstation#handleGlobalKeydown keydown.esc@window->auth-drawer#close"
+      } do %>
+
+  <%# ZONE A: Top Global Header Bar %>
+  <%= render "workstation/top_bar" %>
+
+  <%# ZONE B: Master Meter / Global Spectrogram Strip %>
+  <%= render "workstation/master_meter", transport: @transport %>
+
+  <%# ZONE C: Primary Transport & Sub-Mode Toolbar %>
+  <%= render "workstation/transport_bar", transport: @transport %>
+
+  <%# ZONE D: Main Center Workstation Area %>
+  <div id="jaku_stage_body" class="flex-1 flex overflow-hidden relative" data-zone="center-workstation">
+
+    <%# CREATE WORKSPACE (Active by default) %>
+    <div class="flex-1 flex overflow-hidden" data-workstation-target="createWorkspace">
+
+      <%# Column 1: Left Sound Browser %>
+      <%= render "workstation/sound_browser", library_items: @library_items %>
+
+      <%# Column 2 & 3 Wrapper: Center Stage Header + Track Headers + Multi-Backend DAW Timeline %>
+      <div class="flex-1 flex flex-col overflow-hidden bg-[#0c0b0a]">
+
+        <%# Workspace Control Sub-Bar %>
+        <%= render "workstation/workspace_subbar" %>
+
+        <%# SONG MODE: Track Headers + Multi-Backend Timeline Canvas (Default active) %>
+        <div class="flex-1 flex overflow-hidden" data-workstation-target="songView">
+          <%# Sub-Column 2A: Track Headers List %>
+          <%= render "workstation/track_list", tracks: @tracks %>
+
+          <%# Sub-Column 2B: Multi-Backend DAW Timeline Canvas %>
+          <%= render "workstation/timeline_canvas", tracks: @tracks %>
+        </div>
+
+        <%# IDEAS MODE: Session / Clip Launcher Matrix (Toggled via Ideas pill in Zone C) %>
+        <%= render "workstation/ideas_session_view", tracks: @tracks %>
+      </div>
+    </div>
+
+    <%# DJ 6-DECK PHASE-LOCKED WORKSPACE (Toggled via DJ pill in Zone A without URL change) %>
+    <%= render "workstation/dj_view", decks: @decks, transport: @transport %>
+
+    <%# Dockable Right-Side Utility Sidebar (#jyki_right_sidebar) + Far-Right Vertical Icon Rail %>
+    <%= render "workstation/sidebar/right_sidebar",
+          active_tool: "chat",
+          chat_messages: @chat_messages,
+          crdt_branches: @crdt_branches %>
+  </div>
+
+  <%# ZONE E: Bottom Mixer Console & Smooth Gain Automation Drawer %>
+  <%= render "workstation/mixer_console", tracks: @tracks, inserts: @inserts %>
+
+  <%# Right-Side Slide-Over "Studio Auth" Drawer & Backdrop %>
+  <%= render "shared/studio_auth_drawer", current_producer: current_user %>
+
+<% end %>
+

@@ -1,0 +1,38 @@
+// app/assets/scss/components/_floating_modals.scss
+@use "../abstracts" as *;
+
+// Dockable Right-Side Utility Sidebar (Chat / DM, Branches, Remote, Notes & Studio AI Lab)
+#jyki_right_sidebar {
+  @include workstation-zone-surface("bg-surface", "border-subtle", "text-secondary");
+
+  [data-right-sidebar-target="panel"] {
+    background-color: theme("bg-surface") !important;
+    color: theme("text-secondary") !important;
+  }
+}
+
+// Far-Right Vertical Utility Icon Rail
+[data-zone="utility-rail"] {
+  @include workstation-zone-surface("bg-obsidian", "border-subtle", "text-secondary");
+}
+
+// Right-Hand Slide-Over Studio Auth Drawer & Backdrop
+#studio_auth_drawer {
+  [data-auth-drawer-target="backdrop"] {
+    background-color: theme("backdrop");
+  }
+
+  aside,
+  [data-auth-drawer-target="panel"] {
+    @include workstation-zone-surface("bg-surface", "border-subtle", "text-secondary");
+  }
+}
+
+// Non-Intrusive Corner Toast Notifications
+#jaku-toast-container {
+  > div {
+    background-color: theme("bg-elevated");
+    border-color: theme("border-bronze");
+    color: theme("accent-amber");
+  }
+}

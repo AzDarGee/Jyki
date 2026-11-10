@@ -1,6 +1,91 @@
 // app/assets/scss/components/_transport_bar.scss
 @use "../abstracts" as *;
 
+// Zone A: Global Top Header Bar, Theme Toggle Pill, Mode Switcher & Auth Badge
+[data-zone="header"] {
+  @include workstation-zone-surface("bg-obsidian", "border-subtle", "text-secondary");
+
+  [data-workstation-target="themeButton"] {
+    background-color: theme("bg-card") !important;
+    border-color: theme("border-card") !important;
+    color: theme("text-secondary") !important;
+    transition: background-color $jaku-theme-transition, border-color $jaku-theme-transition, color $jaku-theme-transition;
+
+    &:hover {
+      border-color: theme("border-bronze") !important;
+      color: theme("text-primary") !important;
+    }
+
+    [data-workstation-target="themeIcon"] {
+      color: theme("accent-amber") !important;
+    }
+  }
+
+  [role="tablist"] {
+    background-color: theme("bg-panel") !important;
+    border-color: theme("border-card") !important;
+  }
+
+  [data-workstation-target="modeTab"][aria-selected="true"] {
+    background-color: theme("bg-active") !important;
+    border-color: theme("border-bronze") !important;
+    color: theme("accent-amber") !important;
+  }
+
+  [data-workstation-target="modeTab"][aria-selected="false"] {
+    color: theme("text-muted") !important;
+
+    &:hover {
+      color: theme("text-primary") !important;
+    }
+  }
+
+  #top_bar_auth_badge button {
+    background-color: theme("bg-card") !important;
+    border-color: theme("border-card") !important;
+    color: theme("text-secondary") !important;
+
+    &:hover {
+      border-color: theme("border-bronze") !important;
+    }
+  }
+}
+
+// Zone B: Master Meter / Global Spectrogram & LUFS Strip
+[data-zone="master-meter"] {
+  @include workstation-zone-surface("bg-surface", "border-subtle", "text-secondary");
+}
+
+// Zone C: Primary Transport & Sub-Mode Toolbar
+[data-zone="transport"] {
+  @include workstation-zone-surface("bg-panel", "border-subtle", "text-secondary");
+
+  [data-workstation-target="submodeTab"][aria-selected="true"] {
+    background-color: theme("bg-active") !important;
+    border-color: theme("border-bronze") !important;
+    color: theme("accent-amber") !important;
+  }
+
+  [data-workstation-target="submodeTab"][aria-selected="false"] {
+    color: theme("text-muted") !important;
+
+    &:hover {
+      color: theme("text-primary") !important;
+    }
+  }
+}
+
+// Workspace Control Sub-Bar (Auto Lanes, Mixer Toggle, WebGPU/WebGL2/2D Renderer Switcher, Zoom)
+[data-zone="workspace-subbar"] {
+  @include workstation-zone-surface("bg-panel", "border-subtle", "text-secondary");
+
+  [data-workstation-target="rendererButton"][aria-checked="true"] {
+    background-color: theme("bg-active") !important;
+    border-color: theme("border-bronze") !important;
+    color: theme("accent-amber") !important;
+  }
+}
+
 .daw-transport-bar {
   background-color: theme("bg-surface");
   border-bottom: 1px solid theme("border-subtle");

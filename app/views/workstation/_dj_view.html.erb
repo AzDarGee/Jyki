@@ -1,0 +1,84 @@
+<%# DJ 6-DECK PHASE-LOCKED PARALLEL BEATGRID WORKSPACE %>
+<div class="hidden flex-1 flex-col p-2 gap-2 overflow-y-auto bg-[#09090b]"
+     data-workstation-target="djWorkspace"
+     data-controller="dj-beatgrid"
+     data-dj-beatgrid-master-deck-value="A"
+     data-dj-beatgrid-master-bpm-value="128.0"
+     data-dj-beatgrid-quantize-value="true"
+     data-dj-beatgrid-playing-value="false"
+     aria-label="Jaku 6-Deck Phase-Locked DJ Workstation">
+
+  <%# SECTION 1: Phase-Locked Parallel Beatgrid Panel (Top Half) %>
+  <section class="flex-[1.15] min-h-[360px] bg-[#0e0d0c] border border-[#26221e] rounded flex flex-col justify-between p-3 relative"
+           data-zone="dj-beatgrid">
+
+    <%# 1A. Beatgrid Header Bar %>
+    <div class="flex items-center justify-between mb-2 shrink-0">
+      <div class="font-mono text-xs tracking-wider text-[#b5b0a8] flex items-center gap-2">
+        <span class="text-[#d97706]">◎</span>
+        <span data-dj-beatgrid-target="headerReadout">
+          PHASE-LOCKED PARALLEL BEATGRID · MASTER A · 128.00 BPM
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button type="button"
+                data-dj-beatgrid-target="quantizeButton"
+                data-action="click->dj-beatgrid#toggleQuantize"
+                aria-pressed="true"
+                class="px-2.5 py-1 text-xs font-mono rounded border border-[#5c3d1e] bg-[#1f160e] text-[#e5a952] cursor-pointer transition-colors">
+          QUANTIZE ON
+        </button>
+
+        <button type="button"
+                data-dj-beatgrid-target="syncAllButton"
+                data-action="click->dj-beatgrid#syncAllToMaster"
+                class="px-3 py-1 text-xs font-mono rounded border border-[#6b4c2b] bg-[#2a1f14] text-[#f3be7a] hover:bg-[#38291b] transition cursor-pointer flex items-center gap-1.5">
+          <span>⚡</span>
+          <span data-dj-beatgrid-target="syncAllLabel">Beatmatch Sync All to Master</span>
+        </button>
+      </div>
+    </div>
+
+    <%# 1B. 6-Lane Parallel Waveform Canvas %>
+    <div class="flex-1 relative w-full overflow-hidden rounded bg-[#0b0a09] border border-[#1d1a17]">
+      <canvas data-dj-beatgrid-target="canvas"
+              data-action="mousedown->dj-beatgrid#scrubBeatgrid mousemove->dj-beatgrid#dragBeatgrid mouseup@window->dj-beatgrid#endScrubBeatgrid"
+              class="w-full h-full block cursor-ew-resize"></canvas>
+
+      <%# Center Master Playhead Line (Locked at 50% width across all 6 lanes) %>
+      <div class="w-[2px] bg-[#ef4444] shadow-[0_0_10px_rgba(239,68,68,0.85)] absolute top-0 bottom-0 left-1/2 -translate-x-1/2 pointer-events-none z-10"></div>
+
+      <%# Top-Right Canvas Overlay Ring (Positioned near right edge of Lane A) %>
+      <div data-dj-beatgrid-target="masterRingIndicator"
+           class="w-5 h-5 rounded-full border-2 border-[#d6b88a] shadow-[0_0_8px_rgba(214,184,138,0.45)] absolute top-3.5 right-3.5 pointer-events-none z-10"></div>
+    </div>
+
+    <%# 1C. Beatgrid Footer Legend %>
+    <div class="flex items-center gap-4 pt-2 text-[10px] font-mono text-[#8e8a83] shrink-0">
+      <span class="flex items-center gap-1.5">
+        <span class="text-[#14b8a6]">●</span>
+        <span>PHASE LOCKED</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="text-[#f59e0b]">●</span>
+        <span>DRIFTING</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="text-[#ef4444]">●</span>
+        <span>OUT OF PHASE</span>
+      </span>
+      <span class="flex items-center gap-1.5">
+        <span class="text-[#d6b88a]">○</span>
+        <span>MASTER</span>
+      </span>
+    </div>
+  </section>
+
+  <%# SECTION 2: 6-Deck Controller Matrix (Bottom Half — 3 cols × 2 rows) %>
+  <section class="grid grid-cols-3 grid-rows-2 gap-2.5 h-[360px] shrink-0"
+           data-zone="dj-deck-matrix"
+           aria-label="6-Deck Controller Matrix">
+    <%= render partial: "workstation/dj_deck", collection: decks, as: :deck %>
+  </section>
+</div>

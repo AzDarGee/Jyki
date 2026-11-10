@@ -1,0 +1,33 @@
+<%# Sub-Column 2B: The Multi-Backend DAW Timeline Canvas %>
+<div class="flex-1 relative bg-[#0c0b0a] overflow-hidden flex flex-col"
+     data-zone="timeline"
+     data-action="dragover->workstation#allowTimelineDrop drop->workstation#dropLibraryItemOnTimeline">
+
+  <%# Top-Right HUD Telemetry Pill (Overlay) %>
+  <div class="absolute top-1 right-2.5 z-20 pointer-events-none flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#09090b]/90 border border-[#262320] font-mono text-[10px] shadow-md">
+    <span data-workstation-target="hudRendererLabel" class="text-[#a1a1aa] font-semibold">WEBGPU · WGSL</span>
+    <span class="text-[#3f3f46]">[</span>
+    <span data-workstation-target="hudWasmStatus" class="text-[#14b8a6] font-semibold">WASM · IDLE</span>
+    <span class="text-[#3f3f46]">]</span>
+  </div>
+
+  <%# Full-Height Vertical Golden Playhead Line (synchronized with canvas & ruler) %>
+  <div data-workstation-target="playheadLine"
+       class="absolute top-0 bottom-0 w-[1.5px] bg-[#f59e0b] shadow-[0_0_8px_rgba(245,158,11,0.85)] z-10 pointer-events-none"
+       style="left: 0px;">
+    <div class="w-2.5 h-2.5 -ml-[4px] bg-[#f59e0b] rotate-45 rounded-[1px]"></div>
+  </div>
+
+  <%# Interactive Multi-Backend Canvas (WebGPU / WebGL2 / Canvas2D) %>
+  <canvas id="jaku-daw-timeline-canvas"
+          data-controller="daw-timeline"
+          data-workstation-target="timelineCanvas"
+          data-daw-timeline-renderer-value="webgpu"
+          data-daw-timeline-zoom-value="100"
+          data-daw-timeline-auto-lanes-value="true"
+          data-daw-timeline-playing-value="false"
+          data-daw-timeline-bpm-value="128"
+          data-action="mousedown->daw-timeline#onPointerDown mousemove->daw-timeline#onPointerMove mouseup@window->daw-timeline#onPointerUp wheel->daw-timeline#onWheel"
+          class="w-full h-full block cursor-crosshair"></canvas>
+</div>
+

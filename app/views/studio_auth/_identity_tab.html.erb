@@ -1,0 +1,88 @@
+<%# Tab 1: "Identity" View — Authenticated Studio Identity Card %>
+<% producer = local_assigns[:producer] || current_user %>
+<div class="mx-4 mt-3 p-4 rounded-lg bg-[#121215] border border-[#222120] flex flex-col gap-3">
+  <%# Card Header %>
+  <div class="flex items-center justify-between pb-2 border-b border-[#1c1b19]">
+    <span class="text-xs font-semibold text-[#e5e2dc]">Authenticated Studio Identity</span>
+    <span class="px-2 py-0.5 rounded text-[9px] font-mono font-semibold bg-[#0d2822] border border-[#115e59] text-[#2dd4bf] uppercase tracking-wider">
+      SESSION ACTIVE
+    </span>
+  </div>
+
+  <%# 5 Key-Value Telemetry Rows %>
+  <div class="flex flex-col divide-y divide-[#1c1b19] text-[11px] font-mono">
+    <%# Row 1 — USERNAME (with Inline Edit Trigger & Turbo Stream Form) %>
+    <div class="py-2 flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <span class="text-[#7c7872] uppercase">USERNAME</span>
+        <div data-auth-drawer-target="usernameDisplay" class="flex items-center gap-1.5 text-[#e5e2dc]">
+          <span>@<%= producer.username %></span>
+          <button type="button"
+                  data-action="click->auth-drawer#toggleUsernameEdit"
+                  aria-label="Edit studio username"
+                  title="Edit studio username"
+                  class="text-[#8e8a83] hover:text-[#f3be7a] transition-colors cursor-pointer">
+            ✎
+          </button>
+        </div>
+      </div>
+
+      <%= form_with url: studio_auth_identity_path,
+            method: :patch,
+            scope: :user,
+            data: { turbo: true, auth_drawer_target: "usernameEditForm" },
+            class: "hidden items-center gap-1.5 pt-1" do |f| %>
+        <div class="relative flex-1">
+          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-[#7c7872] font-mono pointer-events-none">@</span>
+          <%= f.text_field :username,
+                value: producer.username,
+                data: { auth_drawer_target: "usernameInput" },
+                aria_label: "New studio username",
+                class: "w-full pl-6 pr-2 py-1 rounded bg-[#09090b] border border-[#4a3520] focus:border-[#d97706] focus:outline-none text-[11px] font-mono text-[#e5e2dc]" %>
+        </div>
+        <button type="submit"
+                data-turbo-submits-with="..."
+                class="px-2.5 py-1 rounded bg-[#d8b98a] hover:bg-[#e3c79c] text-[#0c0b0a] font-sans font-semibold text-[10px] cursor-pointer transition">
+          Save
+        </button>
+        <button type="button"
+                data-action="click->auth-drawer#toggleUsernameEdit"
+                class="px-2 py-1 rounded bg-[#18181b] border border-[#27272a] text-[#a19d95] hover:text-white font-sans text-[10px] cursor-pointer transition">
+          Cancel
+        </button>
+      <% end %>
+    </div>
+
+    <%# Row 2 — EMAIL %>
+    <div class="py-2 flex items-center justify-between">
+      <span class="text-[#7c7872] uppercase">EMAIL</span>
+      <span class="text-[#e5e2dc] truncate max-w-[230px]"><%= producer.email %></span>
+    </div>
+
+    <%# Row 3 — PROFILE PHOTO %>
+    <div class="py-2 flex items-center justify-between">
+      <span class="text-[#7c7872] uppercase">PROFILE PHOTO</span>
+      <div class="flex items-center gap-1.5">
+        <span class="w-4 h-4 rounded-full border border-[#5c3d1e] bg-gradient-to-br from-[#fef3c7] via-[#f59e0b] to-[#78350f] inline-flex items-center justify-center text-[8px] text-[#1c1309] font-bold">
+          ☀
+        </span>
+        <span class="text-[#2dd4bf] font-semibold uppercase">MAPPED</span>
+      </div>
+    </div>
+
+    <%# Row 4 — AUTH PROVIDER %>
+    <div class="py-2 flex items-center justify-between">
+      <span class="text-[#7c7872] uppercase">AUTH PROVIDER</span>
+      <span class="text-[#e5e2dc] uppercase"><%= producer.provider.presence || "GOOGLE.COM" %></span>
+    </div>
+
+    <%# Row 5 — DATABASE STORAGE %>
+    <div class="pt-2 flex items-center justify-between">
+      <span class="text-[#7c7872] uppercase">DATABASE STORAGE</span>
+      <span class="text-[#2dd4bf] font-semibold">
+        CONNECTED (<%= (producer.storage_node_id.presence || "4PS1G6fg...").sub("...", "…") %>)
+      </span>
+    </div>
+  </div>
+</div>
+

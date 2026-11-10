@@ -1,0 +1,45 @@
+<%# ZONE A: Top Global Header Bar %>
+<header class="h-10 px-3 border-b border-[#221f1d] bg-[#09090b] flex items-center justify-between shrink-0"
+        data-zone="header">
+  <%# 1. Left: Theme Toggle Pill Button %>
+  <div class="flex items-center gap-2">
+    <button type="button"
+            data-action="click->workstation#toggleTheme"
+            data-workstation-target="themeButton"
+            data-theme-current="midnight"
+            title="Switch studio theme (Dark / Saffron / Frost)"
+            aria-label="Toggle studio theme"
+            class="h-6 px-2.5 rounded-full bg-[#121214] border border-[#262320] hover:border-[#4a3520] text-[11px] text-[#e5e2dc] flex items-center gap-1.5 transition-colors cursor-pointer">
+      <span class="text-[#f59e0b] text-xs" data-workstation-target="themeIcon">🌙</span>
+      <span data-workstation-target="themeLabel">Dark</span>
+    </button>
+  </div>
+
+  <%# 2. Center: Top-Level Mode Switcher (Create | DJ) %>
+  <div class="flex items-center bg-[#121110] p-0.5 rounded-md border border-[#262320]"
+       role="tablist"
+       aria-label="Workspace Mode Switcher">
+    <button type="button"
+            role="tab"
+            aria-selected="true"
+            data-mode="create"
+            data-workstation-target="modeTab"
+            data-action="click->workstation#switchMode"
+            class="h-6 px-3.5 rounded text-xs font-medium transition-all cursor-pointer bg-[#231911] text-[#f5a623] border border-[#5c3d1e] shadow-sm">
+      Create
+    </button>
+    <button type="button"
+            role="tab"
+            aria-selected="false"
+            data-mode="dj"
+            data-workstation-target="modeTab"
+            data-action="click->workstation#switchMode"
+            class="h-6 px-3.5 rounded text-xs font-medium transition-all cursor-pointer text-zinc-400 hover:text-zinc-200 border border-transparent">
+      DJ
+    </button>
+  </div>
+
+  <%# 3. Right: User Identity / Studio Auth Trigger Pill %>
+  <%= render "shared/top_bar_auth_badge", current_producer: current_user %>
+</header>
+

@@ -1,0 +1,130 @@
+<%# ZONE C: Primary Transport & Sub-Mode Toolbar %>
+<section class="h-11 px-3 border-y border-[#221f1d] bg-[#121110] flex items-center justify-between shrink-0"
+         data-zone="transport"
+         aria-label="Primary Transport and Audio Engine Controls">
+  <%# 1. Left: Sub-Navigation inside Create (Bookshelf Icon + Ideas | Song) — Hidden in DJ Mode %>
+  <div class="flex items-center gap-2 transition-opacity"
+       data-workstation-target="createSubNav">
+    <button type="button"
+            data-action="click->workstation#toggleSoundBrowser"
+            title="Toggle Sound Libraries & Plugins Rack"
+            aria-label="Toggle Sound Libraries Browser"
+            class="w-7 h-7 rounded bg-[#161514] border border-[#3a2c1e] text-[#f59e0b] hover:border-[#d97706] flex items-center justify-center text-xs font-mono cursor-pointer transition-colors">
+      |||╲
+    </button>
+
+    <div class="flex items-center bg-[#0c0b0a] p-0.5 rounded border border-[#262320]"
+         role="tablist"
+         aria-label="Arrangement Sub-Mode">
+      <button type="button"
+              role="tab"
+              aria-selected="false"
+              data-submode="ideas"
+              data-workstation-target="submodeTab"
+              data-action="click->workstation#switchSubmode"
+              class="h-6 px-2.5 rounded-xs text-[11px] font-medium transition-colors cursor-pointer text-[#8e8a83] hover:text-[#f4f4f0] border border-transparent">
+        Ideas
+      </button>
+      <button type="button"
+              role="tab"
+              aria-selected="true"
+              data-submode="song"
+              data-workstation-target="submodeTab"
+              data-action="click->workstation#switchSubmode"
+              class="h-6 px-2.5 rounded-xs text-[11px] font-medium transition-colors cursor-pointer bg-[#231911] text-[#f5a623] border border-[#5c3d1e]">
+        Song
+      </button>
+    </div>
+  </div>
+
+  <%# 2. Center: Transport & Audio Clock Controls %>
+  <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1">
+      <button type="button"
+              data-action="click->workstation#togglePlay"
+              data-workstation-target="playButton"
+              aria-label="Play Arrangement"
+              title="Play / Pause (Space)"
+              class="w-7 h-7 rounded bg-[#161514] border border-[#262320] hover:border-[#4a3520] text-[#e5e2dc] flex items-center justify-center text-xs cursor-pointer transition-colors">
+        ▷
+      </button>
+      <button type="button"
+              data-action="click->workstation#stopTransport"
+              data-workstation-target="stopButton"
+              aria-label="Stop Arrangement"
+              title="Stop and Return to 1.1"
+              class="w-7 h-7 rounded bg-[#161514] border border-[#262320] hover:border-[#4a3520] text-[#e5e2dc] flex items-center justify-center text-xs cursor-pointer transition-colors">
+        □
+      </button>
+      <button type="button"
+              data-action="click->workstation#toggleRecord"
+              data-workstation-target="recordButton"
+              aria-label="Record Enable"
+              title="Master Record Arm"
+              class="w-7 h-7 rounded bg-[#1b1111] border border-[#dc2626]/60 hover:border-[#ef4444] text-[#ef4444] flex items-center justify-center text-xs cursor-pointer transition-all shadow-[0_0_8px_rgba(220,38,38,0.25)]">
+        ⦿
+      </button>
+    </div>
+
+    <%# Monospace Status Pill: BPM 128 | POS 1.1 | 48.0 kHz ⌄ / 24-bit ⌄ %>
+    <div class="h-7 px-3 rounded bg-[#0c0b0a] border border-[#262320] flex items-center gap-2.5 font-mono text-[11px]">
+      <div class="flex items-center gap-1.5">
+        <span class="text-[#8e8a83]">BPM</span>
+        <span data-workstation-target="bpmDisplay"
+              data-action="click->workstation#nudgeBpm"
+              title="Click to cycle tempo preset"
+              class="text-[#f4f4f0] font-semibold cursor-pointer hover:text-[#f59e0b]"><%= transport[:bpm] %></span>
+      </div>
+      <span class="text-[#262320]">|</span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-[#8e8a83]">POS</span>
+        <span data-workstation-target="positionDisplay" class="text-[#f4f4f0] font-semibold min-w-[28px]"><%= transport[:position] %></span>
+      </div>
+      <span class="text-[#262320]">|</span>
+      <button type="button"
+              data-action="click->workstation#cycleSampleRate"
+              data-workstation-target="sampleRateButton"
+              class="text-[#e5e2dc] hover:text-[#f59e0b] flex items-center gap-1 cursor-pointer">
+        <span data-workstation-target="sampleRateLabel"><%= transport[:sample_rate] %></span>
+        <span class="text-[9px] text-[#8e8a83]">⌄</span>
+      </button>
+      <span class="text-[#262320]">/</span>
+      <button type="button"
+              data-action="click->workstation#cycleBitDepth"
+              data-workstation-target="bitDepthButton"
+              class="text-[#e5e2dc] hover:text-[#f59e0b] flex items-center gap-1 cursor-pointer">
+        <span data-workstation-target="bitDepthLabel"><%= transport[:bit_depth] %></span>
+        <span class="text-[9px] text-[#8e8a83]">⌄</span>
+      </button>
+    </div>
+  </div>
+
+  <%# 3. Right: Engine & Export Actions %>
+  <div class="flex items-center gap-2">
+    <button type="button"
+            data-action="click->workstation#toggleLowLatency"
+            data-workstation-target="lowLatencyButton"
+            aria-pressed="true"
+            class="h-7 px-2.5 rounded bg-[#1c150e] border border-[#5c3d1e] text-[#f59e0b] text-[11px] font-mono flex items-center gap-1.5 hover:border-[#d97706] cursor-pointer transition-colors">
+      <span>🎧</span>
+      <span data-workstation-target="lowLatencyLabel">Low-Lat ON</span>
+    </button>
+
+    <button type="button"
+            data-action="click->workstation#pingCrdtSync"
+            data-workstation-target="crdtBadge"
+            class="h-7 px-2.5 rounded bg-[#141312] border border-[#262320] text-[#8e8a83] hover:text-[#e5e2dc] text-[11px] font-mono flex items-center gap-1.5 cursor-pointer transition-colors">
+      <span class="text-[#14b8a6]">☁</span>
+      <span id="top_bar_crdt_status_label" data-workstation-target="crdtLabel"><%= transport[:crdt_status] %></span>
+    </button>
+
+    <button type="button"
+            data-action="click->workstation#triggerBatchExport"
+            data-workstation-target="exportButton"
+            class="h-7 px-3 rounded bg-[#d6b88a] hover:bg-[#e2c699] text-[#09090b] font-semibold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs">
+      <span>⬇</span>
+      <span data-workstation-target="exportLabel">Batch & Export</span>
+    </button>
+  </div>
+</section>
+
