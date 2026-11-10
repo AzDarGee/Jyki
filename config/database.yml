@@ -52,7 +52,7 @@ production:
     database: <%= Rails.application.credentials.dig(:database, :prod_local_supabase, :database) %>
 #    url: <%#= Rails.application.credentials.dig(:database, :prod_local_supabase, :url) %>
     password: <%= Rails.application.credentials.dig(:database, :prod_local_supabase, :password) %>
-    sslmode: require
+    sslmode: prefer
   cache:
     <<: *primary_production
 #    database: jyki_production_cache
