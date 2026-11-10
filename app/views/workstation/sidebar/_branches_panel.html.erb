@@ -1,0 +1,56 @@
+<%# Panel 2: ⑂ Branches (CRDT Version History & Branches) %>
+<% crdt_branches = local_assigns[:crdt_branches] || CrdtBranch.default_branches %>
+
+<%# 3A. Panel Header %>
+<div class="h-9 px-3 border-b border-[#1f1d1b] flex items-center justify-between shrink-0">
+  <div class="text-xs font-semibold text-[#f4f4f0] flex items-center gap-1.5">
+    <span class="text-[#f3be7a] font-mono">⑂</span>
+    <span>Branches</span>
+  </div>
+  <button type="button"
+          data-action="click->right-sidebar#toggleDock"
+          aria-label="Collapse Branches Sidebar"
+          title="Collapse Sidebar"
+          class="w-6 h-6 rounded border border-[#262320] bg-[#141416] text-zinc-400 hover:text-white flex items-center justify-center text-[10px] font-mono cursor-pointer transition-colors">
+    |▷
+  </button>
+</div>
+
+<%# 3B. CRDT Version History & Branches Body %>
+<div class="p-3 flex-1 overflow-y-auto flex flex-col gap-3">
+  <%# Section Title Stack %>
+  <div>
+    <div class="text-xs font-semibold text-[#f4f4f0]">CRDT Version History &amp; Branches</div>
+    <div class="text-[11px] font-mono text-[#7c7872] mt-0.5">
+      Lossless state snapshots stored as Yjs_delta_vectors.
+    </div>
+  </div>
+
+  <%# Commit New Branch Form %>
+  <%= form_with url: right_sidebar_branches_path,
+        scope: :crdt_branch,
+        method: :post,
+        data: { turbo: true, action: "turbo:submit-end->right-sidebar#resetBranchInput" },
+        class: "flex items-center gap-1.5" do |f| %>
+    <%= f.text_field :name,
+          required: true,
+          autocomplete: "off",
+          placeholder: "e.g. vocal-comp-v2",
+          aria_label: "New CRDT branch name",
+          data: { right_sidebar_target: "branchNameInput" },
+          class: "flex-1 min-w-0 bg-[#09090b] border border-[#242220] focus:border-[#6b4926] focus:outline-none rounded px-2.5 py-1.5 text-xs font-mono text-[#e5e2dc] placeholder-[#52504c]" %>
+    <button type="submit"
+            data-turbo-submits-with="Committing..."
+            class="px-3 py-1.5 rounded bg-[#d8b98a] hover:bg-[#e3c79c] text-[#0c0b0a] font-semibold text-xs whitespace-nowrap cursor-pointer transition shrink-0">
+      Commit Branch
+    </button>
+  <% end %>
+
+  <div id="crdt_checkout_notice" class="hidden"></div>
+
+  <%# Branch Snapshot Cards List (#crdt_branches_list) %>
+  <div id="crdt_branches_list" class="space-y-2.5">
+    <%= render partial: "workstation/sidebar/branch_card", collection: crdt_branches, as: :branch %>
+  </div>
+</div>
+

@@ -18,3 +18,5 @@ saanskara.skip_confirmation! if saanskara.respond_to?(:skip_confirmation!)
 saanskara.save!
 
 ProjectCollaborator.default_roster_for("proj_default")
+StudioChatMessage.default_messages_for("project_room")
+CrdtBranch.default_branches

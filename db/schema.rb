@@ -10,9 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_09_231500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_09_234500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "crdt_branches", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "delta_vector", null: false
+    t.string "committed_at_label", default: "17:12 UTC", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_crdt_branches_on_name"
+  end
 
   create_table "project_collaborators", force: :cascade do |t|
     t.string "project_slug", default: "proj_default", null: false
@@ -195,6 +204,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_231500) do
     t.index ["expires_at"], name: "index_solid_queue_semaphores_on_expires_at"
     t.index ["key", "value"], name: "index_solid_queue_semaphores_on_key_and_value"
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
+  end
+
+  create_table "studio_chat_messages", force: :cascade do |t|
+    t.string "sender_name", default: "Saanskara (Owner)", null: false
+    t.string "sender_role", default: "OWNER", null: false
+    t.text "body", null: false
+    t.string "room_type", default: "project_room", null: false
+    t.string "recipient_handle"
+    t.string "sent_at_label", default: "17:12", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["room_type"], name: "index_studio_chat_messages_on_room_type"
   end
 
   create_table "users", force: :cascade do |t|

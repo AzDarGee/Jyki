@@ -1,0 +1,14 @@
+<%# Single Chat Message Card in #jyki_chat_messages %>
+<div id="<%= dom_id(message) %>"
+     data-room-type="<%= message.room_type %>"
+     data-recipient="<%= message.recipient_handle %>"
+     class="p-2.5 rounded-md bg-[#121215] border border-[#222120] flex flex-col gap-1">
+  <div class="flex items-center justify-between">
+    <span class="text-[11px] font-semibold text-[#f3be7a]"><%= message.sender_name %></span>
+    <span class="text-[10px] font-mono text-[#6e6a64]"><%= message.sent_at_label %></span>
+  </div>
+  <div class="text-[11px] leading-relaxed text-[#d4d0c8]">
+    <%= message.body %>
+  </div>
+</div>
+

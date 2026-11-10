@@ -1,0 +1,102 @@
+<%# Dockable Right-Side Utility Sidebar (#jyki_right_sidebar) + Far-Right Vertical Icon Rail %>
+<%
+  active_tool = local_assigns[:active_tool] || "chat"
+  chat_messages = local_assigns[:chat_messages] || StudioChatMessage.default_messages_for("project_room")
+  crdt_branches = local_assigns[:crdt_branches] || CrdtBranch.default_branches
+%>
+
+<%# 1. The Dockable Utility Sidebar Panel (#jyki_right_sidebar) %>
+<aside id="jyki_right_sidebar"
+       data-right-sidebar-target="dockPanel"
+       aria-label="Workstation Dockable Utility Sidebar"
+       class="w-80 bg-[#0d0d0f] border-l border-[#24211e] flex flex-col justify-between text-[#e5e2dc] select-none shrink-0 transition-all duration-150">
+
+  <%# Panel 1: 💬 Chat / DM %>
+  <div data-right-sidebar-target="toolPanel"
+       data-panel-name="chat"
+       class="<%= active_tool == 'chat' ? 'flex' : 'hidden' %> flex-1 flex-col overflow-hidden">
+    <%= render "workstation/sidebar/chat_panel", chat_messages: chat_messages %>
+  </div>
+
+  <%# Panel 2: ⑂ Branches %>
+  <div data-right-sidebar-target="toolPanel"
+       data-panel-name="branches"
+       class="<%= active_tool == 'branches' ? 'flex' : 'hidden' %> flex-1 flex-col overflow-hidden">
+    <%= render "workstation/sidebar/branches_panel", crdt_branches: crdt_branches %>
+  </div>
+
+  <%# Panel 3: 📱 Remote %>
+  <div data-right-sidebar-target="toolPanel"
+       data-panel-name="remote"
+       class="<%= active_tool == 'remote' ? 'flex' : 'hidden' %> flex-1 flex-col overflow-hidden">
+    <%= render "workstation/sidebar/remote_panel" %>
+  </div>
+
+  <%# Panel 4: ✨ Notes / Studio AI %>
+  <div data-right-sidebar-target="toolPanel"
+       data-panel-name="notes"
+       class="<%= active_tool == 'notes' ? 'flex' : 'hidden' %> flex-1 flex-col overflow-hidden">
+    <%= render "workstation/sidebar/notes_panel" %>
+  </div>
+</aside>
+
+<%# 2. The Far-Right Vertical Icon Rail %>
+<aside class="w-10 border-l border-[#221f1d] bg-[#0b0a09] flex flex-col items-center py-2.5 gap-3 shrink-0 z-20"
+       data-zone="utility-rail"
+       aria-label="Workstation Utility Rail">
+
+  <%# Button 1 (Top) — Collapse/Expand Dock (|▷ / ◁|) %>
+  <button type="button"
+          data-action="click->right-sidebar#toggleDock"
+          data-right-sidebar-target="dockToggleButton"
+          title="Collapse / Expand Utility Sidebar"
+          aria-label="Collapse or Expand Utility Sidebar"
+          class="w-7 h-7 rounded flex items-center justify-center transition text-xs font-mono text-[#7c7872] hover:text-[#e5e2dc] hover:bg-[#161514] border border-transparent cursor-pointer">
+    <span data-right-sidebar-target="dockToggleIcon">|▷</span>
+  </button>
+
+  <%# Button 2 (Tool 1) — Studio Notes / AI Assistant (✨ sparkle icon) %>
+  <button type="button"
+          data-action="click->right-sidebar#switchTool"
+          data-right-sidebar-target="railButton"
+          data-tool="notes"
+          title="Studio Notes & AI Lab (✨)"
+          aria-label="Studio Notes and AI Lab"
+          class="w-7 h-7 rounded flex items-center justify-center transition text-xs cursor-pointer <%= active_tool == 'notes' ? 'bg-[#231911] border border-[#6b4926] text-[#f3be7a]' : 'text-[#7c7872] hover:text-[#e5e2dc] hover:bg-[#161514] border border-transparent' %>">
+    ✨
+  </button>
+
+  <%# Button 3 (Tool 2) — Chat / DM (💬 message bubble icon) %>
+  <button type="button"
+          data-action="click->right-sidebar#switchTool"
+          data-right-sidebar-target="railButton"
+          data-tool="chat"
+          title="Project Room & Direct Message Chat (💬)"
+          aria-label="Chat and Direct Messages"
+          class="w-7 h-7 rounded flex items-center justify-center transition text-xs cursor-pointer <%= active_tool == 'chat' ? 'bg-[#231911] border border-[#6b4926] text-[#f3be7a]' : 'text-[#7c7872] hover:text-[#e5e2dc] hover:bg-[#161514] border border-transparent' %>">
+    💬
+  </button>
+
+  <%# Button 4 (Tool 3) — CRDT Branches (⑂ git branch icon) %>
+  <button type="button"
+          data-action="click->right-sidebar#switchTool"
+          data-right-sidebar-target="railButton"
+          data-tool="branches"
+          title="CRDT Version History & Branches (⑂)"
+          aria-label="CRDT Branches"
+          class="w-7 h-7 rounded flex items-center justify-center transition text-xs font-mono cursor-pointer <%= active_tool == 'branches' ? 'bg-[#231911] border border-[#6b4926] text-[#f3be7a]' : 'text-[#7c7872] hover:text-[#e5e2dc] hover:bg-[#161514] border border-transparent' %>">
+    ⑂
+  </button>
+
+  <%# Button 5 (Tool 4) — Mobile Companion Remote (📱 smartphone icon) %>
+  <button type="button"
+          data-action="click->right-sidebar#switchTool"
+          data-right-sidebar-target="railButton"
+          data-tool="remote"
+          title="Mobile Companion Remote (📱)"
+          aria-label="Mobile Companion Remote"
+          class="w-7 h-7 rounded flex items-center justify-center transition text-xs cursor-pointer <%= active_tool == 'remote' ? 'bg-[#231911] border border-[#6b4926] text-[#f3be7a]' : 'text-[#7c7872] hover:text-[#e5e2dc] hover:bg-[#161514] border border-transparent' %>">
+    📱
+  </button>
+</aside>
+

@@ -1,0 +1,19 @@
+<%# Single CRDT Branch Snapshot Card %>
+<div id="<%= dom_id(branch) %>"
+     class="p-3 rounded-md bg-[#121215] border border-[#222120] flex flex-col gap-1.5">
+  <div class="flex items-center justify-between gap-2">
+    <span class="text-xs font-mono font-semibold text-[#f4f4f0] truncate"><%= branch.name %></span>
+    <span class="text-[10px] font-mono text-[#6e6a64] shrink-0"><%= branch.committed_at_label %></span>
+  </div>
+  <div class="text-[10px] font-mono text-[#7c7872] truncate">
+    Yjs Delta: <%= branch.delta_vector %>
+  </div>
+  <%= button_to checkout_right_sidebar_branch_path(branch),
+        method: :post,
+        form: { data: { turbo: true }, class: "inline" },
+        data: { action: "click->right-sidebar#pulseCrdtCheckout" },
+        class: "self-start mt-1 px-2.5 py-1 rounded bg-[#18181b] hover:bg-[#222226] border border-[#2e2c29] text-[11px] font-mono text-[#d4d0c8] transition cursor-pointer" do %>
+    Merge / Checkout Delta
+  <% end %>
+</div>
+

@@ -51,4 +51,16 @@ class UserTest < ActiveSupport::TestCase
     assert_includes user.errors[:username], "can't be blank"
     assert_includes user.errors[:email], "can't be blank"
   end
+
+  test "StudioChatMessage and CrdtBranch seed default project messages and Yjs delta branches" do
+    messages = StudioChatMessage.default_messages_for("project_room")
+    assert_operator messages.size, :>=, 2
+    assert_includes messages.map(&:sender_name), "Aria (Mastering Eng)"
+    assert_includes messages.map(&:sender_name), "Devon (Synth Lead)"
+
+    branches = CrdtBranch.default_branches
+    assert_operator branches.size, :>=, 2
+    assert_includes branches.map(&:name), "main (master-bus-locked)"
+    assert_includes branches.map(&:name), "alt-808-saturation-pass"
+  end
 end

@@ -218,4 +218,71 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     delete studio_auth_collaborator_url(collab), as: :turbo_stream
     assert_response :success
   end
+
+  test "renders Dockable Right-Side Utility Sidebar with Chat/DM, Branches, Remote, and Notes/AI panels and handles Turbo Streams" do
+    get root_url
+    assert_response :success
+
+    # Dockable Sidebar (#jyki_right_sidebar) + 5-button Far-Right Vertical Icon Rail
+    assert_select "#jyki_right_sidebar"
+    assert_select "[data-zone='utility-rail'] button", minimum: 5
+
+    # Panel 1: Chat / DM
+    assert_select "#jyki_right_sidebar", /Chat \/ DM/
+    assert_select "#jyki_right_sidebar button", /Project Room/
+    assert_select "#jyki_right_sidebar button", /Direct Message \(DM\)/
+    assert_select "#jyki_chat_messages", /Aria \(Mastering Eng\)/
+    assert_select "#jyki_chat_messages", /Checked the 96kHz \/ 32-bit float bounce/
+    assert_select "#jyki_chat_messages", /Devon \(Synth Lead\)/
+    assert_select "#jyki_chat_messages", /Committed branch alt-808-saturation-pass/
+
+    # Panel 2: Branches (CRDT Version History & Branches)
+    assert_select "#jyki_right_sidebar", /CRDT Version History & Branches/
+    assert_select "#jyki_right_sidebar", /Lossless state snapshots stored as Yjs_delta_vectors\./
+    assert_select "#crdt_branches_list", /main \(master-bus-locked\)/
+    assert_select "#crdt_branches_list", /AQT\/AQABc2FhbnNreXJkdW1Rhdw==/
+    assert_select "#crdt_branches_list", /alt-808-saturation-pass/
+    assert_select "#crdt_branches_list", /AQf\/AgB4808tZzxpZGUtcmFtCA==/
+    assert_select "#crdt_branches_list button", /Merge \/ Checkout Delta/
+
+    # Panel 3: Remote (Mobile Companion Remote)
+    assert_select "#jyki_right_sidebar", /Mobile Companion Remote/
+    assert_select "#jyki_right_sidebar", /PAIRED/
+    assert_select "#jyki_right_sidebar", /iPhone 17 Pro · Studio Remote/
+    assert_select "#jyki_right_sidebar", /3\.8 ms/
+    assert_select "#jyki_right_sidebar", /ARMED · LOW-LATENCY MON/
+    assert_select "#jyki_right_sidebar button", /Refresh Companion Telemetry/
+
+    # Panel 4: Notes / Studio AI
+    assert_select "#jyki_right_sidebar", /AI Lab/
+
+    # 1. Send Chat Message via Turbo Stream (POST /studio_chat_messages)
+    post studio_chat_messages_url, params: {
+      chat_message: {
+        body: "Sub-bass phase locked at 55 Hz — ready for stem bounce.",
+        room_type: "project_room"
+      }
+    }, as: :turbo_stream
+    assert_response :success
+    assert_match(/Sub-bass phase locked at 55 Hz/, response.body)
+
+    # 2. Commit New CRDT Branch via Turbo Stream (POST /right_sidebar/branches)
+    post right_sidebar_branches_url, params: {
+      crdt_branch: { name: "vocal-comp-v2" }
+    }, as: :turbo_stream
+    assert_response :success
+    assert_match(/vocal-comp-v2/, response.body)
+    assert_match(/Yjs Delta:/, response.body)
+
+    # 3. Checkout CRDT Branch via Turbo Stream (POST /right_sidebar/branches/:id/checkout)
+    branch = CrdtBranch.find_by!(name: "vocal-comp-v2")
+    post checkout_right_sidebar_branch_url(branch), as: :turbo_stream
+    assert_response :success
+    assert_match(/vocal-comp-v2/, response.body)
+
+    # 4. Refresh Mobile Companion Telemetry via Turbo Stream (POST /right_sidebar/refresh_telemetry)
+    post right_sidebar_refresh_telemetry_url, as: :turbo_stream
+    assert_response :success
+    assert_match(/ms/, response.body)
+  end
 end

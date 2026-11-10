@@ -383,5 +383,8 @@ class WorkstationController < ApplicationController
           halftime: true
         }
       ]
+
+      @chat_messages = StudioChatMessage.default_messages_for("project_room")
+      @crdt_branches = CrdtBranch.default_branches
     end
 end

@@ -29,6 +29,15 @@ Rails.application.routes.draw do
     delete "collaborators/:id", action: :destroy_collaborator, as: :studio_auth_collaborator
   end
 
+  # Dockable Right-Side Utility Sidebar (Chat / DM, CRDT Branches, Remote, Studio Notes)
+  post "studio_chat_messages" => "right_sidebar#create_message", as: :studio_chat_messages
+  scope :right_sidebar, controller: :right_sidebar do
+    post "branches", action: :commit_branch, as: :right_sidebar_branches
+    post "branches/:id/checkout", action: :checkout_branch, as: :checkout_right_sidebar_branch
+    post "refresh_telemetry", action: :refresh_telemetry, as: :right_sidebar_refresh_telemetry
+    post "save_note", action: :save_note, as: :right_sidebar_save_note
+  end
+
   # Legacy home index route
   get "home" => "home#index", as: :home
 
