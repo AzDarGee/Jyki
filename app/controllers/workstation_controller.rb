@@ -462,7 +462,7 @@ class WorkstationController < ApplicationController
           )
         end
 
-        if project.tracks.empty?
+        if project.tracks.empty? && !project.settings_jsonb&.dig("seeded_defaults")
           DEFAULT_WORKSTATION_TRACKS.each_with_index do |attrs, idx|
             formatted_num = format("%02d", idx + 1)
             project.tracks.create!(
@@ -487,6 +487,7 @@ class WorkstationController < ApplicationController
               }
             )
           end
+          project.update!(settings_jsonb: (project.settings_jsonb || {}).merge("seeded_defaults" => true))
         end
       end
 

@@ -15,16 +15,34 @@ class ProjectsController < ApplicationController
   end
 
   def update
-    if @project.update(project_params)
-      payload = StudioBootstrapper.serialize_project(@project)
-      respond_to do |format|
-        format.json { render json: { ok: true, project: payload } }
-        format.turbo_stream { render json: { ok: true, project: payload } }
-        format.html { redirect_to home_path(project_id: @project.id) }
-      end
-    else
-      render json: { ok: false, errors: @project.errors.full_messages }, status: :unprocessable_entity
+    raw_changes = project_params.to_h
+    origin_node = params[:client_node_id].presence || request.headers["X-Saanskara-Node-Id"].presence || "rest_api"
+    actor_handle = current_user&.username.presence || params[:actor].presence || "studio_rest"
+    incoming_hlc = params[:hlc].presence || request.headers["X-Saanskara-Hlc"].presence || CrdtSyncEngine.generate_hlc(node_id: origin_node)
+
+    result = CrdtSyncEngine.apply_delta!(
+      @project,
+      {
+        op_id: params[:op_id],
+        origin_node_id: origin_node,
+        actor: actor_handle,
+        entity_type: "Project",
+        entity_uuid: @project.uuid,
+        action: "update",
+        changes: raw_changes,
+        hlc: incoming_hlc
+      }
+    )
+    StudioSyncChannel.broadcast_delta_ack(@project, result) if result[:applied]
+
+    payload = StudioBootstrapper.serialize_project(@project.reload)
+    respond_to do |format|
+      format.json { render json: { ok: true, project: payload, crdt: result } }
+      format.turbo_stream { render json: { ok: true, project: payload, crdt: result } }
+      format.html { redirect_to home_path(project_id: @project.id) }
     end
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { ok: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   private

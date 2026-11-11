@@ -63,7 +63,9 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-zone='track-headers'] [data-workstation-target='collapsedTrackMenu'] button[data-track-kind='audio'][data-action*='workstation#addEmptyTrack']"
     assert_select "[data-zone='track-headers'] [data-workstation-target='collapsedTrackMenu'] button[data-track-kind='midi'][data-action*='workstation#addEmptyTrack']"
     assert_select "[data-zone='track-headers'] [data-workstation-target='collapsedTrackMenu'] button[data-track-kind='bus'][data-action*='workstation#addEmptyTrack']"
-    assert_select "[data-zone='timeline'] canvas[data-controller*='daw-timeline']"
+    assert_select "[data-zone='timeline'] canvas[data-controller*='daw-timeline'][data-action*='wheel->daw-timeline#onWheel']"
+    assert_select "[data-zone='timeline'] #jaku-daw-timeline-vscroll[data-workstation-target='timelineScroller'] #jaku-daw-timeline-vscroll-spacer"
+    assert_select "#track_headers_list[data-action*='scroll->workstation#onTrackHeadersScroll']"
     assert_select "[data-zone='utility-rail']"
 
     # Zone E: Bottom Mixer Console & Smooth Gain Automation Drawer
@@ -139,6 +141,26 @@ class WorkstationControllerTest < ActionDispatch::IntegrationTest
     body = JSON.parse(response.body)
     assert_equal "ok", body["status"]
     assert_equal second_track.id, body["track_id"]
+
+    # Add multiple tracks and delete all tracks including the last track
+    [ "audio", "midi", "bus" ].each do |kind|
+      post workstation_tracks_url, params: { track: { kind: kind } }, as: :turbo_stream
+      assert_response :success
+      newest = Track.order(:id).last
+      assert_includes response.body, "data-track-id=\"#{newest.id}\""
+    end
+
+    Track.pluck(:id).each do |tid|
+      delete workstation_track_url(tid), as: :turbo_stream
+      assert_response :success
+      assert_match(/action="remove" target="track_header_row_#{tid}"/, response.body)
+    end
+    assert_equal 0, Track.count
+
+    # Reloading root URL when all tracks were deleted renders an empty timeline tracks array
+    get root_url
+    assert_response :success
+    assert_select "#jaku-daw-timeline-canvas[data-daw-timeline-tracks-value='[]']"
   end
 
   test "updates mixer state via turbo stream or json and persists to database" do

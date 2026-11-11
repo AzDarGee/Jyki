@@ -122,3 +122,31 @@
     border-color: theme("accent-primary");
   }
 }
+
+.crdt-collab-drawer {
+  background-color: theme("bg-panel");
+  border: 1px solid theme("border-subtle");
+  color: theme("text-main");
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.crdt-vector-entry {
+  background-color: theme("bg-panel");
+  border: 1px solid theme("border-subtle");
+  border-left: 3px solid theme("accent-primary");
+  @apply px-2.5 py-1.5 rounded;
+
+  &.is-in {
+    border-left-color: #10b981;
+  }
+
+  &.is-sys {
+    border-left-color: #38bdf8;
+  }
+}
+
+.crdt-chat-item {
+  background-color: theme("bg-panel");
+  border: 1px solid theme("border-subtle");
+  @apply px-2.5 py-1.5 rounded;
+}

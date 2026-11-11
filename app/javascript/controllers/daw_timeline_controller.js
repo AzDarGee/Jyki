@@ -16,6 +16,7 @@ export default class extends Controller {
   initialize() {
     this.rulerHeight = 28
     this.laneHeight = 68
+    this.scrollY = 0
     this.playheadBar = 1.0 // Starts at bar 1.1 (0px offset)
     this.draggingNode = null
     this.scrubbingRuler = false
@@ -37,6 +38,8 @@ export default class extends Controller {
     this.boundAddTrack = this.onAddTrack.bind(this)
     this.boundRemoveTrack = this.onRemoveTrack.bind(this)
     this.boundDropClip = this.onDropClip.bind(this)
+    this.boundExternalScroll = this.onExternalScroll.bind(this)
+    this.boundNativeScrollerScroll = this.onNativeScrollerScroll.bind(this)
 
     window.addEventListener("resize", this.boundResize)
     window.addEventListener("workstation:theme-changed", this.boundThemeChanged)
@@ -44,6 +47,13 @@ export default class extends Controller {
     this.element.addEventListener("daw-timeline:add-track", this.boundAddTrack)
     this.element.addEventListener("daw-timeline:remove-track", this.boundRemoveTrack)
     this.element.addEventListener("daw-timeline:drop-clip", this.boundDropClip)
+    this.element.addEventListener("daw-timeline:scroll-y", this.boundExternalScroll)
+
+    this.scrollerEl = document.getElementById("jaku-daw-timeline-vscroll")
+    this.scrollerSpacerEl = document.getElementById("jaku-daw-timeline-vscroll-spacer")
+    if (this.scrollerEl) {
+      this.scrollerEl.addEventListener("scroll", this.boundNativeScrollerScroll, { passive: true })
+    }
 
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(() => this.resizeAndRender())
@@ -62,6 +72,10 @@ export default class extends Controller {
     this.element.removeEventListener("daw-timeline:add-track", this.boundAddTrack)
     this.element.removeEventListener("daw-timeline:remove-track", this.boundRemoveTrack)
     this.element.removeEventListener("daw-timeline:drop-clip", this.boundDropClip)
+    this.element.removeEventListener("daw-timeline:scroll-y", this.boundExternalScroll)
+    if (this.scrollerEl) {
+      this.scrollerEl.removeEventListener("scroll", this.boundNativeScrollerScroll)
+    }
     if (this.resizeObserver) this.resizeObserver.disconnect()
     if (this.rafId) cancelAnimationFrame(this.rafId)
   }
@@ -182,7 +196,7 @@ export default class extends Controller {
   }
 
   buildInitialTracks() {
-    if (this.hasTracksValue && Array.isArray(this.tracksValue) && this.tracksValue.length > 0) {
+    if (this.hasTracksValue && Array.isArray(this.tracksValue)) {
       const waveMap = { audio: "sub808", midi: "midiArp", bus: "drumBus" }
       const tintMap = { audio: "#14b8a6", midi: "#f59e0b", bus: "#ea580c" }
       const bgMap = {
@@ -331,7 +345,71 @@ export default class extends Controller {
       this.element.width = w
       this.element.height = h
     }
+    this.syncScrollerGeometry()
     this.renderFrame()
+  }
+
+  maxScrollY() {
+    const dpr = window.devicePixelRatio || 1
+    const height = (this.element.height / dpr) || this.element.clientHeight || 0
+    const viewportH = Math.max(0, height - this.rulerHeight)
+    const contentH = (this.tracks ? this.tracks.length : 0) * this.laneHeight
+    return Math.max(0, contentH - viewportH)
+  }
+
+  syncScrollerGeometry() {
+    const contentH = (this.tracks ? this.tracks.length : 0) * this.laneHeight
+    if (!this.scrollerEl) {
+      this.scrollerEl = document.getElementById("jaku-daw-timeline-vscroll")
+    }
+    if (!this.scrollerSpacerEl) {
+      this.scrollerSpacerEl = document.getElementById("jaku-daw-timeline-vscroll-spacer")
+    }
+    if (this.scrollerSpacerEl) {
+      this.scrollerSpacerEl.style.height = `${contentH}px`
+    }
+    const clamped = Math.max(0, Math.min(this.maxScrollY(), this.scrollY || 0))
+    this.scrollY = clamped
+    if (this.scrollerEl && Math.abs(this.scrollerEl.scrollTop - clamped) > 0.5) {
+      this.syncingNativeScroller = true
+      this.scrollerEl.scrollTop = clamped
+      this.syncingNativeScroller = false
+    }
+  }
+
+  setScrollY(nextScrollY, { emit = true, syncScroller = true } = {}) {
+    const clamped = Math.max(0, Math.min(this.maxScrollY(), nextScrollY || 0))
+    const changed = Math.abs(clamped - (this.scrollY || 0)) > 0.25
+    this.scrollY = clamped
+
+    if (syncScroller && this.scrollerEl && Math.abs(this.scrollerEl.scrollTop - clamped) > 0.5) {
+      this.syncingNativeScroller = true
+      this.scrollerEl.scrollTop = clamped
+      this.syncingNativeScroller = false
+    }
+
+    if (changed) {
+      this.renderFrame()
+    }
+
+    if (emit && changed) {
+      this.element.dispatchEvent(
+        new CustomEvent("daw-timeline:scrolled", {
+          bubbles: true,
+          detail: { scrollTop: clamped }
+        })
+      )
+    }
+  }
+
+  onExternalScroll(event) {
+    const scrollTop = Number(event.detail?.scrollTop) || 0
+    this.setScrollY(scrollTop, { emit: false, syncScroller: true })
+  }
+
+  onNativeScrollerScroll() {
+    if (this.syncingNativeScroller || !this.scrollerEl) return
+    this.setScrollY(this.scrollerEl.scrollTop, { emit: true, syncScroller: false })
   }
 
   startLoop() {
@@ -420,7 +498,7 @@ export default class extends Controller {
       const { trackIndex, nodeIndex } = this.draggingNode
       const track = this.tracks[trackIndex]
       const node = track.automation[nodeIndex]
-      const laneTop = this.rulerHeight + trackIndex * this.laneHeight
+      const laneTop = this.rulerHeight + trackIndex * this.laneHeight - (this.scrollY || 0)
       const padTop = 18
       const usableH = this.laneHeight - padTop - 8
       const normY = 1.0 - Math.max(0.05, Math.min(0.95, (y - (laneTop + padTop)) / usableH))
@@ -455,13 +533,20 @@ export default class extends Controller {
       event.preventDefault()
       const delta = event.deltaY < 0 ? 10 : -10
       this.zoomValue = Math.max(50, Math.min(250, this.zoomValue + delta))
+      return
+    }
+
+    if (event.deltaY !== 0 && this.maxScrollY() > 0) {
+      event.preventDefault()
+      this.setScrollY((this.scrollY || 0) + event.deltaY, { emit: true, syncScroller: true })
     }
   }
 
   findAutomationNodeAt(x, y) {
+    if (y <= this.rulerHeight) return null
     for (let tIdx = 0; tIdx < this.tracks.length; tIdx++) {
       const track = this.tracks[tIdx]
-      const laneTop = this.rulerHeight + tIdx * this.laneHeight
+      const laneTop = this.rulerHeight + tIdx * this.laneHeight - (this.scrollY || 0)
       const padTop = 18
       const usableH = this.laneHeight - padTop - 8
 
@@ -489,15 +574,17 @@ export default class extends Controller {
       bus: "rgba(52, 26, 14, 0.60)"
     }
     const borderMap = { audio: "#1f5c54", midi: "#6b3e23", bus: "#7c3715" }
+    const maxExistingId = this.tracks.reduce((max, t) => Math.max(max, Number(t.id) || 0), 0)
+    const resolvedId = Number(id) || (maxExistingId + 1)
 
     this.tracks.push({
-      id: id || index || this.tracks.length + 1,
-      name: name || `${num}. New ${kind.toUpperCase()} Track`,
+      id: resolvedId,
+      name: name || `${num}. New ${(kind || "audio").toUpperCase()} Track`,
       kind: kind || "audio",
       waveStyle: waveMap[kind] || "sub808",
       clips: [
         {
-          title: `${kind.toUpperCase()} STEM ${num}`,
+          title: `${(kind || "audio").toUpperCase()} STEM ${num}`,
           startBar: 1.0,
           endBar: 5.0,
           tint: tintMap[kind] || "#14b8a6",
@@ -511,15 +598,41 @@ export default class extends Controller {
         { bar: 4.8, value: 0.55 }
       ]
     })
+    this.syncScrollerGeometry()
     this.renderFrame()
   }
 
   onRemoveTrack(event) {
-    const { trackId } = event.detail || {}
-    if (!trackId) return
-    this.tracks = this.tracks.filter((t) => Number(t.id) !== Number(trackId))
+    const { trackId, index, remainingTrackIds } = event.detail || {}
+    const beforeLen = this.tracks.length
+
+    if (trackId !== undefined && trackId !== null) {
+      const targetId = Number(trackId)
+      const matchIdx = this.tracks.findIndex((t) => Number(t.id) === targetId)
+      if (matchIdx !== -1) {
+        this.tracks.splice(matchIdx, 1)
+      }
+    }
+
+    if (this.tracks.length === beforeLen && typeof index === "number" && index >= 0 && index < this.tracks.length) {
+      this.tracks.splice(index, 1)
+    }
+
+    if (Array.isArray(remainingTrackIds)) {
+      if (remainingTrackIds.length === 0) {
+        this.tracks = []
+      } else if (this.tracks.length > remainingTrackIds.length) {
+        const allowed = new Set(remainingTrackIds.map(Number))
+        const filtered = this.tracks.filter((t) => allowed.has(Number(t.id)))
+        this.tracks = filtered.length === remainingTrackIds.length
+          ? filtered
+          : this.tracks.slice(0, remainingTrackIds.length)
+      }
+    }
+
     this.draggingNode = null
     this.hoveredNode = null
+    this.syncScrollerGeometry()
     this.renderFrame()
   }
 
@@ -575,19 +688,30 @@ export default class extends Controller {
     this.drawBeatGrid(ctx, width, height, token)
 
     // 2. Track Lanes, Clips, Waveforms / MIDI Notes, and Orange Automation Envelopes
+    // Clip to the viewport below the top ruler so scrolled lanes never bleed into the ruler
+    const scrollOffset = this.scrollY || 0
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, this.rulerHeight, width, Math.max(0, height - this.rulerHeight))
+    ctx.clip()
+
     this.tracks.forEach((track, idx) => {
-      const laneTop = this.rulerHeight + idx * this.laneHeight
+      const laneTop = this.rulerHeight + idx * this.laneHeight - scrollOffset
+      if (laneTop + this.laneHeight < this.rulerHeight || laneTop > height) return
       this.drawTrackLane(ctx, track, laneTop, width, token, isLightTheme)
     })
 
     // Horizontal dividers for remaining empty space below tracks
-    const bottomTracksY = this.rulerHeight + this.tracks.length * this.laneHeight
-    ctx.strokeStyle = token("--saanskara-lane-border", "#181614")
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(0, bottomTracksY + 0.5)
-    ctx.lineTo(width, bottomTracksY + 0.5)
-    ctx.stroke()
+    const bottomTracksY = this.rulerHeight + this.tracks.length * this.laneHeight - scrollOffset
+    if (bottomTracksY >= this.rulerHeight && bottomTracksY <= height) {
+      ctx.strokeStyle = token("--saanskara-lane-border", "#181614")
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(0, bottomTracksY + 0.5)
+      ctx.lineTo(width, bottomTracksY + 0.5)
+      ctx.stroke()
+    }
+    ctx.restore()
 
     // 3. Top Ruler Bar (1.1, 2.1, 3.1 ... 18.1)
     this.drawRuler(ctx, width, token)

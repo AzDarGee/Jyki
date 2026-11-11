@@ -8,59 +8,99 @@ class TrackClipsController < ApplicationController
     raw_params = track_clip_params.to_h.symbolize_keys
     inferred_kind = raw_params[:clip_kind].presence || (@track.midi? || @track.instrument? ? "midi" : "audio")
     raw_params[:clip_kind] = inferred_kind
-
-    if inferred_kind == "midi"
-      raw_params[:audio_sample_id] = nil
-      if raw_params[:midi_clip_id].blank?
-        _, midi_clip = StudioBootstrapper.ensure_default_clip_source_for!(@track, "midi")
-        raw_params[:midi_clip_id] = midi_clip.id
-      end
-    else
-      raw_params[:midi_clip_id] = nil
-      if raw_params[:audio_sample_id].blank?
-        audio_sample, = StudioBootstrapper.ensure_default_clip_source_for!(@track, "audio")
-        raw_params[:audio_sample_id] = audio_sample.id
-      end
-    end
-
+    raw_params[:track_id] = @track.id
     raw_params[:start_tick] = (raw_params[:start_tick] || 0).to_i
     raw_params[:duration_ticks] = (raw_params[:duration_ticks].presence || 3840).to_i
     raw_params[:color_hex] ||= @track.color_hex
     bar_num = (raw_params[:start_tick] / 3840) + 1
     raw_params[:name] = "#{@track.name.sub(/^\d+\s*•\s*/, '')} • Bar #{bar_num}" if raw_params[:name].blank?
 
-    @track_clip = @track.track_clips.build(raw_params.merge(project: @track.project))
+    project = @track.project
+    origin_node = params[:client_node_id].presence || request.headers["X-Saanskara-Node-Id"].presence || "rest_api"
+    actor_handle = current_user&.username.presence || params[:actor].presence || "studio_rest"
+    incoming_hlc = params[:hlc].presence || request.headers["X-Saanskara-Hlc"].presence || CrdtSyncEngine.generate_hlc(node_id: origin_node)
 
-    if @track_clip.save
-      payload = StudioBootstrapper.serialize_track_clip(@track_clip)
-      respond_to do |format|
-        format.json { render json: { ok: true, track_clip: payload }, status: :created }
-        format.turbo_stream { render json: { ok: true, track_clip: payload }, status: :created }
-      end
-    else
-      render json: { ok: false, errors: @track_clip.errors.full_messages }, status: :unprocessable_entity
+    result = CrdtSyncEngine.apply_delta!(
+      project,
+      {
+        op_id: params[:op_id],
+        origin_node_id: origin_node,
+        actor: actor_handle,
+        entity_type: "TrackClip",
+        entity_uuid: params[:uuid],
+        action: "create",
+        changes: raw_params,
+        hlc: incoming_hlc
+      }
+    )
+    StudioSyncChannel.broadcast_delta_ack(project, result)
+    payload = result[:serialized_entity]
+
+    respond_to do |format|
+      format.json { render json: { ok: true, track_clip: payload, crdt: result }, status: :created }
+      format.turbo_stream { render json: { ok: true, track_clip: payload, crdt: result }, status: :created }
     end
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { ok: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def update
-    if @track_clip.update(track_clip_params)
-      payload = StudioBootstrapper.serialize_track_clip(@track_clip.reload)
-      respond_to do |format|
-        format.json { render json: { ok: true, track_clip: payload } }
-        format.turbo_stream { render json: { ok: true, track_clip: payload } }
-      end
-    else
-      render json: { ok: false, errors: @track_clip.errors.full_messages }, status: :unprocessable_entity
+    project = @track_clip.project
+    origin_node = params[:client_node_id].presence || request.headers["X-Saanskara-Node-Id"].presence || "rest_api"
+    actor_handle = current_user&.username.presence || params[:actor].presence || "studio_rest"
+    incoming_hlc = params[:hlc].presence || request.headers["X-Saanskara-Hlc"].presence || CrdtSyncEngine.generate_hlc(node_id: origin_node)
+
+    result = CrdtSyncEngine.apply_delta!(
+      project,
+      {
+        op_id: params[:op_id],
+        origin_node_id: origin_node,
+        actor: actor_handle,
+        entity_type: "TrackClip",
+        entity_uuid: @track_clip.uuid,
+        entity_id: @track_clip.id,
+        action: "update",
+        changes: track_clip_params.to_h,
+        hlc: incoming_hlc
+      }
+    )
+    StudioSyncChannel.broadcast_delta_ack(project, result) if result[:applied]
+    payload = result[:serialized_entity] || StudioBootstrapper.serialize_track_clip(@track_clip.reload)
+
+    respond_to do |format|
+      format.json { render json: { ok: true, track_clip: payload, crdt: result } }
+      format.turbo_stream { render json: { ok: true, track_clip: payload, crdt: result } }
     end
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { ok: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def destroy
     clip_id = @track_clip.id
-    @track_clip.destroy!
+    clip_uuid = @track_clip.uuid
+    project = @track_clip.project
+    origin_node = params[:client_node_id].presence || request.headers["X-Saanskara-Node-Id"].presence || "rest_api"
+    actor_handle = current_user&.username.presence || params[:actor].presence || "studio_rest"
+    incoming_hlc = params[:hlc].presence || request.headers["X-Saanskara-Hlc"].presence || CrdtSyncEngine.generate_hlc(node_id: origin_node)
+
+    result = CrdtSyncEngine.apply_delta!(
+      project,
+      {
+        op_id: params[:op_id],
+        origin_node_id: origin_node,
+        actor: actor_handle,
+        entity_type: "TrackClip",
+        entity_uuid: clip_uuid,
+        entity_id: clip_id,
+        action: "delete",
+        hlc: incoming_hlc
+      }
+    )
+    StudioSyncChannel.broadcast_delta_ack(project, result)
 
     respond_to do |format|
-      format.json { render json: { ok: true, id: clip_id } }
-      format.turbo_stream { render json: { ok: true, id: clip_id } }
+      format.json { render json: { ok: true, id: clip_id, uuid: clip_uuid, crdt: result } }
+      format.turbo_stream { render json: { ok: true, id: clip_id, uuid: clip_uuid, crdt: result } }
     end
   end
 

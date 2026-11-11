@@ -9,49 +9,107 @@ class TracksController < ApplicationController
   def create
     next_pos = (@project.tracks.maximum(:position) || -1) + 1
     next_num = @project.tracks.count + 1
-    raw_params = track_params
+    raw_params = track_params.to_h.symbolize_keys
 
     track_type = raw_params[:track_type].presence || "audio"
     default_name = format("%02d • %s Track", next_num, track_type.capitalize)
     default_color = PALETTE[next_pos % PALETTE.size]
     default_deck = next_num <= 6 ? next_num : nil
 
-    @track = @project.tracks.build(raw_params)
-    @track.name = default_name if @track.name.blank?
-    @track.position = next_pos if raw_params[:position].nil?
-    @track.color_hex = default_color if raw_params[:color_hex].blank?
-    @track.deck_number = default_deck if raw_params[:deck_number].nil? && default_deck && !@project.tracks.exists?(deck_number: default_deck)
-
-    if @track.save
-      payload = StudioBootstrapper.serialize_track(@track)
-      respond_to do |format|
-        format.json { render json: { ok: true, track: payload }, status: :created }
-        format.turbo_stream { render json: { ok: true, track: payload }, status: :created }
-      end
-    else
-      render json: { ok: false, errors: @track.errors.full_messages }, status: :unprocessable_entity
+    changes = raw_params.dup
+    changes[:name] = default_name if changes[:name].blank?
+    changes[:track_type] = track_type
+    changes[:position] = next_pos if changes[:position].nil?
+    changes[:color_hex] = default_color if changes[:color_hex].blank?
+    if changes[:deck_number].nil? && default_deck && !@project.tracks.exists?(deck_number: default_deck)
+      changes[:deck_number] = default_deck
     end
+
+    origin_node = params[:client_node_id].presence || request.headers["X-Saanskara-Node-Id"].presence || "rest_api"
+    actor_handle = current_user&.username.presence || params[:actor].presence || "studio_rest"
+    incoming_hlc = params[:hlc].presence || request.headers["X-Saanskara-Hlc"].presence || CrdtSyncEngine.generate_hlc(node_id: origin_node)
+
+    result = CrdtSyncEngine.apply_delta!(
+      @project,
+      {
+        op_id: params[:op_id],
+        origin_node_id: origin_node,
+        actor: actor_handle,
+        entity_type: "Track",
+        entity_uuid: params[:uuid],
+        action: "create",
+        changes: changes,
+        hlc: incoming_hlc
+      }
+    )
+    StudioSyncChannel.broadcast_delta_ack(@project, result)
+    payload = result[:serialized_entity]
+
+    respond_to do |format|
+      format.json { render json: { ok: true, track: payload, crdt: result }, status: :created }
+      format.turbo_stream { render json: { ok: true, track: payload, crdt: result }, status: :created }
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { ok: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def update
-    if @track.update(track_params)
-      payload = StudioBootstrapper.serialize_track(@track)
-      respond_to do |format|
-        format.json { render json: { ok: true, track: payload } }
-        format.turbo_stream { render json: { ok: true, track: payload } }
-      end
-    else
-      render json: { ok: false, errors: @track.errors.full_messages }, status: :unprocessable_entity
+    project = @track.project
+    origin_node = params[:client_node_id].presence || request.headers["X-Saanskara-Node-Id"].presence || "rest_api"
+    actor_handle = current_user&.username.presence || params[:actor].presence || "studio_rest"
+    incoming_hlc = params[:hlc].presence || request.headers["X-Saanskara-Hlc"].presence || CrdtSyncEngine.generate_hlc(node_id: origin_node)
+
+    result = CrdtSyncEngine.apply_delta!(
+      project,
+      {
+        op_id: params[:op_id],
+        origin_node_id: origin_node,
+        actor: actor_handle,
+        entity_type: "Track",
+        entity_uuid: @track.uuid,
+        entity_id: @track.id,
+        action: "update",
+        changes: track_params.to_h,
+        hlc: incoming_hlc
+      }
+    )
+    StudioSyncChannel.broadcast_delta_ack(project, result) if result[:applied]
+    payload = result[:serialized_entity] || StudioBootstrapper.serialize_track(@track.reload)
+
+    respond_to do |format|
+      format.json { render json: { ok: true, track: payload, crdt: result } }
+      format.turbo_stream { render json: { ok: true, track: payload, crdt: result } }
     end
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { ok: false, errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def destroy
     track_id = @track.id
-    @track.destroy!
+    track_uuid = @track.uuid
+    project = @track.project
+    origin_node = params[:client_node_id].presence || request.headers["X-Saanskara-Node-Id"].presence || "rest_api"
+    actor_handle = current_user&.username.presence || params[:actor].presence || "studio_rest"
+    incoming_hlc = params[:hlc].presence || request.headers["X-Saanskara-Hlc"].presence || CrdtSyncEngine.generate_hlc(node_id: origin_node)
+
+    result = CrdtSyncEngine.apply_delta!(
+      project,
+      {
+        op_id: params[:op_id],
+        origin_node_id: origin_node,
+        actor: actor_handle,
+        entity_type: "Track",
+        entity_uuid: track_uuid,
+        entity_id: track_id,
+        action: "delete",
+        hlc: incoming_hlc
+      }
+    )
+    StudioSyncChannel.broadcast_delta_ack(project, result)
 
     respond_to do |format|
-      format.json { render json: { ok: true, id: track_id } }
-      format.turbo_stream { render json: { ok: true, id: track_id } }
+      format.json { render json: { ok: true, id: track_id, uuid: track_uuid, crdt: result } }
+      format.turbo_stream { render json: { ok: true, id: track_id, uuid: track_uuid, crdt: result } }
     end
   end
 

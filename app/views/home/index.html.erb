@@ -1,8 +1,22 @@
+<%
+  branches = @branches.presence || CrdtBranch.default_branches
+  active_branch = @active_branch || @project.crdt_branch || branches.first
+  collaborators = @collaborators.presence || ProjectCollaborator.default_roster_for("proj_default")
+  chat_messages = @chat_messages.presence || StudioChatMessage.default_messages_for("project_room")
+  current_handle = current_user&.username.presence || "saanskara"
+  current_role = (current_user&.role.presence || "OWNER").upcase
+%>
 <div class="daw-pwa-shell"
      id="saanskara-daw"
-     data-controller="studio"
+     data-controller="studio crdt-sync"
      data-theme="<%= @project.theme_name %>"
-     data-studio-project-value="<%= @studio_payload_json %>">
+     data-studio-project-value="<%= @studio_payload_json %>"
+     data-crdt-sync-project-uuid-value="<%= @project.uuid %>"
+     data-crdt-sync-project-id-value="<%= @project.id %>"
+     data-crdt-sync-current-username-value="<%= current_handle %>"
+     data-crdt-sync-current-role-value="<%= current_role %>"
+     data-crdt-sync-branch-name-value="<%= active_branch&.name %>"
+     data-crdt-sync-branch-vector-value="<%= active_branch&.delta_vector %>">
 
   <!-- 1. TOP TRANSPORT, WORKSPACE MODE & RAGA THEME BAR -->
   <header class="daw-transport-bar">
@@ -149,6 +163,86 @@
                 aria-pressed="<%= @project.theme_name == 'frost' %>"
                 data-action="click->studio#switchTheme">
           ❄️ Frost
+        </button>
+      </div>
+    </div>
+
+    <!-- CRDT & Collaborator Presence Strip -->
+    <div id="crdt-presence-strip" class="crdt-presence-strip w-full flex flex-wrap items-center justify-between gap-3 pt-2 mt-1 border-t text-xs font-mono"
+         style="border-color: var(--saanskara-border-subtle)">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Live Connection Status Badge -->
+        <span class="crdt-connection-badge"
+              data-crdt-sync-target="connectionBadge"
+              data-status="online">
+          <span class="crdt-status-dot" data-crdt-sync-target="connectionDot"></span>
+          <span data-crdt-sync-target="connectionText">⚡ CRDT Sync • Online</span>
+        </span>
+
+        <!-- HLC Watermark Indicator -->
+        <span class="px-2 py-0.5 rounded text-[11px]"
+              data-crdt-sync-target="hlcWatermark"
+              style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-text-muted); border: 1px solid var(--saanskara-border-subtle)">
+          HLC 000000-0000
+        </span>
+
+        <!-- Active CrdtBranch Selector & Snapshot Fork Button -->
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded"
+             style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
+          <span class="text-[10px] uppercase tracking-wider" style="color: var(--saanskara-text-muted)">Branch</span>
+          <select aria-label="Active CRDT Branch"
+                  data-crdt-sync-target="branchSelect"
+                  data-action="change->crdt-sync#switchBranch"
+                  class="bg-transparent font-bold text-xs cursor-pointer"
+                  style="color: var(--saanskara-accent-primary)">
+            <% branches.each do |branch| %>
+              <option value="<%= branch.name %>" <%= "selected" if active_branch&.id == branch.id %> style="background-color: #121110">
+                <%= branch.name %>
+              </option>
+            <% end %>
+          </select>
+          <span class="text-[10px] opacity-75" data-crdt-sync-target="branchVectorLabel">
+            <%= active_branch&.delta_vector.to_s[0, 14] %>
+          </span>
+          <button type="button"
+                  class="theme-pill-btn !px-2 !py-0.5 !text-[10px]"
+                  data-action="click->crdt-sync#snapshotBranch"
+                  title="Snapshot & Fork New CRDT Branch Vector">
+            ⎇ Snapshot
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Collaborator Avatars + Collaboration Drawer Toggle -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[10px] uppercase tracking-wider"
+              data-crdt-sync-target="peerCountBadge"
+              style="color: var(--saanskara-text-muted)">
+          <%= collaborators.size + 1 %> Live
+        </span>
+
+        <!-- Seeded ProjectCollaborator Roster Pills + Dynamic WebSocket Peers -->
+        <div class="flex items-center gap-1.5">
+          <% collaborators.each_with_index do |collab, idx| %>
+            <% pill_color = [ "#10b981", "#38bdf8", "#a855f7", "#ec4899" ][idx % 4] %>
+            <span class="crdt-peer-pill"
+                  title="@<%= collab.username %> • <%= collab.role %>"
+                  style="border-color: <%= pill_color %>">
+              <span class="crdt-peer-avatar" style="background-color: <%= pill_color %>">
+                <%= collab.username.to_s[0, 2].upcase %>
+              </span>
+              <span class="crdt-peer-handle"><%= collab.username %></span>
+            </span>
+          <% end %>
+          <div class="flex items-center gap-1.5" data-crdt-sync-target="presenceStrip"></div>
+        </div>
+
+        <button type="button"
+                class="theme-pill-btn !px-2.5 !py-1 !text-[11px]"
+                aria-expanded="true"
+                data-crdt-sync-target="drawerToggleButton"
+                data-action="click->crdt-sync#toggleDrawer">
+          💬 Studio Sync & Vector Log
         </button>
       </div>
     </div>
@@ -319,7 +413,7 @@
              style="left: 0px;"></div>
         <canvas id="waveform-canvas"
                 data-studio-target="timelineCanvas"
-                data-action="pointerdown->studio#onCanvasPointerDown dblclick->studio#onCanvasDoubleClick"
+                data-action="pointerdown->studio#onCanvasPointerDown pointermove->studio#onCanvasHoverMove dblclick->studio#onCanvasDoubleClick"
                 class="w-full block cursor-crosshair"></canvas>
       </div>
 
@@ -479,4 +573,148 @@
       </div>
     </div>
   </section>
+
+  <!-- 4. COLLAPSIBLE STUDIO CHAT & CRDT VECTOR OPERATION LOG DRAWER -->
+  <aside id="crdt-collab-drawer"
+         data-crdt-sync-target="collabDrawer"
+         class="crdt-collab-drawer mx-6 mb-6 rounded-xl p-4"
+         aria-label="Studio Collaboration & CRDT Telemetry Drawer">
+    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b"
+         style="border-color: var(--saanskara-border-subtle)">
+      <div class="flex items-center gap-2" role="tablist" aria-label="Collaboration Drawer Tabs">
+        <button type="button"
+                role="tab"
+                aria-selected="true"
+                data-drawer-tab="vector"
+                data-crdt-sync-target="tabButton"
+                data-action="click->crdt-sync#switchDrawerTab"
+                class="theme-pill-btn">
+          📡 Live CRDT Vector Feed
+          <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-mono"
+                data-crdt-sync-target="vectorCountBadge"
+                style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
+            1 ops
+          </span>
+        </button>
+        <button type="button"
+                role="tab"
+                aria-selected="false"
+                data-drawer-tab="chat"
+                data-crdt-sync-target="tabButton"
+                data-action="click->crdt-sync#switchDrawerTab"
+                class="theme-pill-btn">
+          💬 Studio Chat & Collaborators (<%= collaborators.size %>)
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs font-mono" style="color: var(--saanskara-text-muted)">
+        <span data-crdt-sync-target="pendingQueueBadge">0 Queued</span>
+        <span>•</span>
+        <span>LWW-Element-Map • Row-Locked HLC</span>
+      </div>
+    </div>
+
+    <!-- TAB 1: Live CRDT Vector Feed -->
+    <div data-crdt-sync-target="vectorTabPanel" class="space-y-2">
+      <div class="flex items-center justify-between text-[11px] font-mono" style="color: var(--saanskara-text-muted)">
+        <span>Real-time HLC (<code class="px-1 rounded">&lt;wall_ms&gt;-&lt;counter&gt;-&lt;node_id&gt;</code>) delta operations across connected studio nodes:</span>
+        <span>30fps Ephemeral Cursors + Persistent LWW Registers</span>
+      </div>
+      <div data-crdt-sync-target="vectorFeedList"
+           class="crdt-vector-feed max-h-44 overflow-y-auto space-y-1.5 p-2 rounded"
+           style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
+        <div class="crdt-vector-entry is-sys">
+          <div class="flex items-center justify-between gap-2 text-[10px] font-mono opacity-80">
+            <span class="crdt-vector-hlc">[<%= CrdtSyncEngine.generate_hlc(node_id: "boot")[6, 17] %>]</span>
+            <span class="crdt-vector-actor">@<%= current_handle %> •BOOT</span>
+          </div>
+          <div class="text-[11px] font-mono mt-0.5 truncate">
+            Hydrated branch <%= active_branch&.name %> (<%= active_branch&.delta_vector %>)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Studio Chat (studio_chat_messages) & Collaborators (project_collaborators) -->
+    <div data-crdt-sync-target="chatTabPanel" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Left 2 Cols: Live Studio Room Chat -->
+      <div class="lg:col-span-2 flex flex-col gap-2">
+        <div data-crdt-sync-target="chatMessagesList"
+             class="max-h-44 overflow-y-auto space-y-2 p-2.5 rounded"
+             style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
+          <% chat_messages.each do |msg| %>
+            <div class="crdt-chat-item">
+              <div class="flex items-center justify-between text-[10px] font-mono opacity-75">
+                <span class="font-semibold" style="color: var(--saanskara-accent-primary)">
+                  <%= msg.sender_name %> (<%= msg.sender_role %>)
+                </span>
+                <span><%= msg.sent_at_label %></span>
+              </div>
+              <p class="text-xs mt-0.5 leading-snug"><%= msg.body %></p>
+            </div>
+          <% end %>
+        </div>
+
+        <form data-action="submit->crdt-sync#sendChatMessage" class="flex items-center gap-2">
+          <input type="text"
+                 placeholder="Broadcast message to studio collaborators..."
+                 aria-label="Studio Chat Message"
+                 data-crdt-sync-target="chatInput"
+                 class="flex-1 px-3 py-1.5 rounded text-xs font-mono"
+                 style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle); color: var(--saanskara-text-main)" />
+          <button type="submit"
+                  data-turbo-submits-with="Sending..."
+                  class="theme-pill-btn">
+            Send
+          </button>
+        </form>
+      </div>
+
+      <!-- Right 1 Col: ProjectCollaborator ACL Roster & Grant Form -->
+      <div class="flex flex-col justify-between gap-2 p-2.5 rounded"
+           style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
+        <div>
+          <div class="text-[11px] font-mono font-bold uppercase mb-2" style="color: var(--saanskara-text-muted)">
+            Project Collaborators ACL
+          </div>
+          <div data-crdt-sync-target="collaboratorRoster" class="space-y-1.5 max-h-28 overflow-y-auto">
+            <% collaborators.each do |collab| %>
+              <div class="flex items-center justify-between text-xs py-1 px-2 rounded"
+                   data-collab-username="<%= collab.username %>"
+                   style="background-color: var(--saanskara-bg-panel)">
+                <span class="font-mono font-semibold">@<%= collab.username %></span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                      style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
+                  <%= collab.role %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <form data-action="submit->crdt-sync#addCollaborator" class="flex items-center gap-1.5 pt-2 border-t"
+              style="border-color: var(--saanskara-border-subtle)">
+          <input type="text"
+                 placeholder="@handle"
+                 aria-label="Collaborator Handle"
+                 data-crdt-sync-target="collabHandleInput"
+                 class="flex-1 min-w-0 px-2 py-1 rounded text-xs font-mono"
+                 style="background-color: var(--saanskara-bg-panel); border: 1px solid var(--saanskara-border-subtle); color: var(--saanskara-text-main)" />
+          <select aria-label="Collaborator Role"
+                  data-crdt-sync-target="collabRoleSelect"
+                  class="px-1.5 py-1 rounded text-[11px] font-mono"
+                  style="background-color: var(--saanskara-bg-panel); border: 1px solid var(--saanskara-border-subtle); color: var(--saanskara-accent-primary)">
+            <option value="EDITOR">EDITOR</option>
+            <option value="COLLABORATOR">COLLAB</option>
+            <option value="VIEWER">VIEWER</option>
+          </select>
+          <button type="submit"
+                  data-turbo-submits-with="Adding..."
+                  class="theme-pill-btn !px-2 !py-1 !text-[11px]">
+            + Add
+          </button>
+        </form>
+      </div>
+    </div>
+  </aside>
 </div>

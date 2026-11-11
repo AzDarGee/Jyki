@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { HybridLogicalClock } from "lib/crdt_clock"
 
 export default class extends Controller {
   static targets = [
@@ -66,6 +67,16 @@ export default class extends Controller {
     this.audioCtx = null
     this.dragState = null
     this.debounceTimers = {}
+    this.remotePeers = new Map()
+    this.lastAssignedHlc = null
+    this.clientNodeId = null
+
+    this.boundRemoteDelta = (e) => this.onRemoteDelta(e.detail)
+    this.boundRemoteTelemetry = (e) => this.onRemoteTelemetry(e.detail)
+    this.boundPeerLeave = (e) => this.onPeerLeave(e.detail)
+    this.element.addEventListener("crdt:remote-delta", this.boundRemoteDelta)
+    this.element.addEventListener("crdt:remote-telemetry", this.boundRemoteTelemetry)
+    this.element.addEventListener("crdt:peer-leave", this.boundPeerLeave)
 
     this.applyThemeUI(this.project.theme_name || "midnight", false)
     this.applyWorkspaceModeUI(this.project.workspace_mode || "daw", false)
@@ -81,6 +92,9 @@ export default class extends Controller {
   disconnect() {
     if (this.rafId) cancelAnimationFrame(this.rafId)
     if (this.boundResize) window.removeEventListener("resize", this.boundResize)
+    if (this.boundRemoteDelta) this.element.removeEventListener("crdt:remote-delta", this.boundRemoteDelta)
+    if (this.boundRemoteTelemetry) this.element.removeEventListener("crdt:remote-telemetry", this.boundRemoteTelemetry)
+    if (this.boundPeerLeave) this.element.removeEventListener("crdt:peer-leave", this.boundPeerLeave)
     if (this.audioCtx && this.audioCtx.state !== "closed") {
       this.audioCtx.close().catch(() => {})
     }
@@ -376,6 +390,11 @@ export default class extends Controller {
       if (el !== input) el.value = volumeDb
     })
 
+    this.emitLocalTelemetry({
+      cursor_track_uuid: track.uuid,
+      live_fader: { track_uuid: track.uuid, track_id: track.id, volume_db: volumeDb, pan: track.pan }
+    })
+
     this.debounce(`track_vol_${trackId}`, 150, () => {
       this.persistTrack(trackId, { volume_db: volumeDb })
     })
@@ -392,6 +411,11 @@ export default class extends Controller {
     const labelText = pan === 0 ? "C" : pan < 0 ? `L${Math.round(Math.abs(pan) * 100)}` : `R${Math.round(pan * 100)}`
     this.element.querySelectorAll(`[data-track-pan-label="${trackId}"]`).forEach((el) => {
       el.textContent = labelText
+    })
+
+    this.emitLocalTelemetry({
+      cursor_track_uuid: track.uuid,
+      live_fader: { track_uuid: track.uuid, track_id: track.id, volume_db: track.volume_db, pan }
     })
 
     this.debounce(`track_pan_${trackId}`, 150, () => {
@@ -609,7 +633,10 @@ export default class extends Controller {
       })
     })
 
-    // 4. Playhead Position
+    // 4. Multi-User Ghost Cursors & Remote Clip Drag Previews
+    this.drawRemoteCollaboratorGhosts(ctx, width, height)
+
+    // 5. Playhead Position
     const playheadX = (this.currentTick / this.totalTicks) * width
     if (this.hasPlayheadLineTarget) {
       this.playheadLineTarget.style.left = `${playheadX}px`
@@ -625,6 +652,84 @@ export default class extends Controller {
     ctx.fill()
 
     ctx.restore()
+  }
+
+  drawRemoteCollaboratorGhosts(ctx, stageWidth, stageHeight) {
+    if (!this.remotePeers || this.remotePeers.size === 0) return
+    const now = performance.now()
+    const tracks = this.project.tracks || []
+
+    this.remotePeers.forEach((peer, nodeId) => {
+      if (now - (peer.updatedAt || 0) > 30000) {
+        this.remotePeers.delete(nodeId)
+        return
+      }
+
+      const peerColor = peer.color_hex || "#38bdf8"
+      const handle = peer.username || nodeId
+
+      // 4A. Ghost Clip Drag Preview
+      if (peer.dragging_clip_uuid && peer.preview_start_tick != null) {
+        const trackIdx = tracks.findIndex((t) =>
+          t.uuid === peer.cursor_track_uuid || (t.clips || []).some((c) => c.uuid === peer.dragging_clip_uuid)
+        )
+        if (trackIdx >= 0) {
+          const laneTop = this.rulerHeight + trackIdx * this.laneHeight
+          const gx = (peer.preview_start_tick / this.totalTicks) * stageWidth
+          const dur = peer.preview_duration_ticks || 3840
+          const gw = Math.max(18, (dur / this.totalTicks) * stageWidth)
+          const gy = laneTop + 7
+          const gh = this.laneHeight - 14
+
+          ctx.save()
+          ctx.setLineDash([ 5, 4 ])
+          ctx.fillStyle = this.hexToRgba(peerColor, 0.22)
+          ctx.strokeStyle = peerColor
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.roundRect(gx + 1, gy, Math.max(4, gw - 2), gh, 6)
+          ctx.fill()
+          ctx.stroke()
+
+          ctx.setLineDash([])
+          ctx.fillStyle = peerColor
+          ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, monospace"
+          ctx.fillText(`👻 @${handle}`, gx + 6, gy + 13)
+          ctx.restore()
+        }
+      }
+
+      // 4B. Ghost Timeline Cursor & Flag
+      if (peer.cursor_tick != null && !Number.isNaN(peer.cursor_tick)) {
+        const cx = Math.max(0, Math.min(stageWidth, (peer.cursor_tick / this.totalTicks) * stageWidth))
+        const bar = Math.floor(peer.cursor_tick / this.ticksPerBar) + 1
+        const beat = Math.floor((peer.cursor_tick % this.ticksPerBar) / this.ppqn) + 1
+        const flagText = `@${handle} • ${bar}.${beat}`
+
+        ctx.save()
+        ctx.strokeStyle = peerColor
+        ctx.lineWidth = 1.5
+        ctx.setLineDash([ 3, 3 ])
+        ctx.beginPath()
+        ctx.moveTo(cx, this.rulerHeight)
+        ctx.lineTo(cx, stageHeight)
+        ctx.stroke()
+
+        ctx.setLineDash([])
+        ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, monospace"
+        const labelWidth = ctx.measureText(flagText).width + 10
+        const flagX = Math.min(stageWidth - labelWidth - 2, Math.max(2, cx))
+
+        ctx.fillStyle = peerColor
+        ctx.beginPath()
+        ctx.roundRect(flagX, 2, labelWidth, 14, 3)
+        ctx.fill()
+
+        ctx.fillStyle = "#0b0a09"
+        ctx.fillText(flagText, flagX + 5, 12)
+        ctx.restore()
+      }
+    })
   }
 
   drawClipOnLane(ctx, clip, track, laneTop, stageWidth) {
@@ -822,14 +927,46 @@ export default class extends Controller {
     }
 
     this.renderTimelineCanvas()
+
+    this.emitLocalTelemetry({
+      cursor_tick: this.dragState.clip.start_tick,
+      cursor_track_uuid: this.dragState.track.uuid,
+      dragging_clip_uuid: this.dragState.clip.uuid,
+      preview_start_tick: this.dragState.clip.start_tick,
+      preview_duration_ticks: this.dragState.clip.duration_ticks
+    })
+  }
+
+  onCanvasHoverMove(event) {
+    if (this.dragState || !this.hasTimelineCanvasTarget) return
+    const rect = this.timelineCanvasTarget.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    const y = event.clientY - rect.top
+    if (rect.width <= 0) return
+
+    const hoverTick = Math.max(0, Math.min(this.totalTicks, Math.round((x / rect.width) * this.totalTicks)))
+    const trackIndex = Math.floor((y - this.rulerHeight) / this.laneHeight)
+    const track = (this.project.tracks || [])[trackIndex]
+
+    this.emitLocalTelemetry({
+      cursor_tick: hoverTick,
+      cursor_track_uuid: track ? track.uuid : null,
+      dragging_clip_uuid: null
+    })
   }
 
   onCanvasPointerUp() {
     if (!this.dragState) return
-    const { clip } = this.dragState
+    const { clip, track } = this.dragState
     window.removeEventListener("pointermove", this.boundPointerMove)
     window.removeEventListener("pointerup", this.boundPointerUp)
     this.dragState = null
+
+    this.emitLocalTelemetry({
+      cursor_tick: clip.start_tick,
+      cursor_track_uuid: track ? track.uuid : null,
+      dragging_clip_uuid: null
+    })
 
     this.persistTrackClip(clip.id, {
       start_tick: clip.start_tick,
@@ -874,47 +1011,262 @@ export default class extends Controller {
     }
   }
 
-  // --- PERSISTENCE HELPERS (FETCH TO RAILS 8 BACKEND) ---
+  // --- PERSISTENCE HELPERS (DUAL-PATH CRDT + FETCH TO RAILS 8 BACKEND) ---
+
+  emitLocalDelta(entityType, entity, action, changes) {
+    let assignedHlc = null
+    let assignedNodeId = null
+
+    this.element.dispatchEvent(
+      new CustomEvent("crdt:local-change", {
+        detail: {
+          entity_type: entityType,
+          entity_uuid: entity?.uuid,
+          entity_id: entity?.id,
+          action,
+          changes,
+          onHlcAssigned: (hlc, nodeId) => {
+            assignedHlc = hlc
+            assignedNodeId = nodeId
+          }
+        }
+      })
+    )
+
+    if (assignedHlc && entity && action === "update") {
+      Object.keys(changes || {}).forEach((field) => {
+        HybridLogicalClock.recordFieldWatermark(entity, field, assignedHlc, assignedNodeId || "local")
+      })
+    }
+
+    this.lastAssignedHlc = assignedHlc
+    this.clientNodeId = assignedNodeId || this.clientNodeId
+    return assignedHlc
+  }
+
+  emitLocalTelemetry(payload) {
+    this.element.dispatchEvent(
+      new CustomEvent("crdt:local-telemetry", {
+        detail: payload
+      })
+    )
+  }
+
+  onRemoteTelemetry(data) {
+    if (!data || !data.origin_node_id) return
+    this.remotePeers.set(data.origin_node_id, {
+      ...data,
+      updatedAt: performance.now()
+    })
+
+    if (data.live_fader && data.live_fader.track_uuid) {
+      const track = (this.project.tracks || []).find((t) => t.uuid === data.live_fader.track_uuid)
+      if (track) {
+        if (typeof data.live_fader.volume_db === "number") {
+          track.volume_db = data.live_fader.volume_db
+          this.syncTrackDOMControls(track)
+        }
+        if (typeof data.live_fader.pan === "number") {
+          track.pan = data.live_fader.pan
+          this.syncTrackDOMControls(track)
+        }
+      }
+    }
+
+    this.renderTimelineCanvas()
+  }
+
+  onPeerLeave(data) {
+    if (!data || !data.node_id) return
+    this.remotePeers.delete(data.node_id)
+  }
+
+  onRemoteDelta(data) {
+    if (!data || !data.applied) return
+    const { entity_type: entityType, entity_uuid: entityUuid, entity_id: entityId, action, applied_changes: changes, hlc, actor, serialized_entity: serialized } = data
+
+    if (entityType === "Project") {
+      Object.entries(changes || {}).forEach(([ field, value ]) => {
+        if (HybridLogicalClock.shouldApplyField(this.project.state_jsonb, field, hlc)) {
+          this.project[field] = value
+          HybridLogicalClock.recordFieldWatermark(this.project, field, hlc, actor)
+        }
+      })
+      this.syncProjectDOMControls()
+    } else if (entityType === "Track") {
+      if (action === "create" && serialized) {
+        const exists = (this.project.tracks || []).some((t) => t.uuid === serialized.uuid || t.id === serialized.id)
+        if (!exists) {
+          this.project.tracks.push(serialized)
+          this.appendTrackRowToDOM(serialized)
+          this.updateCounts()
+          this.resizeCanvases()
+        }
+      } else if (action === "delete") {
+        this.project.tracks = (this.project.tracks || []).filter((t) => t.uuid !== entityUuid && t.id !== entityId)
+        if (entityId) {
+          this.element.querySelectorAll(`[data-track-row-id="${entityId}"]`).forEach((el) => el.remove())
+        }
+        this.updateCounts()
+        this.resizeCanvases()
+      } else {
+        const track = (this.project.tracks || []).find((t) => t.uuid === entityUuid || t.id === entityId)
+        if (track) {
+          Object.entries(changes || {}).forEach(([ field, value ]) => {
+            if (HybridLogicalClock.shouldApplyField(track.state_jsonb, field, hlc)) {
+              track[field] = value
+              HybridLogicalClock.recordFieldWatermark(track, field, hlc, actor)
+            }
+          })
+          this.syncTrackDOMControls(track)
+        }
+      }
+    } else if (entityType === "TrackClip") {
+      if (action === "create" && serialized) {
+        const track = (this.project.tracks || []).find((t) => t.id === serialized.track_id)
+        if (track) {
+          track.clips = track.clips || []
+          const exists = track.clips.some((c) => c.uuid === serialized.uuid || c.id === serialized.id)
+          if (!exists) {
+            track.clips.push(serialized)
+            this.updateCounts()
+          }
+        }
+      } else if (action === "delete") {
+        ;(this.project.tracks || []).forEach((track) => {
+          track.clips = (track.clips || []).filter((c) => c.uuid !== entityUuid && c.id !== entityId)
+        })
+        this.updateCounts()
+      } else {
+        let targetClip = null
+        ;(this.project.tracks || []).forEach((track) => {
+          const found = (track.clips || []).find((c) => c.uuid === entityUuid || c.id === entityId)
+          if (found) targetClip = found
+        })
+        if (targetClip) {
+          Object.entries(changes || {}).forEach(([ field, value ]) => {
+            if (HybridLogicalClock.shouldApplyField(targetClip.state_jsonb, field, hlc)) {
+              targetClip[field] = value
+              HybridLogicalClock.recordFieldWatermark(targetClip, field, hlc, actor)
+            }
+          })
+        }
+      }
+    }
+
+    this.renderTimelineCanvas()
+    this.renderDeckCanvases()
+    this.setSavingStatus(`⚡ Synced @${actor || "peer"}`)
+  }
+
+  syncProjectDOMControls() {
+    if (this.hasBpmDisplayTarget && this.project.bpm) {
+      this.bpmDisplayTarget.textContent = Number(this.project.bpm).toFixed(1)
+    }
+    if (this.hasBpmInputTarget && this.project.bpm) {
+      this.bpmInputTarget.value = Number(this.project.bpm).toFixed(1)
+    }
+    if (this.hasScaleSelectTarget && this.project.scale_name) {
+      this.scaleSelectTarget.value = this.project.scale_name
+    }
+    if (this.hasMasterVolumeInputTarget && this.project.master_volume_db != null) {
+      this.masterVolumeInputTarget.value = this.project.master_volume_db
+    }
+    if (this.hasMasterVolumeDisplayTarget && this.project.master_volume_db != null) {
+      const db = Number(this.project.master_volume_db)
+      this.masterVolumeDisplayTarget.textContent = `${db >= 0 ? "+" : ""}${db.toFixed(1)} dB`
+    }
+    if (this.project.theme_name) {
+      this.applyThemeUI(this.project.theme_name, false)
+    }
+    if (this.project.workspace_mode) {
+      this.applyWorkspaceModeUI(this.project.workspace_mode, false)
+    }
+  }
+
+  syncTrackDOMControls(track) {
+    if (!track) return
+    const trackId = track.id
+    const volDb = Number(track.volume_db || 0)
+    this.element.querySelectorAll(`[data-track-volume-label="${trackId}"]`).forEach((el) => {
+      el.textContent = `${volDb >= 0 ? "+" : ""}${volDb.toFixed(1)} dB`
+    })
+    this.element.querySelectorAll(`input[data-track-id="${trackId}"][data-action*="changeTrackVolume"]`).forEach((el) => {
+      el.value = volDb
+    })
+
+    const pan = Number(track.pan || 0)
+    const panText = pan === 0 ? "C" : pan < 0 ? `L${Math.round(Math.abs(pan) * 100)}` : `R${Math.round(pan * 100)}`
+    this.element.querySelectorAll(`[data-track-pan-label="${trackId}"]`).forEach((el) => {
+      el.textContent = panText
+    })
+    this.element.querySelectorAll(`input[data-track-id="${trackId}"][data-action*="changeTrackPan"]`).forEach((el) => {
+      el.value = pan
+    })
+
+    ;[ "muted", "soloed", "armed" ].forEach((flag) => {
+      this.element.querySelectorAll(`button[data-track-id="${trackId}"][data-field="${flag}"]`).forEach((btn) => {
+        const active = Boolean(track[flag])
+        btn.setAttribute("aria-pressed", active ? "true" : "false")
+        btn.classList.toggle("is-active", active)
+      })
+    })
+  }
 
   async persistProject(attributes) {
     this.setSavingStatus("Syncing...")
+    const hlc = this.emitLocalDelta("Project", this.project, "update", attributes)
     try {
       const res = await this.apiFetch(`/projects/${this.project.id}`, "PATCH", {
-        project: attributes
+        project: attributes,
+        hlc,
+        client_node_id: this.clientNodeId
       })
       if (res && res.ok) {
         this.setSavingStatus("✓ Saved • 960 PPQN")
       }
     } catch (_) {
-      this.setSavingStatus("⚠ Offline")
+      this.setSavingStatus("⚠ Offline • Queued CRDT")
     }
   }
 
   async persistTrack(trackId, attributes) {
     this.setSavingStatus("Syncing track...")
+    const track = (this.project.tracks || []).find((t) => t.id === trackId)
+    const hlc = this.emitLocalDelta("Track", track || { id: trackId }, "update", attributes)
     try {
       const res = await this.apiFetch(`/tracks/${trackId}`, "PATCH", {
-        track: attributes
+        track: attributes,
+        hlc,
+        client_node_id: this.clientNodeId
       })
       if (res && res.ok) {
         this.setSavingStatus("✓ Saved • 960 PPQN")
       }
     } catch (_) {
-      this.setSavingStatus("⚠ Offline")
+      this.setSavingStatus("⚠ Offline • Queued CRDT")
     }
   }
 
   async persistTrackClip(clipId, attributes) {
     this.setSavingStatus("Syncing clip...")
+    let targetClip = { id: clipId }
+    ;(this.project.tracks || []).forEach((t) => {
+      const found = (t.clips || []).find((c) => c.id === clipId)
+      if (found) targetClip = found
+    })
+    const hlc = this.emitLocalDelta("TrackClip", targetClip, "update", attributes)
     try {
       const res = await this.apiFetch(`/track_clips/${clipId}`, "PATCH", {
-        track_clip: attributes
+        track_clip: attributes,
+        hlc,
+        client_node_id: this.clientNodeId
       })
       if (res && res.ok) {
         this.setSavingStatus("✓ Saved • 960 PPQN")
       }
     } catch (_) {
-      this.setSavingStatus("⚠ Offline")
+      this.setSavingStatus("⚠ Offline • Queued CRDT")
     }
   }
 
@@ -925,6 +1277,8 @@ export default class extends Controller {
       "Content-Type": "application/json"
     }
     if (csrfToken) headers["X-CSRF-Token"] = csrfToken
+    if (this.lastAssignedHlc) headers["X-Saanskara-Hlc"] = this.lastAssignedHlc
+    if (this.clientNodeId) headers["X-Saanskara-Node-Id"] = this.clientNodeId
 
     const options = { method, headers }
     if (bodyObj && method !== "GET") {

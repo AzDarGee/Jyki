@@ -102,14 +102,18 @@ class StudioBootstrapper
       project = Project.find_by(name: DEFAULT_PROJECT_NAME) || Project.order(:id).first
 
       ActiveRecord::Base.transaction do
+        branches = CrdtBranch.default_branches
+        primary_branch = branches.first || CrdtBranch.order(:id).first
+        ProjectCollaborator.default_roster_for("proj_default")
+        StudioChatMessage.default_messages_for("project_room")
+
         if project.nil?
           owner = User.find_by(email: "saanskarastudios@gmail.com") || User.first
-          branch = CrdtBranch.find_by(name: "main") || CrdtBranch.first
 
           project = Project.create!(
             name: DEFAULT_PROJECT_NAME,
             user: owner,
-            crdt_branch: branch,
+            crdt_branch: primary_branch,
             bpm: 124.0,
             time_signature_numerator: 4,
             time_signature_denominator: 4,
@@ -128,8 +132,12 @@ class StudioBootstrapper
               "quantize" => "1/16"
             }
           )
+        elsif project.crdt_branch_id.nil? && primary_branch.present?
+          project.update_column(:crdt_branch_id, primary_branch.id)
+          project.crdt_branch = primary_branch
         end
 
+        ProjectCollaborator.default_roster_for(project.slug) if project.slug.present?
         seed_tracks_and_clips!(project) if project.tracks.empty?
       end
 
@@ -138,6 +146,7 @@ class StudioBootstrapper
 
     def load_full_project(project_id)
       Project.includes(
+        :crdt_branch,
         :automation_lanes,
         tracks: [
           :automation_lanes,
@@ -150,6 +159,14 @@ class StudioBootstrapper
       tracks_payload = project.tracks.sort_by { |t| [ t.position, t.id ] }.map do |track|
         serialize_track(track)
       end
+
+      branches = CrdtBranch.default_branches
+      active_branch = project.crdt_branch || branches.first
+      slug_scope = [ project.slug, "proj_default" ].compact.uniq
+      collaborators = ProjectCollaborator.where(project_slug: slug_scope).order(:id).to_a
+      collaborators = ProjectCollaborator.default_roster_for("proj_default") if collaborators.empty?
+      chat_messages = StudioChatMessage.where(room_type: "project_room").order(:id).last(30)
+      chat_messages = StudioChatMessage.default_messages_for("project_room") if chat_messages.empty?
 
       {
         id: project.id,
@@ -168,8 +185,37 @@ class StudioBootstrapper
         workspace_mode: project.workspace_mode,
         theme_name: project.theme_name,
         settings: project.settings_jsonb || {},
+        state_jsonb: project.state_jsonb || {},
+        crdt_branch: CrdtSyncEngine.serialize_branch(active_branch),
+        branches: branches.map { |b| CrdtSyncEngine.serialize_branch(b) },
+        collaborators: collaborators.map { |c| serialize_collaborator(c) },
+        chat_messages: chat_messages.map { |m| serialize_chat_message(m) },
         tracks: tracks_payload,
         automation_lanes: project.automation_lanes.map { |lane| serialize_automation_lane(lane) }
+      }
+    end
+
+    def serialize_collaborator(collab)
+      {
+        id: collab.id,
+        project_slug: collab.project_slug,
+        username: collab.username,
+        external_user_id: collab.external_user_id,
+        email: collab.email,
+        role: collab.role,
+        added_at_label: collab.added_at_label
+      }
+    end
+
+    def serialize_chat_message(msg)
+      {
+        id: msg.id,
+        sender_name: msg.sender_name,
+        sender_role: msg.sender_role,
+        body: msg.body,
+        room_type: msg.room_type,
+        recipient_handle: msg.recipient_handle,
+        sent_at_label: msg.sent_at_label
       }
     end
 
@@ -199,6 +245,7 @@ class StudioBootstrapper
         soloed: track.soloed,
         armed: track.armed,
         fx_chain: track.fx_chain_jsonb || [],
+        state_jsonb: track.state_jsonb || {},
         detected_bpm: detected_bpm.round(2),
         detected_key: detected_key,
         cue_points: cue_points,
@@ -234,6 +281,7 @@ class StudioBootstrapper
         fade_in_ticks: clip.fade_in_ticks.to_i,
         fade_out_ticks: clip.fade_out_ticks.to_i,
         muted: clip.muted,
+        state_jsonb: clip.state_jsonb || {},
         waveform_peaks: extract_waveform_peaks(sample),
         midi_events: midi&.events_jsonb || []
       }
@@ -250,7 +298,8 @@ class StudioBootstrapper
         min_value: lane.min_value,
         max_value: lane.max_value,
         points: lane.points_jsonb || [],
-        bypassed: lane.bypassed
+        bypassed: lane.bypassed,
+        state_jsonb: lane.state_jsonb || {}
       }
     end
 

@@ -21,15 +21,20 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_operator project.track_clips.count, :>=, 10
     assert_operator project.automation_lanes.count, :>=, 1
 
-    assert_select "#saanskara-daw[data-controller='studio'][data-theme='midnight'][data-studio-project-value]"
+    assert_select "#saanskara-daw[data-controller*='studio'][data-controller*='crdt-sync'][data-theme='midnight'][data-studio-project-value]"
     assert_select "#saanskara-daw .daw-transport-bar", /Saanskara Studio DAW/
+    assert_select "#saanskara-daw #crdt-presence-strip [data-crdt-sync-target='connectionBadge']", /CRDT Sync/
+    assert_select "#saanskara-daw #crdt-presence-strip select[data-crdt-sync-target='branchSelect'] option"
+    assert_select "#saanskara-daw #crdt-collab-drawer [data-crdt-sync-target='vectorFeedList']"
+    assert_select "#saanskara-daw #crdt-collab-drawer [data-crdt-sync-target='chatMessagesList'] .crdt-chat-item"
+    assert_select "#saanskara-daw #crdt-collab-drawer [data-crdt-sync-target='collaboratorRoster'] [data-collab-username]"
     assert_select "#saanskara-daw [data-studio-target='trackList'] .track-row", count: 6
     assert_select "#saanskara-daw #dj-6deck-panel .dj-deck-card", count: 6
     assert_select "#saanskara-daw canvas#waveform-canvas[data-studio-target='timelineCanvas']"
     assert_select "#saanskara-daw script", count: 0
   end
 
-  test "ProjectsController#update persists bpm, workspace_mode, theme_name, and scale_name" do
+  test "ProjectsController#update persists bpm, workspace_mode, theme_name, scale_name, and HLC watermarks" do
     project = StudioBootstrapper.ensure_default_project!
 
     patch project_url(project), params: {
@@ -54,6 +59,8 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_equal "dj_6deck", project.workspace_mode
     assert_equal "saffron", project.theme_name
     assert_equal "yaman", project.scale_name
+    assert project.state_jsonb.dig("hlc", "bpm").present?
+    assert project.state_jsonb.dig("hlc", "theme_name").present?
   end
 
   test "TracksController creates, updates mute/solo/arm/volume/pan, and deletes tracks" do
