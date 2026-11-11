@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
-# Usage: bin/build-imgui-synth
+# Usage on WSL2 / Linux: bin/build-imgui-synth
 
 require "fileutils"
 
@@ -8,14 +8,28 @@ ROOT       = File.expand_path("..", __dir__)
 VENDOR_DIR = File.join(ROOT, "tmp/vendor_imgui")
 SRC_FILE   = File.join(ROOT, "ext/imgui_synth/saanskara_imgui_synth.cpp")
 OUT_DIR    = File.join(ROOT, "public/wasm")
+EMSDK_DIR  = File.expand_path("~/.emsdk")
 
 FileUtils.mkdir_p(VENDOR_DIR)
 FileUtils.mkdir_p(OUT_DIR)
 
-unless system("which emcc > /dev/null 2>&1")
-  abort "❌ Emscripten (`emcc`) not found! Install it in 10 seconds with: brew install emscripten"
+# 1. Locate `em++` or auto-install official `emsdk` on WSL2/Linux!
+emcc_bin = [
+  `which em++ 2>/dev/null`.strip,
+  File.join(EMSDK_DIR, "upstream/emscripten/em++")
+].find { |p| !p.empty? && File.executable?(p) }
+
+unless emcc_bin
+  puts "⬇️  [WSL2] Installing official Emscripten SDK into ~/.emsdk..."
+  system("git", "clone", "--depth", "1", "https://github.com/emscripten-core/emsdk.git", EMSDK_DIR, exception: true) unless Dir.exist?(EMSDK_DIR)
+  system("#{EMSDK_DIR}/emsdk", "install", "latest", exception: true)
+  system("#{EMSDK_DIR}/emsdk", "activate", "latest", exception: true)
+  emcc_bin = File.join(EMSDK_DIR, "upstream/emscripten/em++")
 end
 
+puts "🔧 Using Emscripten compiler: #{emcc_bin}"
+
+# 2. Fetch Dear ImGui, ImPlot, and imgui-knobs into tmp/vendor_imgui/
 repos = {
   "imgui"       => ["https://github.com/ocornut/imgui.git", "v1.91.5"],
   "implot"      => ["https://github.com/epezent/implot.git", "v0.16"],
@@ -60,7 +74,7 @@ exported_fns = %w[
 
 puts "🦀⚡ Compiling Dear ImGui + ImPlot + imgui-knobs -> public/wasm/saanskara_synth.wasm..."
 cmd = [
-  "emcc", "-O3", *cpp_sources, *includes,
+  emcc_bin, "-O3", *cpp_sources, *includes,
   "-s", "USE_WEBGL2=1",
   "-s", "FULL_ES3=1",
   "-s", "ALLOW_MEMORY_GROWTH=1",
