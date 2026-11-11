@@ -3,6 +3,14 @@
 
 #define EXPORT __attribute__((visibility("default")))
 
+EXPORT long c_standard_version(void) {
+#ifdef __STDC_VERSION__
+    return __STDC_VERSION__;
+#else
+    return 0L;
+#endif
+}
+
 EXPORT double apply_golden_ratio(double value, uint32_t iterations) {
     const double phi = 1.618033988749895;
     for (uint32_t i = 0; i < iterations; i++) {

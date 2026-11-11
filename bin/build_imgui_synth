@@ -1,0 +1,112 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Auto-discovers & compiles all C++ ImGui modules in ext/wasm_modules/*.cpp (and ext/imgui_synth/*.cpp)
+
+require "fileutils"
+
+ROOT       = File.expand_path("..", __dir__)
+VENDOR_DIR = ENV.fetch("IMGUI_VENDOR_DIR", File.join(ROOT, "tmp/vendor_imgui"))
+OUT_DIR    = ENV.fetch("WASM_OUT_DIR", File.join(ROOT, "public/wasm"))
+EMSDK_DIR  = File.expand_path("~/.emsdk")
+
+FileUtils.mkdir_p(VENDOR_DIR)
+FileUtils.mkdir_p(OUT_DIR)
+
+# 1. Locate em++ & emar (works on both WSL2 ~/.emsdk and Docker emscripten/emsdk!)
+empp = [`which em++ 2>/dev/null`.strip, File.join(EMSDK_DIR, "upstream/emscripten/em++")].find { |p| !p.empty? && File.executable?(p) }
+emar = [`which emar 2>/dev/null`.strip, File.join(EMSDK_DIR, "upstream/emscripten/emar")].find { |p| !p.empty? && File.executable?(p) }
+
+unless empp
+  puts "⬇️  Installing Emscripten SDK into #{EMSDK_DIR}..."
+  system("git", "clone", "--depth", "1", "https://github.com/emscripten-core/emsdk.git", EMSDK_DIR, exception: true) unless Dir.exist?(EMSDK_DIR)
+  system("#{EMSDK_DIR}/emsdk", "install", "latest", exception: true)
+  system("#{EMSDK_DIR}/emsdk", "activate", "latest", exception: true)
+  empp = File.join(EMSDK_DIR, "upstream/emscripten/em++")
+  emar = File.join(EMSDK_DIR, "upstream/emscripten/emar")
+end
+
+# 2. Fetch vendor libraries once
+repos = {
+  "imgui"       => ["https://github.com/ocornut/imgui.git", "v1.91.5"],
+  "implot"      => ["https://github.com/epezent/implot.git", "v0.16"],
+  "imgui-knobs" => ["https://github.com/altschuler/imgui-knobs.git", "main"]
+}
+
+repos.each do |name, (url, branch)|
+  target = File.join(VENDOR_DIR, name)
+  unless Dir.exist?(target)
+    puts "⬇️  Fetching #{name} (#{branch})..."
+    system("git", "clone", "--depth", "1", "-b", branch, url, target, exception: true)
+  end
+end
+
+includes = [
+  "-I#{VENDOR_DIR}/imgui",
+  "-I#{VENDOR_DIR}/imgui/backends",
+  "-I#{VENDOR_DIR}/implot",
+  "-I#{VENDOR_DIR}/imgui-knobs"
+]
+
+# 3. Precompile Dear ImGui + ImPlot + imgui-knobs ONCE into a static archive `libimgui_core.a`!
+core_archive = File.join(VENDOR_DIR, "libimgui_core.a")
+unless File.exist?(core_archive)
+  puts "⚙️  Building cached static library libimgui_core.a (runs once!)..."
+  vendor_sources = [
+    "#{VENDOR_DIR}/imgui/imgui.cpp",
+    "#{VENDOR_DIR}/imgui/imgui_draw.cpp",
+    "#{VENDOR_DIR}/imgui/imgui_tables.cpp",
+    "#{VENDOR_DIR}/imgui/imgui_widgets.cpp",
+    "#{VENDOR_DIR}/imgui/backends/imgui_impl_opengl3.cpp",
+    "#{VENDOR_DIR}/implot/implot.cpp",
+    "#{VENDOR_DIR}/implot/implot_items.cpp",
+    "#{VENDOR_DIR}/imgui-knobs/imgui-knobs.cpp"
+  ]
+
+  obj_files = vendor_sources.map do |src|
+    obj = "#{src}.o"
+    system(empp, "-O3", "-c", src, *includes, "-o", obj, exception: true) unless File.exist?(obj)
+    obj
+  end
+
+  system(emar, "rcs", core_archive, *obj_files, exception: true)
+  puts "✅ Cached #{core_archive}"
+end
+
+# 4. Auto-discover ALL synth/plugin .cpp files in ext/jyki_synths
+module_files = Dir.glob(File.join(ROOT, "ext/{jyki_synths}/*.cpp")).sort
+abort "⚠️  No .cpp files found in ext/jyki_synths/ !" if module_files.empty?
+
+module_files.each do |cpp_file|
+  mod_name = File.basename(cpp_file, ".cpp").sub(/^saanskara_imgui_/, "saanskara_")
+  out_js   = File.join(OUT_DIR, "#{mod_name}.js")
+  out_wasm = File.join(OUT_DIR, "#{mod_name}.wasm")
+
+  # Skip if .wasm is already newer than the .cpp source (unless --force is passed)
+  if !ARGV.include?("--force") && File.exist?(out_wasm) && File.mtime(out_wasm) >= File.mtime(cpp_file)
+    puts "⚡ [Skipped — Up to date] #{mod_name}.wasm"
+    next
+  end
+
+  # Convert snake_case module name to CamelCase factory: e.g. saanskara_synth -> createSaanskaraSynthModule
+  camel_name = mod_name.split("_").map(&:capitalize).join
+  export_factory = "create#{camel_name}Module"
+
+  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  puts "🦀 Compiling #{File.basename(cpp_file)} -> public/wasm/#{mod_name}.wasm (#{export_factory})..."
+
+  cmd = [
+    empp, "-O3",
+    cpp_file, core_archive, *includes,
+    "-s", "USE_WEBGL2=1",
+    "-s", "FULL_ES3=1",
+    "-s", "ALLOW_MEMORY_GROWTH=1",
+    "-s", "MODULARIZE=1",
+    "-s", "EXPORT_NAME='#{export_factory}'",
+    "-s", "EXPORTED_RUNTIME_METHODS=['ccall','cwrap','UTF8ToString']",
+    "-o", out_js
+  ]
+
+  system(*cmd, exception: true)
+  ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - t0) * 1000).round(0)
+  puts "✅ Built #{mod_name}.wasm in #{ms}ms!"
+end

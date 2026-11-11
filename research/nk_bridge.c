@@ -1,8 +1,8 @@
 // nk_bridge.c
 // Compile on Linux:
-//   gcc -O3 -shared -fPIC nk_bridge.c -o libnkbridge.so -lglfw -lGL -lm
+//   gcc -std=c23 -O3 -shared -fPIC nk_bridge.c -o libnkbridge.so -lglfw -lGL -lm
 // Compile on macOS:
-//   clang -O3 -dynamiclib nk_bridge.c -o libnkbridge.dylib -lglfw -framework
+//   clang -std=c23 -O3 -dynamiclib nk_bridge.c -o libnkbridge.dylib -lglfw -framework
 //   OpenGL
 
 #include <stdint.h>

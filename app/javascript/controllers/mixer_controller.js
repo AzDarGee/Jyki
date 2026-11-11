@@ -18,7 +18,9 @@ export default class extends Controller {
     "insertsTrackTitle",
     "insertsCpuSummary",
     "insertsList",
-    "pluginSlot"
+    "pluginSlot",
+    "hardwareTelemetryBadge",
+    "audioOutputSelect"
   ]
 
   static values = {
@@ -27,13 +29,50 @@ export default class extends Controller {
 
   connect() {
     this.audioCtx = null
+    this.masterMerger = null
+    this.selectedSinkId = ""
     this.trackNodes = new Map()
+    this.mixerDebounceTimers = new Map()
     this.boundTrackRemoved = this.onTrackRemoved.bind(this)
     this.element.addEventListener("mixer:track-removed", this.boundTrackRemoved)
   }
 
   disconnect() {
     this.element.removeEventListener("mixer:track-removed", this.boundTrackRemoved)
+    this.mixerDebounceTimers.forEach((timerId) => clearTimeout(timerId))
+    this.mixerDebounceTimers.clear()
+  }
+
+  persistMixerState(trackId, attrs, debounceMs = 150) {
+    if (!trackId) return
+    const key = `${trackId}:${Object.keys(attrs).join(",")}`
+    if (this.mixerDebounceTimers.has(key)) {
+      clearTimeout(this.mixerDebounceTimers.get(key))
+    }
+
+    const sendRequest = async () => {
+      this.mixerDebounceTimers.delete(key)
+      const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
+      try {
+        await fetch("/workstation/mixer", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-CSRF-Token": csrfToken || ""
+          },
+          body: JSON.stringify({ mixer: { track_id: trackId, ...attrs } })
+        })
+      } catch (_e) {
+        // Ignore network errors when offline
+      }
+    }
+
+    if (debounceMs <= 0) {
+      sendRequest()
+    } else {
+      this.mixerDebounceTimers.set(key, setTimeout(sendRequest, debounceMs))
+    }
   }
 
   onTrackRemoved(event) {
@@ -72,6 +111,11 @@ export default class extends Controller {
     if (!this.audioCtx) {
       try {
         this.audioCtx = new AudioContextClass({ latencyHint: "interactive", sampleRate: 48000 })
+        this.configureDestinationRouting(this.audioCtx)
+        if (this.selectedSinkId && typeof this.audioCtx.setSinkId === "function") {
+          this.audioCtx.setSinkId(this.selectedSinkId).catch(() => {})
+        }
+        this.updateHardwareTelemetry()
       } catch (_e) {
         return null
       }
@@ -81,10 +125,101 @@ export default class extends Controller {
       const gainNode = this.audioCtx.createGain()
       const panNode = this.audioCtx.createStereoPanner()
       gainNode.connect(panNode)
-      panNode.connect(this.audioCtx.destination)
-      this.trackNodes.set(trackId, { gainNode, panNode })
+
+      if (this.masterMerger && this.audioCtx.destination.channelCount >= 4) {
+        const splitter = this.audioCtx.createChannelSplitter(2)
+        const cueLeftGain = this.audioCtx.createGain()
+        const cueRightGain = this.audioCtx.createGain()
+        cueLeftGain.gain.value = 0.0
+        cueRightGain.gain.value = 0.0
+
+        panNode.connect(splitter)
+        // Channels 1-2 (indices 0, 1) -> Master Out
+        splitter.connect(this.masterMerger, 0, 0)
+        splitter.connect(this.masterMerger, 1, 1)
+        // Channels 3-4 (indices 2, 3) -> DJ Headphone Cue Out
+        splitter.connect(cueLeftGain, 0)
+        splitter.connect(cueRightGain, 1)
+        cueLeftGain.connect(this.masterMerger, 0, 2)
+        cueRightGain.connect(this.masterMerger, 0, 3)
+
+        this.trackNodes.set(trackId, { gainNode, panNode, splitter, cueLeftGain, cueRightGain })
+      } else {
+        panNode.connect(this.audioCtx.destination)
+        this.trackNodes.set(trackId, { gainNode, panNode })
+      }
     }
     return this.trackNodes.get(trackId)
+  }
+
+  configureDestinationRouting(audioCtx) {
+    if (!audioCtx || !audioCtx.destination) return
+    const dest = audioCtx.destination
+    const maxChannelCount = dest.maxChannelCount || 2
+
+    if (maxChannelCount >= 4) {
+      const targetChannels = Math.min(maxChannelCount, 8)
+      dest.channelCount = targetChannels
+      dest.channelCountMode = "explicit"
+      dest.channelInterpretation = "discrete"
+
+      this.masterMerger = audioCtx.createChannelMerger(targetChannels)
+      this.masterMerger.channelCountMode = "explicit"
+      this.masterMerger.channelInterpretation = "discrete"
+      this.masterMerger.connect(dest)
+    } else {
+      this.masterMerger = null
+    }
+  }
+
+  updateHardwareTelemetry() {
+    if (!this.audioCtx || !this.hasHardwareTelemetryBadgeTarget) return
+    const audioCtx = this.audioCtx
+    this.hardwareTelemetryBadgeTarget.textContent = `${audioCtx.sampleRate / 1000}kHz • ${(audioCtx.baseLatency * 1000).toFixed(1)}ms • ${audioCtx.destination.channelCount}ch`
+  }
+
+  async refreshAudioOutputDevices() {
+    if (!this.hasAudioOutputSelectTarget) return
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== "function") return
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const outputs = devices.filter((d) => d.kind === "audiooutput")
+      const select = this.audioOutputSelectTarget
+      const currentVal = this.selectedSinkId || select.value || ""
+
+      select.innerHTML = ""
+      const defaultOpt = document.createElement("option")
+      defaultOpt.value = ""
+      defaultOpt.textContent = "Default Audio Out (CoreAudio / WASAPI)"
+      select.appendChild(defaultOpt)
+
+      outputs.forEach((device, idx) => {
+        if (!device.deviceId || device.deviceId === "default") return
+        const opt = document.createElement("option")
+        opt.value = device.deviceId
+        opt.textContent = device.label || `Pro Audio Output #${idx + 1}`
+        select.appendChild(opt)
+      })
+
+      select.value = currentVal
+    } catch (_e) {
+      // Ignore enumeration errors
+    }
+  }
+
+  async changeAudioOutputDevice(event) {
+    const deviceId = event.currentTarget.value || ""
+    this.selectedSinkId = deviceId
+    if (this.audioCtx && typeof this.audioCtx.setSinkId === "function") {
+      try {
+        await this.audioCtx.setSinkId(deviceId)
+        this.configureDestinationRouting(this.audioCtx)
+        this.updateHardwareTelemetry()
+      } catch (_e) {
+        // Ignore unsupported sink switch
+      }
+    }
   }
 
   dbToLinear(db) {
@@ -173,6 +308,8 @@ export default class extends Controller {
         el.value = String(dbValue)
       }
     })
+
+    this.persistMixerState(trackId, { gain_db: dbValue }, 150)
   }
 
   // Pan Slider Update + StereoPannerNode.pan.setTargetAtTime smoothing
@@ -201,6 +338,8 @@ export default class extends Controller {
         el.textContent = `PAN (${panVal})`
       }
     })
+
+    this.persistMixerState(trackId, { pan: panVal }, 150)
   }
 
   // Double-Click Fader Reset to 0.0 dB
@@ -251,6 +390,10 @@ export default class extends Controller {
         }
       })
     }
+
+    if (flag && flag !== "soloed") {
+      this.persistMixerState(trackId, { [flag]: active }, 0)
+    }
   }
 
   toggleSoloForTrack(trackId) {
@@ -287,6 +430,16 @@ export default class extends Controller {
         }`
       }
     })
+
+    // Route soloed/cued track to DJ Headphone Cue Out (Channels 3-4) when discrete multi-channel is active
+    const nodes = this.trackNodes.get(trackId)
+    if (nodes && nodes.cueLeftGain && nodes.cueRightGain && this.audioCtx) {
+      const targetCue = active ? 1.0 : 0.0
+      nodes.cueLeftGain.gain.setTargetAtTime(targetCue, this.audioCtx.currentTime, 0.015)
+      nodes.cueRightGain.gain.setTargetAtTime(targetCue, this.audioCtx.currentTime, 0.015)
+    }
+
+    this.persistMixerState(trackId, { soloed: active }, 0)
   }
 
   // Inserts Rack Actions

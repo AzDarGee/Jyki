@@ -39,8 +39,18 @@ Rails.application.routes.draw do
     post "save_note", action: :save_note, as: :right_sidebar_save_note
   end
 
-  # Legacy home index route
+  # Core DAW & 6-Deck DJ PostgreSQL Persistence Endpoints
+  resources :projects, only: [ :show, :update ] do
+    resources :tracks, only: [ :create, :update, :destroy ]
+  end
+  resources :tracks, only: [ :update, :destroy ] do
+    resources :track_clips, only: [ :create, :update, :destroy ]
+  end
+  resources :track_clips, only: [ :update, :destroy ]
+
+  # Legacy home index & studio route
   get "home" => "home#index", as: :home
+  get "studio" => "home#index", as: :studio
 
   # Defines the root path route ("/") — Jaku by Saanskara Studios SPA Workstation
   root "workstation#index"
