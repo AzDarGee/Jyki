@@ -17,7 +17,7 @@ export default class extends Controller {
             }))
         }
 
-        await this.loadWasmScript("/jyki_synths/jyki_synth_sitar.js")
+        await this.loadWasmScript("/wasm/saanskara_synth.js")
         this.wasm = await window.createSaanskaraSynthModule()
 
         this.resizeCanvas()
