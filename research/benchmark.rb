@@ -34,7 +34,9 @@ c_code = <<~C
   }
 C
 
-IO.popen("gcc -O3 -ffast-math -shared -fPIC -xc - -o #{SO_FILE}", 'w') { |io| io.write(c_code) }
+cc = [ '/opt/homebrew/opt/llvm/bin/clang', '/usr/local/opt/llvm/bin/clang' ].find { |p| File.executable?(p) } || 'gcc'
+c_std = system("#{cc} -std=c23 -x c - -o /dev/null", in: IO::NULL, out: IO::NULL, err: IO::NULL) ? '-std=c23' : '-std=c2x'
+IO.popen("#{cc} #{c_std} -O3 -ffast-math -shared -fPIC -xc - -o #{SO_FILE}", 'w') { |io| io.write(c_code) }
 
 module QuantumBench
   extend Fiddle::Importer

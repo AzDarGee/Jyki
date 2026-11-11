@@ -28,7 +28,10 @@ export default class extends Controller {
     "clipCountBadge",
     "trackCountBadge",
     "deckCanvas",
-    "crossfaderInput"
+    "crossfaderInput",
+    "hardwareTelemetryBadge",
+    "audioOutputSelect",
+    "routingBusBadge"
   ]
 
   static values = {
@@ -65,6 +68,8 @@ export default class extends Controller {
     this.lastFrameTime = performance.now()
     this.lastTriggeredStep = -1
     this.audioCtx = null
+    this.masterMerger = null
+    this.selectedSinkId = ""
     this.dragState = null
     this.debounceTimers = {}
     this.remotePeers = new Map()
@@ -74,13 +79,19 @@ export default class extends Controller {
     this.boundRemoteDelta = (e) => this.onRemoteDelta(e.detail)
     this.boundRemoteTelemetry = (e) => this.onRemoteTelemetry(e.detail)
     this.boundPeerLeave = (e) => this.onPeerLeave(e.detail)
+    this.boundDeviceChange = () => this.refreshAudioOutputDevices()
     this.element.addEventListener("crdt:remote-delta", this.boundRemoteDelta)
     this.element.addEventListener("crdt:remote-telemetry", this.boundRemoteTelemetry)
     this.element.addEventListener("crdt:peer-leave", this.boundPeerLeave)
+    if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === "function") {
+      navigator.mediaDevices.addEventListener("devicechange", this.boundDeviceChange)
+    }
 
     this.applyThemeUI(this.project.theme_name || "midnight", false)
     this.applyWorkspaceModeUI(this.project.workspace_mode || "daw", false)
     this.updateClockReadout()
+    this.refreshAudioOutputDevices()
+    this.updateHardwareTelemetry()
 
     this.boundResize = () => this.resizeCanvases()
     window.addEventListener("resize", this.boundResize)
@@ -95,6 +106,9 @@ export default class extends Controller {
     if (this.boundRemoteDelta) this.element.removeEventListener("crdt:remote-delta", this.boundRemoteDelta)
     if (this.boundRemoteTelemetry) this.element.removeEventListener("crdt:remote-telemetry", this.boundRemoteTelemetry)
     if (this.boundPeerLeave) this.element.removeEventListener("crdt:peer-leave", this.boundPeerLeave)
+    if (this.boundDeviceChange && navigator.mediaDevices && typeof navigator.mediaDevices.removeEventListener === "function") {
+      navigator.mediaDevices.removeEventListener("devicechange", this.boundDeviceChange)
+    }
     if (this.audioCtx && this.audioCtx.state !== "closed") {
       this.audioCtx.close().catch(() => {})
     }
@@ -218,17 +232,119 @@ export default class extends Controller {
     }
   }
 
+  initAudioEngine() {
+    if (!this.audioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      if (!AudioCtx) return null
+      this.audioCtx = new AudioCtx({ latencyHint: "interactive", sampleRate: 48000 })
+      this.configureDestinationRouting(this.audioCtx)
+      if (this.selectedSinkId && typeof this.audioCtx.setSinkId === "function") {
+        this.audioCtx.setSinkId(this.selectedSinkId).catch(() => {})
+      }
+    }
+    this.updateHardwareTelemetry()
+    return this.audioCtx
+  }
+
+  configureDestinationRouting(audioCtx) {
+    if (!audioCtx || !audioCtx.destination) return
+    const dest = audioCtx.destination
+    const maxChannelCount = dest.maxChannelCount || 2
+
+    if (maxChannelCount >= 4) {
+      const targetChannels = Math.min(maxChannelCount, 8)
+      dest.channelCount = targetChannels
+      dest.channelCountMode = "explicit"
+      dest.channelInterpretation = "discrete"
+
+      // ChannelMergerNode routes Channels 1-2 (indices 0, 1) as Master Out
+      // and Channels 3-4 (indices 2, 3) as DJ Headphone Cue Out
+      this.masterMerger = audioCtx.createChannelMerger(targetChannels)
+      this.masterMerger.channelCountMode = "explicit"
+      this.masterMerger.channelInterpretation = "discrete"
+      this.masterMerger.connect(dest)
+    } else {
+      this.masterMerger = null
+    }
+  }
+
+  updateHardwareTelemetry() {
+    const audioCtx = this.audioCtx
+    const sampleRateKhz = audioCtx ? audioCtx.sampleRate / 1000 : (this.project.sample_rate || 48000) / 1000
+    const baseLatencyMs = (audioCtx && typeof audioCtx.baseLatency === "number" ? audioCtx.baseLatency * 1000 : 2.7).toFixed(1)
+    const channelCount = audioCtx && audioCtx.destination ? audioCtx.destination.channelCount : 2
+
+    if (this.hasHardwareTelemetryBadgeTarget) {
+      const text = audioCtx
+        ? `${audioCtx.sampleRate / 1000}kHz • ${(audioCtx.baseLatency * 1000).toFixed(1)}ms • ${audioCtx.destination.channelCount}ch`
+        : `${sampleRateKhz}kHz • ${baseLatencyMs}ms • ${channelCount}ch`
+      this.hardwareTelemetryBadgeTarget.textContent = text
+    }
+
+    if (this.hasRoutingBusBadgeTarget) {
+      this.routingBusBadgeTarget.textContent =
+        channelCount >= 4 ? "Ch 1-2 Master • Ch 3-4 DJ Cue" : "Ch 1-2 Stereo Master"
+    }
+  }
+
+  async refreshAudioOutputDevices() {
+    if (!this.hasAudioOutputSelectTarget) return
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== "function") return
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const outputs = devices.filter((d) => d.kind === "audiooutput")
+      const select = this.audioOutputSelectTarget
+      const currentVal = this.selectedSinkId || select.value || ""
+
+      select.innerHTML = ""
+      const defaultOpt = document.createElement("option")
+      defaultOpt.value = ""
+      defaultOpt.textContent = "Default Audio Out (CoreAudio / WASAPI)"
+      defaultOpt.style.backgroundColor = "#121110"
+      select.appendChild(defaultOpt)
+
+      outputs.forEach((device, idx) => {
+        if (!device.deviceId || device.deviceId === "default") return
+        const opt = document.createElement("option")
+        opt.value = device.deviceId
+        opt.textContent = device.label || `Pro Audio Output #${idx + 1}`
+        opt.style.backgroundColor = "#121110"
+        select.appendChild(opt)
+      })
+
+      select.value = currentVal
+    } catch (_) {
+      // Ignore permission or unsupported enumeration errors
+    }
+  }
+
+  async changeAudioOutputDevice(event) {
+    const deviceId = event.currentTarget.value || ""
+    this.selectedSinkId = deviceId
+
+    const audioCtx = this.initAudioEngine()
+    if (audioCtx && typeof audioCtx.setSinkId === "function") {
+      try {
+        await audioCtx.setSinkId(deviceId)
+        this.configureDestinationRouting(audioCtx)
+        this.updateHardwareTelemetry()
+        this.setSavingStatus("✓ Audio Sink Routed")
+      } catch (_) {
+        this.setSavingStatus("⚠ Sink Switch Unsupported")
+      }
+    }
+  }
+
   toggleSynth() {
     this.synthEnabled = !this.synthEnabled
     if (this.synthEnabled && !this.audioCtx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext
-      if (AudioCtx) {
-        this.audioCtx = new AudioCtx()
-      }
+      this.initAudioEngine()
     }
     if (this.audioCtx && this.audioCtx.state === "suspended") {
-      this.audioCtx.resume().catch(() => {})
+      this.audioCtx.resume().then(() => this.updateHardwareTelemetry()).catch(() => {})
     }
+    this.updateHardwareTelemetry()
     if (this.hasSynthButtonTarget) {
       this.synthButtonTarget.setAttribute("aria-pressed", this.synthEnabled ? "true" : "false")
       this.synthButtonTarget.textContent = this.synthEnabled ? "🔊 Synth ON" : "🔈 Synth Mute"
@@ -342,14 +458,32 @@ export default class extends Controller {
       panner.pan.setValueAtTime(Math.max(-1, Math.min(1, track.pan || 0)), now)
       osc.connect(gain)
       gain.connect(panner)
-      panner.connect(this.audioCtx.destination)
+      this.connectNodeToHardwareOutput(panner, track)
     } else {
       osc.connect(gain)
-      gain.connect(this.audioCtx.destination)
+      this.connectNodeToHardwareOutput(gain, track)
     }
 
     osc.start(now)
     osc.stop(now + 0.24)
+  }
+
+  connectNodeToHardwareOutput(sourceNode, track) {
+    if (!this.audioCtx) return
+    if (this.masterMerger && this.audioCtx.destination.channelCount >= 4) {
+      const splitter = this.audioCtx.createChannelSplitter(2)
+      sourceNode.connect(splitter)
+      // Channels 1-2 (indices 0, 1): Master Out
+      splitter.connect(this.masterMerger, 0, 0)
+      splitter.connect(this.masterMerger, 1, 1)
+      // Channels 3-4 (indices 2, 3): DJ Headphone Cue Out (when soloed/cued)
+      if (track && (track.soloed || track.cued)) {
+        splitter.connect(this.masterMerger, 0, 2)
+        splitter.connect(this.masterMerger, 1, 3)
+      }
+    } else {
+      sourceNode.connect(this.audioCtx.destination)
+    }
   }
 
   // --- TRACK CONTROLS (MUTE / SOLO / ARM / VOLUME / PAN / ADD / DELETE) ---

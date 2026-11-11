@@ -1,7 +1,7 @@
 # Jyki (Saanskara Studio DAW) — Founder's Architectural Debrief & Systems Guide
 
 > **Prepared for:** The Founder & Creative Director, Saanskara Studios  
-> **System Version:** Ruby `4.0.9` (YJIT/PRISM) • Ruby on Rails `8.1.4` • PostgreSQL (`Solid Cable` / `Solid Cache` / `Solid Queue`) • Native C11 (`Fiddle` DSP) • Rust `grass` + Tailwind v4  
+> **System Version:** Ruby `4.0.9` (YJIT/PRISM) • Ruby on Rails `8.1.4` • PostgreSQL (`Solid Cable` / `Solid Cache` / `Solid Queue`) • Native C23 (`Fiddle` DSP) • Rust `grass` + Tailwind v4  
 > **Purpose:** A plain-English, studio-metaphor guide to every architectural layer, database table, real-time collaboration protocol, and file in the **Jyki** repository.
 
 ---
@@ -63,7 +63,7 @@ graph TD
     Ephemeral["ephemeral_telemetry<br/>(~30fps Cursor & Fader Whispers — Zero DB Writes)"]
     CrdtEngine["CrdtSyncEngine.apply_delta!<br/>(Field-Level HLC Merge & Tombstones)"]
     Controllers["REST & Turbo Stream Controllers<br/>(Workstation, Projects, Tracks, TrackClips, RightSidebar, StudioAuth)"]
-    NativeDSP["Native C11 / Fiddle DSP Bridge<br/>(SaanskaraDsp -> ext/saanskara_dsp/fast_math.c)"]
+    NativeDSP["Native C23 / Fiddle DSP Bridge<br/>(SaanskaraDsp -> ext/saanskara_dsp/fast_math.c)"]
   end
 
   subgraph Layer3["3. The Vault (PostgreSQL / Self-Hosted Supabase)"]
@@ -817,15 +817,15 @@ Here is how to read every number on that line like a studio chief engineer:
 
 ---
 
-### 7.2 Native C11 & Ruby `Fiddle` DSP Bridge (`app/lib/saanskara_dsp.rb`, `ext/`, & `research/dsp/`)
+### 7.2 Native C23 & Ruby `Fiddle` DSP Bridge (`app/lib/saanskara_dsp.rb`, `ext/`, & `research/dsp/`)
 
 To honor Pillar #1 (*CPU Efficiency: Offload heavy math to C*), Jyki includes both an active Rails C bridge and a standalone C/WebAssembly DSP laboratory:
 
 1. **Active Rails C Extension (`app/lib/saanskara_dsp.rb` & `ext/saanskara_dsp/fast_math.c`):**
    - `SaanskaraDsp` uses Ruby's built-in `Fiddle::Importer` (zero third-party gems) to load `ext/saanskara_dsp/libfast_math.dylib` (macOS) or `.so` (Linux).
    - If the compiled library is missing—or if you edit `ext/saanskara_dsp/fast_math.c` in development—`app/lib/saanskara_dsp.rb` (lines 16–19) automatically runs `make -C ext/saanskara_dsp` on boot! You can also compile it manually via `bin/rails native:compile` (`lib/tasks/native.rake`).
-2. **Standalone C11 & WebAssembly DSP Research Lab (`research/dsp/`):**
-   - `research/dsp/dsp_pipeline.rb`: A self-compiling C11 audio DSP arena (High-Pass Filter, Low-Pass Filter, soft-clip tape saturation, power-of-two ring-buffer comb delay, and RMS/Peak/DC-offset telemetry) bound via Ruby `Fiddle` with automatic C memory cleanup (`@handle.free = SaanskaraDSP['dsp_destroy']`).
+2. **Standalone C23 & WebAssembly DSP Research Lab (`research/dsp/`):**
+   - `research/dsp/dsp_pipeline.rb`: A self-compiling C23 audio DSP arena (High-Pass Filter, Low-Pass Filter, soft-clip tape saturation, power-of-two ring-buffer comb delay, and RMS/Peak/DC-offset telemetry) bound via Ruby `Fiddle` with automatic C memory cleanup (`@handle.free = SaanskaraDSP['dsp_destroy']`).
    - `research/dsp/dsp_forge.rb` & `research/dsp/build_dsp.rb`: Dual-target compiler scripts that compile `research/dsp/saanskara_dsp.c` and `dsp_engine_v2.c` into both native `.so` libraries and browser **WebAssembly (`.wasm`)** modules with 16-byte binary parameter packets (`pack("CCs<fff")`).
 
 ---
@@ -979,8 +979,8 @@ Jyki/
 │
 ├── ext/
 │   └── saanskara_dsp/
-│       ├── Makefile                      # Builds `libfast_math.dylib` / `libfast_math.so` with `-O3 -ffast-math`
-│       └── fast_math.c                   # Native C11 golden-ratio phase/harmonic math kernel
+│       ├── Makefile                      # Builds `libfast_math.dylib` / `libfast_math.so` with `-std=c23 -O3 -ffast-math`
+│       └── fast_math.c                   # Native C23 golden-ratio phase/harmonic math kernel
 │
 ├── lib/
 │   ├── middleware/chrome_devtools.rb     # Serves `/.well-known/appspecific/com.chrome.devtools.json` for Chrome workspace mapping
@@ -989,7 +989,7 @@ Jyki/
 │       └── native.rake                   # Provides `bin/rails native:compile` and `native:clean` for `ext/saanskara_dsp`
 │
 └── research/
-    └── dsp/                              # Standalone C11 + Ruby Fiddle + WebAssembly (`wasm32`) DSP R&D prototypes (`dsp_pipeline.rb`, `dsp_forge.rb`, `saanskara_dsp.c`)
+    └── dsp/                              # Standalone C23 + Ruby Fiddle + WebAssembly (`wasm32`) DSP R&D prototypes (`dsp_pipeline.rb`, `dsp_forge.rb`, `saanskara_dsp.c`)
 ```
 
 ---
@@ -1015,15 +1015,15 @@ Whenever you want to tweak a studio feature—or give a laser-focused prompt to 
 
 ### 9.2 Next Logical Engineering Milestones (The Roadmap Ahead)
 
-Jyki's foundation—PostgreSQL schema, field-level HLC CRDT engine, Solid Cable real-time bus, 60fps `<canvas>` timelines, Raga SCSS theme engine, and C11/Wasm DSP prototypes—is already in place. Here are the **four high-impact engineering milestones** to turn Jyki from a working studio engine into a category-defining commercial platform:
+Jyki's foundation—PostgreSQL schema, field-level HLC CRDT engine, Solid Cable real-time bus, 60fps `<canvas>` timelines, Raga SCSS theme engine, and C23/Wasm DSP prototypes—is already in place. Here are the **four high-impact engineering milestones** to turn Jyki from a working studio engine into a category-defining commercial platform:
 
 #### Milestone 1: Drag-and-Drop Real Audio File Uploads (`ActiveStorage` + `AudioSample` Vault)
 - **Where We Are Now:** `audio_samples` already has `storage_key`, `checksum_sha256`, `sample_rate`, `total_frames`, and `waveform_peaks_binary` columns in PostgreSQL, and `config/deploy.yml` already mounts `/rails/storage`.
 - **Next Step:** Attach `has_one_attached :audio_file` to `AudioSample` (`app/models/audio_sample.rb`) and add a drag-and-drop dropzone on the Left Sound Browser (`app/views/workstation/_sound_browser.html.erb`) and DAW `<canvas>`. When a producer drops a `.wav` or `.flac` stem from their desktop, upload it via ActiveStorage Direct Upload, compute its `SHA-256` checksum so identical stems are automatically deduplicated, and spawn a `TrackClip` on the timeline.
 
 #### Milestone 2: Wire `research/dsp/` WebAssembly Kernels into Browser `AudioWorkletProcessor`
-- **Where We Are Now:** Both `WorkstationController#set_isolation_headers` and `HomeController#set_isolation_headers` **already emit the exact `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` headers** required by browsers to unlock `SharedArrayBuffer` and zero-copy `AudioWorklet` threads! Meanwhile, `research/dsp/build_dsp.rb` and `dsp_forge.rb` already compile our C11 biquad filters, soft-clip saturator, and comb delay into `.wasm`.
-- **Next Step:** Move the compiled `.wasm` binary and `AudioWorkletProcessor` glue into `public/worklets/` and connect it into `mixer_controller.js#ensureAudioNode` so every track runs genuine C11 DSP effects inside the browser at 48kHz with zero garbage collection pauses.
+- **Where We Are Now:** Both `WorkstationController#set_isolation_headers` and `HomeController#set_isolation_headers` **already emit the exact `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` headers** required by browsers to unlock `SharedArrayBuffer` and zero-copy `AudioWorklet` threads! Meanwhile, `research/dsp/build_dsp.rb` and `dsp_forge.rb` already compile our C23 biquad filters, soft-clip saturator, and comb delay into `.wasm`.
+- **Next Step:** Move the compiled `.wasm` binary and `AudioWorkletProcessor` glue into `public/worklets/` and connect it into `mixer_controller.js#ensureAudioNode` so every track runs genuine C23 DSP effects inside the browser at 48kHz with zero garbage collection pauses.
 
 #### Milestone 3: Background Waveform Peak & Beatgrid Extraction via `Solid Queue`
 - **Where We Are Now:** `solid_queue_*` tables are live in PostgreSQL (`SOLID_QUEUE_IN_PUMA: true`), and `AudioSample` has `waveform_peaks_binary`, `beatgrid_jsonb`, `detected_bpm`, and `integrated_lufs`.
@@ -1191,6 +1191,6 @@ Bookmark this table! Whenever you want to tweak Jyki—or tell Junie to edit som
 
 When you're ready for the next sprint, here are the 4 natural upgrades waiting to be switched on:
 1. **📂 Drag-and-Drop Real `.wav` / `.mp3` Uploads:** Let users drop audio files from their desktop onto the canvas and save them via Rails `ActiveStorage`.
-2. **⚡ Plug Our C/WebAssembly Audio Filters into the Mixer:** Connect the C11 filters in `research/dsp/` into a browser `AudioWorklet` for studio-grade reverb and analog saturation.
+2. **⚡ Plug Our C/WebAssembly Audio Filters into the Mixer:** Connect the C23 filters in `research/dsp/` into a browser `AudioWorklet` for studio-grade reverb and analog saturation.
 3. **🥁 Automatic Beat & Waveform Scanner (`Solid Queue`):** When a user uploads a song, run a background job in C to auto-detect its BPM and draw its waveform peaks.
 4. **🎹 Plug-and-Play USB MIDI Keyboards & DJ Controllers:** Use the browser's `navigator.requestMIDIAccess()` so plugging in a real MIDI keyboard or Pioneer/Numark DJ controller plays Jyki instantly!

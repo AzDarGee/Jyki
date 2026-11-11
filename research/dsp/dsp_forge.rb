@@ -158,17 +158,20 @@ module SaanskaraDspForge
     File.write(C_FILE, C_DSP_SOURCE)
     File.write(JS_FILE, AUDIOWORKLET_JS)
 
-    # 1. Compile C -> Native Shared Library (.so) for Ruby Server & Unit Tests
-    system("gcc -O3 -ffast-math -shared -fPIC #{C_FILE} -o #{SO_FILE}", exception: true)
-    puts "✅ Compiled Native C Shared Library for Ruby : #{SO_FILE} (#{File.size(SO_FILE)} bytes)"
+    # 1. Compile C23 -> Native Shared Library (.so) for Ruby Server & Unit Tests
+    cc = [ '/opt/homebrew/opt/llvm/bin/clang', '/usr/local/opt/llvm/bin/clang' ].find { |p| File.executable?(p) } || 'gcc'
+    c_std = system("#{cc} -std=c23 -x c - -o /dev/null", in: IO::NULL, out: IO::NULL, err: IO::NULL) ? '-std=c23' : '-std=c2x'
+    system("#{cc} #{c_std} -O3 -ffast-math -shared -fPIC #{C_FILE} -o #{SO_FILE}", exception: true)
+    puts "✅ Compiled Native C23 Shared Library for Ruby : #{SO_FILE} (#{File.size(SO_FILE)} bytes)"
 
-    # 2. Compile C -> WebAssembly (.wasm) if clang + wasm-ld are installed
+    # 2. Compile C23 -> WebAssembly (.wasm) if clang + wasm-ld are installed
     if system('which clang > /dev/null 2>&1 && which wasm-ld > /dev/null 2>&1')
-      wasm_cmd = "clang --target=wasm32 -O3 -ffast-math -flto -nostdlib " \
+      wasm_std = system('clang -std=c23 -x c - -o /dev/null', in: IO::NULL, out: IO::NULL, err: IO::NULL) ? '-std=c23' : '-std=c2x'
+      wasm_cmd = "clang #{wasm_std} --target=wasm32 -O3 -ffast-math -flto -nostdlib " \
                  "-Wl,--no-entry -Wl,--export-dynamic -Wl,--lto-O3 " \
                  "#{C_FILE} -o #{WASM_FILE}"
       system(wasm_cmd, exception: true)
-      puts "✅ Compiled Pure C WebAssembly for Browser   : #{WASM_FILE} (#{File.size(WASM_FILE)} bytes!)"
+      puts "✅ Compiled Pure C23 WebAssembly for Browser   : #{WASM_FILE} (#{File.size(WASM_FILE)} bytes!)"
     else
       puts "ℹ️  (To also emit the 2KB .wasm file in WSL2, run: `sudo apt install clang lld`)"
     end

@@ -31,10 +31,22 @@
             <%= @project.name %>
           </span>
         </div>
-        <div class="flex items-center gap-2 text-[11px] font-mono mt-0.5" style="color: var(--saanskara-text-muted)">
+        <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono mt-0.5" style="color: var(--saanskara-text-muted)">
           <span data-studio-target="saveStatus">✓ Saved • <%= @project.ppqn %> PPQN</span>
           <span>•</span>
-          <span><%= @project.sample_rate / 1000 %>kHz</span>
+          <span id="hardware-telemetry-badge"
+                class="px-1.5 py-0.5 rounded font-semibold"
+                style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary); border: 1px solid var(--saanskara-border-subtle)"
+                data-studio-target="hardwareTelemetryBadge"
+                title="Live WebAudio Hardware Telemetry (Sample Rate • Base Latency • Discrete Channels)">
+            <%= @project.sample_rate / 1000 %>kHz • 2.7ms • 2ch
+          </span>
+          <span class="px-1.5 py-0.5 rounded text-[10px]"
+                style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-text-muted); border: 1px solid var(--saanskara-border-subtle)"
+                data-studio-target="routingBusBadge"
+                title="Ch 1-2 Master Out • Ch 3-4 DJ Headphone Cue Out">
+            Ch 1-2 Stereo Master
+          </span>
           <span>•</span>
           <span data-studio-target="trackCountBadge"><%= @tracks.size %> Tracks</span>
           <span>•</span>
@@ -103,6 +115,18 @@
                 <%= scale.upcase %>
               </option>
             <% end %>
+          </select>
+        </label>
+        <span class="opacity-40">|</span>
+        <label class="flex items-center gap-1" title="Hardware Audio Output Sink (CoreAudio / WASAPI)">
+          <span>OUT</span>
+          <select id="hardware-audio-output-select"
+                  aria-label="Hardware Audio Output Device"
+                  data-studio-target="audioOutputSelect"
+                  data-action="focus->studio#refreshAudioOutputDevices change->studio#changeAudioOutputDevice"
+                  class="bg-transparent font-bold text-xs cursor-pointer max-w-[160px] truncate"
+                  style="color: var(--saanskara-accent-primary)">
+            <option value="" style="background-color: #121110">Default Audio Out (CoreAudio / WASAPI)</option>
           </select>
         </label>
         <span class="opacity-40">|</span>

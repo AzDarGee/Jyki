@@ -2,9 +2,9 @@
 # frozen_string_literal: true
 
 # =============================================================================
-# SAANSKARA STUDIOS — SELF-COMPILING RUBY + C11 DSP ENGINE & PIPELINE
+# SAANSKARA STUDIOS — SELF-COMPILING RUBY + C23 DSP ENGINE & PIPELINE
 # Run directly: ruby dsp_pipeline.rb
-# Zero gems. Zero external files required. Compiles C11 inline in ~150ms.
+# Zero gems. Zero external files required. Compiles C23 inline in ~150ms.
 # =============================================================================
 
 require 'fiddle'
@@ -34,11 +34,15 @@ module SaanskaraDSP
       c_file = File.expand_path(".dsp_engine_tmp.c", __dir__ || Dir.pwd)
       File.write(c_file, c_source)
 
-      cc = ENV['CC'] || RbConfig::CONFIG['CC'] || 'cc'
+      cc = ENV['CC'] ||
+           [ '/opt/homebrew/opt/llvm/bin/clang', '/usr/local/opt/llvm/bin/clang' ].find { |p| File.executable?(p) } ||
+           RbConfig::CONFIG['CC'] ||
+           'cc'
+      c_std = system("#{cc} -std=c23 -x c - -o /dev/null", in: IO::NULL, out: IO::NULL, err: IO::NULL) ? '-std=c23' : '-std=c2x'
       shared_flag = os =~ /darwin|mac os/i ? '-dynamiclib' : '-shared'
 
-      cmd = "#{cc} -O3 -ffast-math -Wall -Wextra #{shared_flag} -fPIC #{c_file} -lm -o #{lib_path}"
-      print "⚡ [Saanskara DSP] Compiling native C11 kernel (#{ File.basename(lib_path) })... "
+      cmd = "#{cc} #{c_std} -O3 -ffast-math -Wall -Wextra #{shared_flag} -fPIC #{c_file} -lm -o #{lib_path}"
+      print "⚡ [Saanskara DSP] Compiling native C23 kernel (#{ File.basename(lib_path) })... "
       t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       unless system(cmd)
@@ -252,7 +256,7 @@ if __FILE__ == $PROGRAM_NAME
   end
 
   puts "=================================================================="
-  puts " 🪔 SAANSKARA STUDIOS — RUBY + C11 NATIVE DSP PIPELINE DEMO"
+  puts " 🪔 SAANSKARA STUDIOS — RUBY + C23 NATIVE DSP PIPELINE DEMO"
   puts "=================================================================="
 
   sample_rate = 96_000.0
@@ -320,7 +324,7 @@ end
 
 __END__
 // ============================================================================
-// INLINE C11 DSP ENGINE KERNEL (Zero-Malloc Hot Loop, Arena Architecture)
+// INLINE C23 DSP ENGINE KERNEL (Zero-Malloc Hot Loop, Arena Architecture)
 // ============================================================================
 #include <stdint.h>
 #include <stddef.h>

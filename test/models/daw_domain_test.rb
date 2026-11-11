@@ -244,4 +244,12 @@ class DawDomainTest < ActiveSupport::TestCase
     assert_includes track_clip.automation_lanes, clip_lane
     assert_equal points_binary, track_lane.reload.points_binary
   end
+
+  test "SaanskaraDsp compiles with C23 standard and executes apply_golden_ratio" do
+    assert_equal 202311, SaanskaraDsp.c_standard_version
+    result = SaanskaraDsp.apply_golden_ratio(0.5, 1)
+    assert_in_delta 0.8090169943749475, result, 1e-9
+    result_10 = SaanskaraDsp.apply_golden_ratio(0.5, 10)
+    assert_in_delta 0.8090169943749475, result_10, 1e-9
+  end
 end
