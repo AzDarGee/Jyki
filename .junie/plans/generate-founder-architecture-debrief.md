@@ -90,6 +90,12 @@ The Jyki repository is a **Ruby on Rails 8.1.4** (`Ruby 4.0.9`) application comb
 2. **Code-Grounded Analogies:** Pair every technical concept with (a) a vivid studio analogy, (b) why it matters for Saanskara's product/finances/performance, and (c) the exact file path, class, method name, and database column/constraint in the repository.
 3. **Visual Flowcharts & Diagrams:** Use Mermaid and clean ASCII diagrams for the 3-Layer Architecture, Database Entity-Relationship model, Dual-Speed CRDT Collaboration flow, and CSS Pipeline so the Founder can grasp complex data flows at a glance.
 
+### Proposed Changes
+Create `debrief.md` in the repository root structured into the 9 required architectural sections:
+- **Sections 1–3 (Architecture, DAW Glossary, and Database Schema):** Introduce Jyki's 3-layer Rails 8.1.4 + Hotwire + `<canvas>` + WebAudio architecture, translate the 6 core DAW concepts (`PPQN`, `Sample Rate & Frames`, `AudioSample`/`MidiClip` vs. `TrackClip`, unified `tracks` table with `deck_number: 1..6`, `automation_lanes`, and `waveform_peaks_binary`) using studio analogies, and walk through all 10 domain tables plus the PostgreSQL Solid Trifecta tables (`solid_cable_messages`, `solid_cache_entries`, `solid_queue_*`) with an ER diagram.
+- **Sections 4–5 (CRDT Collaboration & Frontend Lifecycles):** Document the field-level Last-Write-Wins Element-Set CRDT engine (`CrdtSyncEngine.apply_delta!`), Hybrid Logical Clocks (`crdt_clock.js`), tombstones, and two-speed networking (`ephemeral_telemetry` vs. `crdt_delta` over `StudioSyncChannel`), followed by step-by-step lifecycles for the 4 core user actions across the 10 Stimulus controllers.
+- **Sections 6–9 (Raga Theme Engine, Telemetry & Native DSP, Repository Map, and Founder's Playbook):** Document the zero-Node `grass` + Tailwind v4 CSS pipeline (`bin/css-pipeline`, `bin/scss-new`, `_theme_engine.scss`), request telemetry (`saanskara_telemetry.rb`), native C11/Fiddle DSP (`app/lib/saanskara_dsp.rb`, `ext/saanskara_dsp/fast_math.c`, `research/dsp/`), Coolify + self-hosted Supabase deployment (`config/database.yml`, `Dockerfile`, `config/deploy.yml`), a complete annotated file tree, and the Founder's "Where Do I Go To Change X?" cheat sheet and next engineering milestones.
+
 ### Data Models / Contracts
 `debrief.md` will document the following core contracts and formulas directly from the codebase:
 - **Musical Time Conversion (`Project`, `TrackClip`, `daw_timeline_controller.js`):**
@@ -178,14 +184,14 @@ Because this task produces a technical architecture guide (`debrief.md`) without
 
 # Delivery Steps
 
-### * Step 1: Author Executive Summary, DAW Glossary, and Database Tour (Sections 1–3)
+### ✓ Step 1: Author Executive Summary, DAW Glossary, and Database Tour (Sections 1–3)
 `debrief.md` exists in the repository root with completed Sections 1, 2, and 3 covering the 3-layer system architecture, plain-English DAW glossary, and full PostgreSQL schema tour.
 
 - Create `debrief.md` in the project root and author **Section 1 (Executive Summary: What Jyki Is & How the Engine Works)** explaining Jyki's dual identity (Multi-Track DAW + 6-Deck Live DJ Workstation) on Rails 8.1.4 without React/Next.js bloat, complete with a Mermaid diagram of the 3 Layers: Browser Stage (`<canvas>`, Stimulus, WebAudio, `--saanskara-*` CSS tokens), Real-Time Nervous System (`Solid Cable` + `CrdtSyncEngine` + HLC), and The Vault (PostgreSQL / Supabase).
 - Author **Section 2 (The "DAW Concepts Translated for Founders" Glossary)** with a reference table and studio analogies for PPQN (`960` ticks, `start_tick`, `duration_ticks`), Sample Rate (`48,000 Hz`, `total_frames`, `source_start_frame`), Master Blueprint vs. Timeline Placement (`AudioSample`/`MidiClip` vs. `TrackClip` non-destructive editing), unified `tracks` table (`audio`, `midi`, `instrument`, `stem`, `dj_deck`, `bus`, `master`, `deck_number: 1..6`), `automation_lanes` (`parameter_path`, `points_jsonb`, `points_binary`), and `waveform_peaks_binary` (`AudioSample#decoded_peaks`).
 - Author **Section 3 (Guided Tour of the Database)** walking through all 10 application tables (`projects`, `tracks`, `audio_samples`, `midi_clips`, `track_clips`, `automation_lanes`, `crdt_branches`, `project_collaborators`, `studio_chat_messages`, `users`) plus the Solid Trifecta tables (`solid_cable_messages`, `solid_cache_entries`, `solid_queue_*`), complete with a Mermaid ER diagram and foreign-key deletion rules (`on_delete: :restrict` on `audio_samples` vs. `:cascade` on `tracks`/`track_clips`).
 
-###   Step 2: Author CRDT Collaboration Engine and Frontend Action Lifecycles (Sections 4–5)
+### ✓ Step 2: Author CRDT Collaboration Engine and Frontend Action Lifecycles (Sections 4–5)
 `debrief.md` includes Sections 4 and 5 detailing the HLC CRDT collaboration protocol, two-speed ActionCable networking, and step-by-step lifecycles for the 4 core user actions.
 
 - Author **Section 4 (How the Real-Time Multi-User Collaboration Works)** using the Ottawa-to-Mumbai concurrent edit scenario to explain Hybrid Logical Clocks (`<13-digit-wall-ms>-<4-hex-counter>-<node_id>`) in `app/javascript/lib/crdt_clock.js` and `app/services/crdt_sync_engine.rb`, field-level `state_jsonb["hlc"]` conflict resolution, tombstone deletion protection (`state_jsonb["tombstones"]`), and two-speed networking (`ephemeral_telemetry` at ~28fps vs. persistent `crdt_delta` on `StudioSyncChannel`).
@@ -193,7 +199,7 @@ Because this task produces a technical architecture guide (`debrief.md`) without
 - Author **Section 5 (The Frontend Architecture: Canvas, WebAudio & Stimulus)** explaining how `app/views/workstation/index.html.erb` (and legacy `app/views/home/index.html.erb`) coordinate the 10 Stimulus controllers (`workstation`, `daw_timeline`, `dj_deck`, `dj_beatgrid`, `mixer`, `crdt_sync`, `right_sidebar`, `auth_drawer`, `theme_bootstrap`, `studio`).
 - Document the step-by-step lifecycle (Click -> Stimulus -> Canvas/WebAudio -> ActionCable/Controller -> PostgreSQL) for the 4 everyday actions: (1) Pressing Play on the Transport Bar, (2) Dragging a Clip to a new bar on the DAW Canvas, (3) Muting a track or adjusting Volume/Pan, and (4) Switching between DAW Timeline Mode and 6-Deck DJ Mode.
 
-###   Step 3: Author Theme Engine, Telemetry/Deployment, Repo Map, and Playbook (Sections 6–9)
+### ✓ Step 3: Author Theme Engine, Telemetry/Deployment, Repo Map, and Playbook (Sections 6–9)
 `debrief.md` is completed with Sections 6, 7, 8, and 9 covering the Raga SCSS/Tailwind pipeline, telemetry and deployment configuration, full repository file map, and Founder's Playbook.
 
 - Author **Section 6 (The Raga Theme Engine & Lean CSS Pipeline)** detailing the zero-Node compilation flow (`grass` -> `app/assets/tailwind/scss_compiled.css` -> `@tailwindcss/cli` v4 -> `app/assets/builds/tailwind.css` -> Propshaft), how `_theme_engine.scss` emits `--saanskara-*` CSS variables read by `<canvas>` at 60fps across `midnight`, `saffron`, and `frost`, and the 2-step `bin/scss-new` recipe.
