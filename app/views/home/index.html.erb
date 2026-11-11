@@ -743,7 +743,7 @@
       </div>
     </div>
     <!-- SAANSKARA DEAR IMGUI + IMPLOT + IMGUI-KNOBS WASM RACK -->
-    <div class="daw-panel mt-6" data-controller="imgui-synth">
+    <div class="daw-panel mt-6" data-controller="nano-synth">
       <div class="flex items-center justify-between mb-3">
         <div>
           <h2 class="text-sm font-bold uppercase tracking-wider">
@@ -753,15 +753,15 @@
             Rendered natively on the GPU by <code>Dear ImGui + ImPlot + imgui-knobs</code> inside a Rails 8 <code>&lt;canvas&gt;</code>!
           </p>
         </div>
-        <span data-imgui-synth-target="readout"
+        <span data-nano-synth-target="readout"
               class="px-3 py-1 rounded font-mono text-xs"
               style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
       root_hz: 240.00
     </span>
       </div>
 
-      <canvas id="imgui-synth-canvas"
-              data-imgui-synth-target="canvas"
+      <canvas id="nano-synth-canvas"
+              data-nano-synth-target="canvas"
               class="w-full h-56 rounded-lg block cursor-crosshair"
               style="border: 1px solid var(--saanskara-border-subtle); touch-action: none">
       </canvas>
