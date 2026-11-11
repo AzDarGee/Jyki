@@ -89,21 +89,21 @@
 .daw-transport-bar {
   background-color: theme("bg-surface");
   border-bottom: 1px solid theme("border-subtle");
-  @apply flex flex-wrap items-center justify-between px-6 py-3 gap-4;
+  @apply flex flex-wrap items-center justify-between px-3 sm:px-6 py-2.5 sm:py-3 gap-2.5 sm:gap-4;
 }
 
 .daw-lcd-readout {
   background-color: theme("bg-canvas");
   border: 1px solid theme("border-subtle");
   color: theme("accent-primary");
-  @apply flex items-center gap-4 px-4 py-1.5 rounded-md font-mono text-sm tracking-wider shadow-inner;
+  @apply flex flex-wrap items-center gap-2 sm:gap-4 px-2.5 sm:px-4 py-1.5 rounded-md font-mono text-xs sm:text-sm tracking-wider shadow-inner max-w-full;
 }
 
 .theme-pill-btn {
   background-color: theme("bg-panel");
   border: 1px solid theme("border-subtle");
   color: theme("text-muted");
-  @apply px-3 py-1.5 rounded-md text-xs font-semibold tracking-wide cursor-pointer transition-all;
+  @apply px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold tracking-wide cursor-pointer transition-all whitespace-nowrap;
 
   &:hover, &[aria-pressed="true"], &[aria-selected="true"] {
     color: theme("text-main");

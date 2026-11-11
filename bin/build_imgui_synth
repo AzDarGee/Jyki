@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Usage: bin/build-imgui-synth
+
+require "fileutils"
+
+ROOT       = File.expand_path("..", __dir__)
+VENDOR_DIR = File.join(ROOT, "tmp/vendor_imgui")
+SRC_FILE   = File.join(ROOT, "ext/imgui_synth/saanskara_imgui_synth.cpp")
+OUT_DIR    = File.join(ROOT, "public/wasm")
+
+FileUtils.mkdir_p(VENDOR_DIR)
+FileUtils.mkdir_p(OUT_DIR)
+
+unless system("which emcc > /dev/null 2>&1")
+  abort "❌ Emscripten (`emcc`) not found! Install it in 10 seconds with: brew install emscripten"
+end
+
+repos = {
+  "imgui"       => ["https://github.com/ocornut/imgui.git", "v1.91.5"],
+  "implot"      => ["https://github.com/epezent/implot.git", "v0.16"],
+  "imgui-knobs" => ["https://github.com/altschuler/imgui-knobs.git", "main"]
+}
+
+repos.each do |name, (url, branch)|
+  target = File.join(VENDOR_DIR, name)
+  unless Dir.exist?(target)
+    puts "⬇️  Fetching #{name} (#{branch})..."
+    system("git", "clone", "--depth", "1", "-b", branch, url, target, exception: true)
+  end
+end
+
+cpp_sources = [
+  SRC_FILE,
+  "#{VENDOR_DIR}/imgui/imgui.cpp",
+  "#{VENDOR_DIR}/imgui/imgui_draw.cpp",
+  "#{VENDOR_DIR}/imgui/imgui_tables.cpp",
+  "#{VENDOR_DIR}/imgui/imgui_widgets.cpp",
+  "#{VENDOR_DIR}/imgui/backends/imgui_impl_opengl3.cpp",
+  "#{VENDOR_DIR}/implot/implot.cpp",
+  "#{VENDOR_DIR}/implot/implot_items.cpp",
+  "#{VENDOR_DIR}/imgui-knobs/imgui-knobs.cpp"
+]
+
+includes = [
+  "-I#{VENDOR_DIR}/imgui",
+  "-I#{VENDOR_DIR}/imgui/backends",
+  "-I#{VENDOR_DIR}/implot",
+  "-I#{VENDOR_DIR}/imgui-knobs"
+]
+
+exported_fns = %w[
+  _init_saanskara_imgui
+  _imgui_apply_raga_theme
+  _imgui_set_canvas_size
+  _imgui_on_mouse_move
+  _imgui_on_mouse_button
+  _imgui_on_mouse_wheel
+]
+
+puts "🦀⚡ Compiling Dear ImGui + ImPlot + imgui-knobs -> public/wasm/saanskara_synth.wasm..."
+cmd = [
+  "emcc", "-O3", *cpp_sources, *includes,
+  "-s", "USE_WEBGL2=1",
+  "-s", "FULL_ES3=1",
+  "-s", "ALLOW_MEMORY_GROWTH=1",
+  "-s", "MODULARIZE=1",
+  "-s", "EXPORT_NAME='createSaanskaraSynthModule'",
+  "-s", "EXPORTED_FUNCTIONS=#{exported_fns.inspect.delete(' ')}",
+  "-s", "EXPORTED_RUNTIME_METHODS=['ccall','cwrap','UTF8ToString']",
+  "-o", File.join(OUT_DIR, "saanskara_synth.js")
+]
+
+system(*cmd, exception: true)
+puts "✅ Built #{OUT_DIR}/saanskara_synth.wasm & saanskara_synth.js!"

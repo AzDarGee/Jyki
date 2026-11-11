@@ -22,16 +22,16 @@ body,
   background-color: theme("bg-canvas");
   color: theme("text-main");
   transition: background-color $daw-transition-speed ease, color $daw-transition-speed ease;
-  @apply w-full min-h-screen flex flex-col select-none font-sans;
+  @apply w-full h-screen min-h-screen overflow-y-auto overflow-x-hidden flex flex-col select-none font-sans;
 
   .daw-workspace {
-    @apply flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 p-6;
+    @apply flex-1 grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-6 p-3 sm:p-6;
   }
 
   .daw-panel {
     background-color: theme("bg-surface");
     border: 1px solid theme("border-subtle");
-    @apply rounded-xl p-5 flex flex-col justify-between shadow-lg transition-colors;
+    @apply rounded-xl p-3 sm:p-5 flex flex-col justify-between shadow-lg transition-colors min-w-0;
   }
 }
 

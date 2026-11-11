@@ -6,7 +6,7 @@
   current_handle = current_user&.username.presence || "saanskara"
   current_role = (current_user&.role.presence || "OWNER").upcase
 %>
-<div class="daw-pwa-shell"
+<div class="daw-pwa-shell w-full h-screen min-h-screen overflow-y-auto overflow-x-hidden flex flex-col"
      id="saanskara-daw"
      data-controller="studio crdt-sync"
      data-theme="<%= @project.theme_name %>"
@@ -19,21 +19,21 @@
      data-crdt-sync-branch-vector-value="<%= active_branch&.delta_vector %>">
 
   <!-- 1. TOP TRANSPORT, WORKSPACE MODE & RAGA THEME BAR -->
-  <header class="daw-transport-bar">
-    <div class="flex flex-wrap items-center gap-3">
-      <span class="w-3 h-3 rounded-full animate-pulse" style="background-color: var(--saanskara-accent-alert)"></span>
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="font-bold tracking-wider uppercase text-sm">Saanskara Studio DAW</span>
-          <span class="text-xs px-2 py-0.5 rounded font-mono"
+  <header class="daw-transport-bar px-3 sm:px-6 py-2.5 sm:py-3 gap-2.5 sm:gap-4">
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full xl:w-auto min-w-0">
+      <span class="w-3 h-3 shrink-0 rounded-full animate-pulse" style="background-color: var(--saanskara-accent-alert)"></span>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span class="font-bold tracking-wider uppercase text-xs sm:text-sm">Saanskara Studio DAW</span>
+          <span class="text-xs px-2 py-0.5 rounded font-mono truncate max-w-full"
                 style="background-color: var(--saanskara-bg-panel); color: var(--saanskara-accent-primary)"
                 data-studio-target="projectName">
             <%= @project.name %>
           </span>
         </div>
-        <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono mt-0.5" style="color: var(--saanskara-text-muted)">
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-mono mt-0.5" style="color: var(--saanskara-text-muted)">
           <span data-studio-target="saveStatus">✓ Saved • <%= @project.ppqn %> PPQN</span>
-          <span>•</span>
+          <span class="hidden sm:inline">•</span>
           <span id="hardware-telemetry-badge"
                 class="px-1.5 py-0.5 rounded font-semibold"
                 style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary); border: 1px solid var(--saanskara-border-subtle)"
@@ -41,7 +41,7 @@
                 title="Live WebAudio Hardware Telemetry (Sample Rate • Base Latency • Discrete Channels)">
             <%= @project.sample_rate / 1000 %>kHz • 2.7ms • 2ch
           </span>
-          <span class="px-1.5 py-0.5 rounded text-[10px]"
+          <span class="px-1.5 py-0.5 rounded text-[10px] hidden sm:inline-block"
                 style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-text-muted); border: 1px solid var(--saanskara-border-subtle)"
                 data-studio-target="routingBusBadge"
                 title="Ch 1-2 Master Out • Ch 3-4 DJ Headphone Cue Out">
@@ -56,37 +56,39 @@
     </div>
 
     <!-- Transport Controls + Digital LCD Clock -->
-    <div class="flex flex-wrap items-center gap-2">
-      <button type="button"
-              id="toggle-playhead"
-              class="theme-pill-btn"
-              aria-pressed="true"
-              data-studio-target="playButton"
-              data-action="click->studio#togglePlay">
-        ⏸ Pause
-      </button>
-      <button type="button"
-              class="theme-pill-btn"
-              data-action="click->studio#stopTransport">
-        ⏹ Stop
-      </button>
-      <button type="button"
-              class="theme-pill-btn"
-              aria-pressed="true"
-              data-studio-target="loopButton"
-              data-action="click->studio#toggleLoop">
-        🔁 Loop 8B
-      </button>
-      <button type="button"
-              class="theme-pill-btn"
-              aria-pressed="false"
-              data-studio-target="synthButton"
-              data-action="click->studio#toggleSynth">
-        🔈 Synth Mute
-      </button>
+    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full xl:w-auto">
+      <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
+        <button type="button"
+                id="toggle-playhead"
+                class="theme-pill-btn text-center justify-center"
+                aria-pressed="true"
+                data-studio-target="playButton"
+                data-action="click->studio#togglePlay">
+          ⏸ Pause
+        </button>
+        <button type="button"
+                class="theme-pill-btn text-center justify-center"
+                data-action="click->studio#stopTransport">
+          ⏹ Stop
+        </button>
+        <button type="button"
+                class="theme-pill-btn text-center justify-center"
+                aria-pressed="true"
+                data-studio-target="loopButton"
+                data-action="click->studio#toggleLoop">
+          🔁 Loop 8B
+        </button>
+        <button type="button"
+                class="theme-pill-btn text-center justify-center"
+                aria-pressed="false"
+                data-studio-target="synthButton"
+                data-action="click->studio#toggleSynth">
+          🔈 Synth Mute
+        </button>
+      </div>
 
       <!-- Digital Transport LCD -->
-      <div class="daw-lcd-readout">
+      <div class="daw-lcd-readout flex-wrap w-full sm:w-auto gap-2 sm:gap-4 px-2.5 sm:px-4 text-xs sm:text-sm">
         <label class="flex items-center gap-1.5">
           <span>BPM</span>
           <input type="number"
@@ -97,12 +99,12 @@
                  aria-label="Project BPM"
                  data-studio-target="bpmInput"
                  data-action="input->studio#changeBpm change->studio#changeBpm"
-                 class="w-16 bg-transparent font-bold text-center border rounded px-1 py-0.5"
+                 class="w-14 sm:w-16 bg-transparent font-bold text-center border rounded px-1 py-0.5"
                  style="border-color: var(--saanskara-border-subtle); color: var(--saanskara-accent-primary)" />
         </label>
-        <span class="opacity-40">|</span>
+        <span class="opacity-40 hidden sm:inline">|</span>
         <span>TAAL <strong><%= @project.time_signature_numerator %>/<%= @project.time_signature_denominator %></strong></span>
-        <span class="opacity-40">|</span>
+        <span class="opacity-40 hidden sm:inline">|</span>
         <label class="flex items-center gap-1">
           <span>RAGA</span>
           <select aria-label="Project Scale"
@@ -117,28 +119,28 @@
             <% end %>
           </select>
         </label>
-        <span class="opacity-40">|</span>
-        <label class="flex items-center gap-1" title="Hardware Audio Output Sink (CoreAudio / WASAPI)">
+        <span class="opacity-40 hidden md:inline">|</span>
+        <label class="flex items-center gap-1 min-w-0 max-w-full" title="Hardware Audio Output Sink (CoreAudio / WASAPI)">
           <span>OUT</span>
           <select id="hardware-audio-output-select"
                   aria-label="Hardware Audio Output Device"
                   data-studio-target="audioOutputSelect"
                   data-action="focus->studio#refreshAudioOutputDevices change->studio#changeAudioOutputDevice"
-                  class="bg-transparent font-bold text-xs cursor-pointer max-w-[160px] truncate"
+                  class="bg-transparent font-bold text-xs cursor-pointer max-w-[120px] sm:max-w-[160px] truncate"
                   style="color: var(--saanskara-accent-primary)">
             <option value="" style="background-color: #121110">Default Audio Out (CoreAudio / WASAPI)</option>
           </select>
         </label>
-        <span class="opacity-40">|</span>
-        <span id="playhead-clock" data-studio-target="clockReadout">001 : 01 : 000</span>
+        <span class="opacity-40 hidden sm:inline">|</span>
+        <span id="playhead-clock" class="whitespace-nowrap ml-auto sm:ml-0" data-studio-target="clockReadout">001 : 01 : 000</span>
       </div>
     </div>
 
     <!-- Workspace Mode Switcher & Raga Theme Switcher -->
-    <div class="flex flex-wrap items-center gap-3">
-      <div class="flex items-center gap-1.5" role="group" aria-label="Workspace Mode Switcher">
+    <div class="flex flex-wrap items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full xl:w-auto">
+      <div class="flex flex-wrap items-center gap-1 sm:gap-1.5 w-full sm:w-auto" role="group" aria-label="Workspace Mode Switcher">
         <button type="button"
-                class="theme-pill-btn"
+                class="theme-pill-btn flex-1 sm:flex-initial text-center"
                 data-studio-target="modeButton"
                 data-workspace-mode="daw"
                 aria-pressed="<%= @project.workspace_mode == 'daw' %>"
@@ -146,7 +148,7 @@
           🎛️ DAW Timeline
         </button>
         <button type="button"
-                class="theme-pill-btn"
+                class="theme-pill-btn flex-1 sm:flex-initial text-center"
                 data-studio-target="modeButton"
                 data-workspace-mode="dj_6deck"
                 aria-pressed="<%= @project.workspace_mode == 'dj_6deck' %>"
@@ -154,7 +156,7 @@
           💿 6-Deck DJ
         </button>
         <button type="button"
-                class="theme-pill-btn"
+                class="theme-pill-btn flex-1 sm:flex-initial text-center"
                 data-studio-target="modeButton"
                 data-workspace-mode="hybrid"
                 aria-pressed="<%= @project.workspace_mode == 'hybrid' %>"
@@ -163,9 +165,9 @@
         </button>
       </div>
 
-      <div class="flex items-center gap-1.5" role="group" aria-label="Studio Theme Switcher">
+      <div class="flex flex-wrap items-center gap-1 sm:gap-1.5 w-full sm:w-auto" role="group" aria-label="Studio Theme Switcher">
         <button type="button"
-                class="theme-pill-btn"
+                class="theme-pill-btn flex-1 sm:flex-initial text-center"
                 data-studio-target="themeButton"
                 data-set-theme="midnight"
                 aria-pressed="<%= @project.theme_name == 'midnight' %>"
@@ -173,7 +175,7 @@
           🌙 Midnight
         </button>
         <button type="button"
-                class="theme-pill-btn"
+                class="theme-pill-btn flex-1 sm:flex-initial text-center"
                 data-studio-target="themeButton"
                 data-set-theme="saffron"
                 aria-pressed="<%= @project.theme_name == 'saffron' %>"
@@ -181,7 +183,7 @@
           🔥 Saffron
         </button>
         <button type="button"
-                class="theme-pill-btn"
+                class="theme-pill-btn flex-1 sm:flex-initial text-center"
                 data-studio-target="themeButton"
                 data-set-theme="frost"
                 aria-pressed="<%= @project.theme_name == 'frost' %>"
@@ -192,9 +194,9 @@
     </div>
 
     <!-- CRDT & Collaborator Presence Strip -->
-    <div id="crdt-presence-strip" class="crdt-presence-strip w-full flex flex-wrap items-center justify-between gap-3 pt-2 mt-1 border-t text-xs font-mono"
+    <div id="crdt-presence-strip" class="crdt-presence-strip w-full flex flex-wrap items-center justify-between gap-2 sm:gap-3 pt-2 mt-1 border-t text-xs font-mono"
          style="border-color: var(--saanskara-border-subtle)">
-      <div class="flex flex-wrap items-center gap-2.5">
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2.5 min-w-0 max-w-full">
         <!-- Live Connection Status Badge -->
         <span class="crdt-connection-badge"
               data-crdt-sync-target="connectionBadge"
@@ -204,20 +206,20 @@
         </span>
 
         <!-- HLC Watermark Indicator -->
-        <span class="px-2 py-0.5 rounded text-[11px]"
+        <span class="px-2 py-0.5 rounded text-[10px] sm:text-[11px] truncate max-w-full"
               data-crdt-sync-target="hlcWatermark"
               style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-text-muted); border: 1px solid var(--saanskara-border-subtle)">
           HLC 000000-0000
         </span>
 
         <!-- Active CrdtBranch Selector & Snapshot Fork Button -->
-        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded"
+        <div class="flex flex-wrap items-center gap-1.5 px-2 py-0.5 rounded min-w-0 max-w-full"
              style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
           <span class="text-[10px] uppercase tracking-wider" style="color: var(--saanskara-text-muted)">Branch</span>
           <select aria-label="Active CRDT Branch"
                   data-crdt-sync-target="branchSelect"
                   data-action="change->crdt-sync#switchBranch"
-                  class="bg-transparent font-bold text-xs cursor-pointer"
+                  class="bg-transparent font-bold text-xs cursor-pointer max-w-[140px] sm:max-w-none truncate"
                   style="color: var(--saanskara-accent-primary)">
             <% branches.each do |branch| %>
               <option value="<%= branch.name %>" <%= "selected" if active_branch&.id == branch.id %> style="background-color: #121110">
@@ -225,7 +227,7 @@
               </option>
             <% end %>
           </select>
-          <span class="text-[10px] opacity-75" data-crdt-sync-target="branchVectorLabel">
+          <span class="text-[10px] opacity-75 hidden sm:inline" data-crdt-sync-target="branchVectorLabel">
             <%= active_branch&.delta_vector.to_s[0, 14] %>
           </span>
           <button type="button"
@@ -238,7 +240,7 @@
       </div>
 
       <!-- Live Collaborator Avatars + Collaboration Drawer Toggle -->
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
         <span class="text-[10px] uppercase tracking-wider"
               data-crdt-sync-target="peerCountBadge"
               style="color: var(--saanskara-text-muted)">
@@ -246,7 +248,7 @@
         </span>
 
         <!-- Seeded ProjectCollaborator Roster Pills + Dynamic WebSocket Peers -->
-        <div class="flex items-center gap-1.5">
+        <div class="flex flex-wrap items-center gap-1.5">
           <% collaborators.each_with_index do |collab, idx| %>
             <% pill_color = [ "#10b981", "#38bdf8", "#a855f7", "#ec4899" ][idx % 4] %>
             <span class="crdt-peer-pill"
@@ -255,14 +257,14 @@
               <span class="crdt-peer-avatar" style="background-color: <%= pill_color %>">
                 <%= collab.username.to_s[0, 2].upcase %>
               </span>
-              <span class="crdt-peer-handle"><%= collab.username %></span>
+              <span class="crdt-peer-handle hidden sm:inline"><%= collab.username %></span>
             </span>
           <% end %>
-          <div class="flex items-center gap-1.5" data-crdt-sync-target="presenceStrip"></div>
+          <div class="flex flex-wrap items-center gap-1.5" data-crdt-sync-target="presenceStrip"></div>
         </div>
 
         <button type="button"
-                class="theme-pill-btn !px-2.5 !py-1 !text-[11px]"
+                class="theme-pill-btn !px-2.5 !py-1 !text-[11px] w-full sm:w-auto text-center"
                 aria-expanded="true"
                 data-crdt-sync-target="drawerToggleButton"
                 data-action="click->crdt-sync#toggleDrawer">
@@ -273,14 +275,14 @@
   </header>
 
   <!-- 2. DAW ARRANGEMENT WORKSPACE -->
-  <section class="daw-workspace <%= 'hidden' if @project.workspace_mode == 'dj_6deck' %>"
+  <section class="daw-workspace p-3 sm:p-6 gap-3 sm:gap-6 <%= 'hidden' if @project.workspace_mode == 'dj_6deck' %>"
            id="daw-arrangement-panel"
            data-studio-target="dawWorkspace">
 
     <!-- Left Column: Database Track Headers, Mixer Controls & Live CSS Token Inspector -->
-    <aside class="daw-panel lg:col-span-1">
+    <aside class="daw-panel p-3 sm:p-5 lg:col-span-1 min-w-0">
       <div>
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h2 class="text-xs font-bold uppercase tracking-widest" style="color: var(--saanskara-text-muted)">
             Active Tracks (<%= @tracks.size %>)
           </h2>
@@ -302,13 +304,13 @@
 
         <div id="studio-track-list" data-studio-target="trackList">
           <% @tracks.each do |track| %>
-            <div class="track-row <%= 'armed' if track.armed? %>"
+            <div class="track-row flex-wrap sm:flex-nowrap gap-2 <%= 'armed' if track.armed? %>"
                  data-track-row-id="<%= track.id %>"
                  style="border-left-color: <%= track.color_hex %>">
-              <div class="flex-1 min-w-0 pr-2">
+              <div class="flex-1 min-w-0 sm:pr-2">
                 <div class="flex items-center justify-between gap-1">
                   <span class="font-semibold truncate text-xs"><%= track.name %></span>
-                  <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-mono"
+                  <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-mono shrink-0"
                         style="background-color: var(--saanskara-bg-canvas); color: <%= track.color_hex %>">
                     <%= track.track_type %>
                   </span>
@@ -349,7 +351,7 @@
                 </div>
               </div>
 
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 shrink-0">
                 <button type="button"
                         class="daw-msr-btn <%= 'is-active' if track.muted? %>"
                         title="Mute Track"
@@ -381,35 +383,35 @@
       <div class="mt-4 pt-3 border-t text-xs font-mono space-y-1.5"
            style="border-color: var(--saanskara-border-subtle); color: var(--saanskara-text-muted)">
         <div class="uppercase font-bold mb-1">Live CSS Custom Props:</div>
-        <div class="flex justify-between">
-          <span>--saanskara-bg-canvas:</span>
+        <div class="flex justify-between gap-2">
+          <span class="truncate">--saanskara-bg-canvas:</span>
           <span id="token-bg"
                 data-studio-target="tokenBg"
-                class="font-bold"
+                class="font-bold shrink-0"
                 style="color: var(--saanskara-accent-primary)">#0b0a09</span>
         </div>
-        <div class="flex justify-between">
-          <span>--saanskara-accent-primary:</span>
+        <div class="flex justify-between gap-2">
+          <span class="truncate">--saanskara-accent-primary:</span>
           <span id="token-accent"
                 data-studio-target="tokenAccent"
-                class="font-bold"
+                class="font-bold shrink-0"
                 style="color: var(--saanskara-accent-primary)">#f59e0b</span>
         </div>
       </div>
     </aside>
 
     <!-- Right Column (3 cols): Multi-Track DAW Arrangement Timeline & Live HTML5 Canvas -->
-    <div class="daw-panel lg:col-span-3">
+    <div class="daw-panel p-3 sm:p-5 lg:col-span-3 min-w-0">
       <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div>
-          <h1 class="text-base font-bold">Multi-Track Arrangement Canvas (`960 PPQN` • Bars 1–8)</h1>
-          <p class="text-xs" style="color: var(--saanskara-text-muted)">
+        <div class="min-w-0">
+          <h1 class="text-sm sm:text-base font-bold">Multi-Track Arrangement Canvas (`960 PPQN` • Bars 1–8)</h1>
+          <p class="text-[11px] sm:text-xs" style="color: var(--saanskara-text-muted)">
             Click the top ruler to scrub playhead • Drag clips horizontally to move (`PATCH /track_clips/:id`) • Double-click an empty lane to create a 1-bar clip (`POST /tracks/:track_id/track_clips`).
           </p>
         </div>
 
-        <div class="flex items-center gap-3 text-xs font-mono">
-          <label class="flex items-center gap-1.5">
+        <div class="flex items-center gap-3 text-xs font-mono w-full sm:w-auto">
+          <label class="flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto">
             <span style="color: var(--saanskara-text-muted)">Master Vol:</span>
             <input type="range"
                    min="-18"
@@ -419,8 +421,8 @@
                    aria-label="Master Volume dB"
                    data-studio-target="masterVolumeInput"
                    data-action="input->studio#changeMasterVolume"
-                   class="w-20 accent-amber-500 cursor-pointer" />
-            <span data-studio-target="masterVolumeDisplay" style="color: var(--saanskara-accent-primary)">
+                   class="flex-1 sm:flex-initial sm:w-20 accent-amber-500 cursor-pointer" />
+            <span data-studio-target="masterVolumeDisplay" class="shrink-0" style="color: var(--saanskara-accent-primary)">
               <%= @project.master_volume_db >= 0 ? "+#{@project.master_volume_db.round(1)}" : @project.master_volume_db.round(1) %> dB
             </span>
           </label>
@@ -428,7 +430,7 @@
       </div>
 
       <!-- The SCSS Grid + Multi-Track HTML5 Arrangement Canvas -->
-      <div class="daw-canvas-stage"
+      <div class="daw-canvas-stage overflow-x-auto overflow-y-hidden"
            id="timeline-stage"
            data-studio-target="timelineStage">
         <div class="playhead-line"
@@ -438,25 +440,25 @@
         <canvas id="waveform-canvas"
                 data-studio-target="timelineCanvas"
                 data-action="pointerdown->studio#onCanvasPointerDown pointermove->studio#onCanvasHoverMove dblclick->studio#onCanvasDoubleClick"
-                class="w-full block cursor-crosshair"></canvas>
+                class="w-full min-w-[640px] sm:min-w-0 block cursor-crosshair touch-none"></canvas>
       </div>
 
       <!-- Bottom Telemetry & Automation Summary Bar -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t text-xs font-mono"
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mt-4 pt-4 border-t text-xs font-mono"
            style="border-color: var(--saanskara-border-subtle)">
-        <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
+        <div class="p-2.5 sm:p-3 rounded min-w-0" style="background-color: var(--saanskara-bg-canvas)">
           <span style="color: var(--saanskara-text-muted)">ENGINE & PIPELINE:</span>
-          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">
+          <strong class="block mt-1 break-words" style="color: var(--saanskara-accent-primary)">
             PostgreSQL JSONB/BYTEA → Canvas2D + WebAudio
           </strong>
         </div>
-        <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
+        <div class="p-2.5 sm:p-3 rounded min-w-0" style="background-color: var(--saanskara-bg-canvas)">
           <span style="color: var(--saanskara-text-muted)">AUTOMATION LANES:</span>
-          <strong class="block mt-1" style="color: var(--saanskara-accent-primary)">
+          <strong class="block mt-1 break-words" style="color: var(--saanskara-accent-primary)">
             <%= @project.automation_lanes.size %> Active (<%= @project.automation_lanes.map(&:parameter_path).join(", ") %>)
           </strong>
         </div>
-        <div class="p-3 rounded" style="background-color: var(--saanskara-bg-canvas)">
+        <div class="p-2.5 sm:p-3 rounded min-w-0" style="background-color: var(--saanskara-bg-canvas)">
           <span style="color: var(--saanskara-text-muted)">ACTIVE RAGA THEME:</span>
           <strong id="active-theme-label"
                   data-studio-target="activeThemeLabel"
@@ -468,24 +470,24 @@
   </section>
 
   <!-- 3. 6-DECK DJ WORKSTATION VIEW PANEL -->
-  <section class="px-6 pb-6 flex-1 flex flex-col gap-4 <%= 'hidden' if @project.workspace_mode == 'daw' %>"
+  <section class="px-3 sm:px-6 pb-4 sm:pb-6 flex-1 flex flex-col gap-3 sm:gap-4 <%= 'hidden' if @project.workspace_mode == 'daw' %>"
            id="dj-6deck-panel"
            data-studio-target="djWorkspace">
-    <div class="daw-panel">
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <div>
-          <h2 class="text-base font-bold uppercase tracking-wider">
+    <div class="daw-panel p-3 sm:p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 sm:gap-4 mb-4">
+        <div class="min-w-0">
+          <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider">
             💿 6-Deck Phase-Locked Raga DJ Workstation
           </h2>
-          <p class="text-xs" style="color: var(--saanskara-text-muted)">
+          <p class="text-[11px] sm:text-xs" style="color: var(--saanskara-text-muted)">
             6 independent decks mapped from PostgreSQL tracks (`deck_number: 1..6`) with live beatgrid waveforms, hot cues (`cue_points_jsonb`), pitch bend, and crossfader bus assignment.
           </p>
         </div>
 
         <!-- Master Crossfader -->
-        <div class="flex items-center gap-3 px-4 py-2 rounded-lg font-mono text-xs"
+        <div class="flex items-center justify-between sm:justify-start gap-3 px-3 sm:px-4 py-2 rounded-lg font-mono text-xs w-full sm:w-auto"
              style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
-          <span class="font-bold" style="color: var(--saanskara-accent-primary)">BUS A</span>
+          <span class="font-bold shrink-0" style="color: var(--saanskara-accent-primary)">BUS A</span>
           <input type="range"
                  min="-1"
                  max="1"
@@ -493,13 +495,13 @@
                  value="0"
                  aria-label="Master DJ Crossfader"
                  data-studio-target="crossfaderInput"
-                 class="w-32 accent-amber-500 cursor-pointer" />
-          <span class="font-bold" style="color: var(--saanskara-accent-cyan)">BUS B</span>
+                 class="flex-1 sm:flex-initial sm:w-32 accent-amber-500 cursor-pointer" />
+          <span class="font-bold shrink-0" style="color: var(--saanskara-accent-cyan)">BUS B</span>
         </div>
       </div>
 
       <!-- 6-Deck 3x2 Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
         <% @tracks.first(6).each_with_index do |track, idx| %>
           <% deck_num = track.deck_number || (idx + 1) %>
           <% primary_sample = track.track_clips.detect(&:audio_sample)&.audio_sample %>
@@ -515,13 +517,13 @@
             <!-- Deck Header -->
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0">
-                <span class="px-2 py-0.5 rounded text-xs font-mono font-bold text-black"
+                <span class="px-2 py-0.5 rounded text-xs font-mono font-bold text-black shrink-0"
                       style="background-color: <%= track.color_hex %>">
                   DECK <%= deck_num %>
                 </span>
-                <span class="font-bold text-sm truncate"><%= track.name %></span>
+                <span class="font-bold text-xs sm:text-sm truncate"><%= track.name %></span>
               </div>
-              <span class="text-xs font-mono px-2 py-0.5 rounded"
+              <span class="text-xs font-mono px-2 py-0.5 rounded shrink-0"
                     data-deck-bpm-label="<%= track.id %>"
                     style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
                 <%= (primary_sample&.detected_bpm || @project.bpm).to_f.round(2) %> BPM
@@ -579,7 +581,7 @@
                        class="w-16 accent-amber-500 cursor-pointer" />
               </label>
 
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1 ml-auto sm:ml-0">
                 <button type="button"
                         class="theme-pill-btn !px-2 !py-0.5 !text-[10px]"
                         data-track-id="<%= track.id %>"
@@ -601,18 +603,18 @@
   <!-- 4. COLLAPSIBLE STUDIO CHAT & CRDT VECTOR OPERATION LOG DRAWER -->
   <aside id="crdt-collab-drawer"
          data-crdt-sync-target="collabDrawer"
-         class="crdt-collab-drawer mx-6 mb-6 rounded-xl p-4"
+         class="crdt-collab-drawer mx-3 sm:mx-6 mb-4 sm:mb-6 rounded-xl p-3 sm:p-4"
          aria-label="Studio Collaboration & CRDT Telemetry Drawer">
-    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b"
+    <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pb-3 mb-3 border-b"
          style="border-color: var(--saanskara-border-subtle)">
-      <div class="flex items-center gap-2" role="tablist" aria-label="Collaboration Drawer Tabs">
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto" role="tablist" aria-label="Collaboration Drawer Tabs">
         <button type="button"
                 role="tab"
                 aria-selected="true"
                 data-drawer-tab="vector"
                 data-crdt-sync-target="tabButton"
                 data-action="click->crdt-sync#switchDrawerTab"
-                class="theme-pill-btn">
+                class="theme-pill-btn flex-1 sm:flex-initial text-center">
           📡 Live CRDT Vector Feed
           <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-mono"
                 data-crdt-sync-target="vectorCountBadge"
@@ -626,12 +628,12 @@
                 data-drawer-tab="chat"
                 data-crdt-sync-target="tabButton"
                 data-action="click->crdt-sync#switchDrawerTab"
-                class="theme-pill-btn">
+                class="theme-pill-btn flex-1 sm:flex-initial text-center">
           💬 Studio Chat & Collaborators (<%= collaborators.size %>)
         </button>
       </div>
 
-      <div class="flex items-center gap-2 text-xs font-mono" style="color: var(--saanskara-text-muted)">
+      <div class="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs font-mono" style="color: var(--saanskara-text-muted)">
         <span data-crdt-sync-target="pendingQueueBadge">0 Queued</span>
         <span>•</span>
         <span>LWW-Element-Map • Row-Locked HLC</span>
@@ -640,7 +642,7 @@
 
     <!-- TAB 1: Live CRDT Vector Feed -->
     <div data-crdt-sync-target="vectorTabPanel" class="space-y-2">
-      <div class="flex items-center justify-between text-[11px] font-mono" style="color: var(--saanskara-text-muted)">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono" style="color: var(--saanskara-text-muted)">
         <span>Real-time HLC (<code class="px-1 rounded">&lt;wall_ms&gt;-&lt;counter&gt;-&lt;node_id&gt;</code>) delta operations across connected studio nodes:</span>
         <span>30fps Ephemeral Cursors + Persistent LWW Registers</span>
       </div>
@@ -660,9 +662,9 @@
     </div>
 
     <!-- TAB 2: Studio Chat (studio_chat_messages) & Collaborators (project_collaborators) -->
-    <div data-crdt-sync-target="chatTabPanel" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div data-crdt-sync-target="chatTabPanel" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
       <!-- Left 2 Cols: Live Studio Room Chat -->
-      <div class="lg:col-span-2 flex flex-col gap-2">
+      <div class="lg:col-span-2 flex flex-col gap-2 min-w-0">
         <div data-crdt-sync-target="chatMessagesList"
              class="max-h-44 overflow-y-auto space-y-2 p-2.5 rounded"
              style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
@@ -674,28 +676,28 @@
                 </span>
                 <span><%= msg.sent_at_label %></span>
               </div>
-              <p class="text-xs mt-0.5 leading-snug"><%= msg.body %></p>
+              <p class="text-xs mt-0.5 leading-snug break-words"><%= msg.body %></p>
             </div>
           <% end %>
         </div>
 
-        <form data-action="submit->crdt-sync#sendChatMessage" class="flex items-center gap-2">
+        <form data-action="submit->crdt-sync#sendChatMessage" class="flex flex-wrap sm:flex-nowrap items-center gap-2">
           <input type="text"
                  placeholder="Broadcast message to studio collaborators..."
                  aria-label="Studio Chat Message"
                  data-crdt-sync-target="chatInput"
-                 class="flex-1 px-3 py-1.5 rounded text-xs font-mono"
+                 class="flex-1 min-w-0 px-3 py-1.5 rounded text-xs font-mono"
                  style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle); color: var(--saanskara-text-main)" />
           <button type="submit"
                   data-turbo-submits-with="Sending..."
-                  class="theme-pill-btn">
+                  class="theme-pill-btn shrink-0">
             Send
           </button>
         </form>
       </div>
 
       <!-- Right 1 Col: ProjectCollaborator ACL Roster & Grant Form -->
-      <div class="flex flex-col justify-between gap-2 p-2.5 rounded"
+      <div class="flex flex-col justify-between gap-2 p-2.5 rounded min-w-0"
            style="background-color: var(--saanskara-bg-canvas); border: 1px solid var(--saanskara-border-subtle)">
         <div>
           <div class="text-[11px] font-mono font-bold uppercase mb-2" style="color: var(--saanskara-text-muted)">
@@ -703,11 +705,11 @@
           </div>
           <div data-crdt-sync-target="collaboratorRoster" class="space-y-1.5 max-h-28 overflow-y-auto">
             <% collaborators.each do |collab| %>
-              <div class="flex items-center justify-between text-xs py-1 px-2 rounded"
+              <div class="flex items-center justify-between gap-2 text-xs py-1 px-2 rounded"
                    data-collab-username="<%= collab.username %>"
                    style="background-color: var(--saanskara-bg-panel)">
-                <span class="font-mono font-semibold">@<%= collab.username %></span>
-                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                <span class="font-mono font-semibold truncate">@<%= collab.username %></span>
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0"
                       style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
                   <%= collab.role %>
                 </span>
@@ -716,17 +718,17 @@
           </div>
         </div>
 
-        <form data-action="submit->crdt-sync#addCollaborator" class="flex items-center gap-1.5 pt-2 border-t"
+        <form data-action="submit->crdt-sync#addCollaborator" class="flex flex-wrap sm:flex-nowrap items-center gap-1.5 pt-2 border-t"
               style="border-color: var(--saanskara-border-subtle)">
           <input type="text"
                  placeholder="@handle"
                  aria-label="Collaborator Handle"
                  data-crdt-sync-target="collabHandleInput"
-                 class="flex-1 min-w-0 px-2 py-1 rounded text-xs font-mono"
+                 class="flex-1 min-w-[100px] px-2 py-1 rounded text-xs font-mono"
                  style="background-color: var(--saanskara-bg-panel); border: 1px solid var(--saanskara-border-subtle); color: var(--saanskara-text-main)" />
           <select aria-label="Collaborator Role"
                   data-crdt-sync-target="collabRoleSelect"
-                  class="px-1.5 py-1 rounded text-[11px] font-mono"
+                  class="px-1.5 py-1 rounded text-[11px] font-mono shrink-0"
                   style="background-color: var(--saanskara-bg-panel); border: 1px solid var(--saanskara-border-subtle); color: var(--saanskara-accent-primary)">
             <option value="EDITOR">EDITOR</option>
             <option value="COLLABORATOR">COLLAB</option>
@@ -734,11 +736,37 @@
           </select>
           <button type="submit"
                   data-turbo-submits-with="Adding..."
-                  class="theme-pill-btn !px-2 !py-1 !text-[11px]">
+                  class="theme-pill-btn !px-2 !py-1 !text-[11px] shrink-0">
             + Add
           </button>
         </form>
       </div>
     </div>
+    <!-- SAANSKARA DEAR IMGUI + IMPLOT + IMGUI-KNOBS WASM RACK -->
+    <div class="daw-panel mt-6" data-controller="imgui-synth">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider">
+            🪕 Saanskara Sitar Synth &amp; 120fps ImPlot Oscilloscope (WebGL2 WASM)
+          </h2>
+          <p class="text-xs" style="color: var(--saanskara-text-muted)">
+            Rendered natively on the GPU by <code>Dear ImGui + ImPlot + imgui-knobs</code> inside a Rails 8 <code>&lt;canvas&gt;</code>!
+          </p>
+        </div>
+        <span data-imgui-synth-target="readout"
+              class="px-3 py-1 rounded font-mono text-xs"
+              style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
+      root_hz: 240.00
+    </span>
+      </div>
+
+      <canvas id="imgui-synth-canvas"
+              data-imgui-synth-target="canvas"
+              class="w-full h-56 rounded-lg block cursor-crosshair"
+              style="border: 1px solid var(--saanskara-border-subtle)">
+      </canvas>
+    </div>
   </aside>
 </div>
+
+

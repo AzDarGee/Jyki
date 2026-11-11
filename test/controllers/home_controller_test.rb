@@ -34,6 +34,20 @@ class HomeControllerTest < ActionDispatch::IntegrationTest
     assert_select "#saanskara-daw script", count: 0
   end
 
+  test "HomeController#index renders mobile-responsive layout classes and scrollable containers" do
+    get home_url
+    assert_response :success
+
+    assert_select "#saanskara-daw.daw-pwa-shell[class*='overflow-y-auto'][class*='overflow-x-hidden']"
+    assert_select "#saanskara-daw .daw-transport-bar[class*='px-3'][class*='sm:px-6']"
+    assert_select "#saanskara-daw .daw-lcd-readout[class*='flex-wrap']"
+    assert_select "#saanskara-daw #daw-arrangement-panel[class*='p-3'][class*='sm:p-6']"
+    assert_select "#saanskara-daw #timeline-stage[class*='overflow-x-auto']"
+    assert_select "#saanskara-daw canvas#waveform-canvas[class*='min-w-'][class*='touch-none']"
+    assert_select "#saanskara-daw #dj-6deck-panel[class*='px-3'][class*='sm:px-6']"
+    assert_select "#saanskara-daw #crdt-collab-drawer[class*='mx-3'][class*='sm:mx-6']"
+  end
+
   test "ProjectsController#update persists bpm, workspace_mode, theme_name, scale_name, and HLC watermarks" do
     project = StudioBootstrapper.ensure_default_project!
 
