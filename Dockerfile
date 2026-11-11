@@ -1,11 +1,35 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t Jyki .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name Jyki Jyki
+FROM emscripten/emsdk:3.1.73 AS wasm-build
 
-# For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
+WORKDIR /app
+ENV IMGUI_VENDOR_DIR="/vendor_imgui" \
+    WASM_OUT_DIR="/out"
+
+# 1. Pre-fetch & pre-compile Dear ImGui + ImPlot + imgui-knobs into /vendor_imgui/libimgui_core.a
+#    (This Docker layer is cached forever — never re-runs when you add new synths!)
+RUN mkdir -p /vendor_imgui /out && \
+    git clone --depth 1 -b v1.91.5 https://github.com/ocornut/imgui.git /vendor_imgui/imgui && \
+    git clone --depth 1 -b v0.16 https://github.com/epezent/implot.git /vendor_imgui/implot && \
+    git clone --depth 1 -b main https://github.com/altschuler/imgui-knobs.git /vendor_imgui/imgui-knobs && \
+    for src in \
+      /vendor_imgui/imgui/imgui.cpp \
+      /vendor_imgui/imgui/imgui_draw.cpp \
+      /vendor_imgui/imgui/imgui_tables.cpp \
+      /vendor_imgui/imgui/imgui_widgets.cpp \
+      /vendor_imgui/imgui/backends/imgui_impl_opengl3.cpp \
+      /vendor_imgui/implot/implot.cpp \
+      /vendor_imgui/implot/implot_items.cpp \
+      /vendor_imgui/imgui-knobs/imgui-knobs.cpp; do \
+      em++ -O3 -c "$src" -I/vendor_imgui/imgui -I/vendor_imgui/imgui/backends -I/vendor_imgui/implot -I/vendor_imgui/imgui-knobs -o "${src}.o"; \
+    done && \
+    emar rcs /vendor_imgui/libimgui_core.a /vendor_imgui/*/*.o /vendor_imgui/imgui/backends/*.o
+
+# 2. Copy your builder script & all C++ synth modules, and compile them all in one pass!
+COPY bin/build_imgui_synth ./bin/build_imgui_synth
+COPY ext/ ./ext/
+RUN ruby bin/build_imgui_synth --force
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
 ARG RUBY_VERSION=4.0.9
@@ -54,6 +78,7 @@ RUN bundle install && \
 
 # Copy application code
 COPY . .
+COPY --from=wasm-build /out/* ./public/wasm/
 
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
