@@ -147,7 +147,9 @@ Push the changes to your branch and restart the SupaBase resource.
 
 
 
-
+# Synth Sounds
+### Settings: 
+Zygo Zayano - [{root_hz: 20.0Hz, jawari_buzz: 1.00, resonance: 0.00}]
 
 
 
