@@ -1,22 +1,19 @@
 // app/javascript/controllers/imgui_synth_controller.js
 import { Controller } from "@hotwired/stimulus"
 
-// ============================================================================
-// REAL-TIME 48kHz DUAL-STRING SITAR + TANPURA AUDIO WORKLET
-// • Tanpura Drone stays locked to root SA (Hz) + PA (1.5x)
-// • Lead Sitar String plays Swara notes (2^(semitones/12)) relative to SA (Hz)!
-// ============================================================================
 const SAANSKARA_WORKLET_SOURCE = `
 class SaanskaraSitarProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.droneActive = true;
+    this.stopped     = false;
     this.rootHz      = 240.0;
     this.jawari      = 0.42;
     this.resonance   = 0.68;
     this.drive       = 1.65;
+    this.meendMs     = 180.0; // Portamento glide time in milliseconds (0..1200ms)
     this.morph       = 0.75;
-    this.meendRatio  = 1.0; // Current Swara pitch ratio relative to SA (Hz)
+    this.meendRatio  = 1.0;
     this.noteHeld    = false;
 
     this.sRootHz = 240.0;
@@ -26,7 +23,6 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
     this.sDrive  = 1.65;
     this.sMorph  = 0.75;
 
-    // Separate Phase Accumulators for Root Tanpura Drone vs Lead Sitar String!
     this.pDroneSa = 0.0;
     this.pSub     = 0.0;
     this.pPa      = 0.0;
@@ -43,18 +39,31 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
         if (msg.key === "jawari_buzz")  this.jawari    = msg.value;
         if (msg.key === "resonance")    this.resonance = msg.value;
         if (msg.key === "analog_drive") this.drive     = msg.value;
+        if (msg.key === "meend_ms")     this.meendMs   = msg.value;
         if (msg.key === "morph_slider") this.morph     = msg.value;
       } else if (msg.type === "pluck") {
+        this.stopped    = false;
         this.pluckEnv   = Math.min(1.0, Math.max(0.15, msg.velocity || 0.9));
         this.tarabEnv   = 1.0;
         this.meendRatio = Math.min(4.0, Math.max(0.25, msg.pitchRatio || 1.0));
         this.noteHeld   = Boolean(msg.sustain);
+        if (this.meendMs <= 2.0) {
+          this.sLeadHz = this.rootHz * this.meendRatio;
+        }
       } else if (msg.type === "note_off") {
         this.noteHeld = false;
       } else if (msg.type === "pitch_bend") {
         this.meendRatio = Math.min(4.0, Math.max(0.25, msg.pitchRatio || 1.0));
       } else if (msg.type === "drone") {
+        this.stopped     = false;
         this.droneActive = Boolean(msg.active);
+      } else if (msg.type === "stop") {
+        // HARD KILL SWITCH: Zero out all envelopes & silence the processor immediately!
+        this.stopped     = true;
+        this.droneActive = false;
+        this.noteHeld    = false;
+        this.pluckEnv    = 0.0;
+        this.tarabEnv    = 0.0;
       }
     };
   }
@@ -66,21 +75,33 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
     const outL = output[0];
     const outR = output.length > 1 ? output[1] : null;
     const frames = outL.length;
+
+    // If stopped, output pure 0.0 silence with zero oscillator work!
+    if (this.stopped) {
+      for (let i = 0; i < frames; i++) {
+        outL[i] = 0.0;
+        if (outR) outR[i] = 0.0;
+      }
+      return true;
+    }
+
     const invSr = 1.0 / sampleRate;
     const TWO_PI = 6.283185307179586;
-
     const targetLeadHz = this.rootHz * this.meendRatio;
+
+    // Calculate sample-accurate exponential Meend glide coefficient from meendMs (0..1200ms)
+    const meendCoeff = this.meendMs <= 2.0
+      ? 1.0
+      : (1.0 - Math.exp(-1000.0 / (Math.max(2.0, this.meendMs * 0.35) * sampleRate)));
 
     for (let i = 0; i < frames; i++) {
       this.sRootHz += (this.rootHz   - this.sRootHz) * 0.002;
-      // Smooth Sitar Meend (portamento) glide on the melody string!
-      this.sLeadHz += (targetLeadHz  - this.sLeadHz) * 0.004;
+      this.sLeadHz += (targetLeadHz  - this.sLeadHz) * meendCoeff;
       this.sJaw    += (this.jawari   - this.sJaw)    * 0.0025;
       this.sRes    += (this.resonance- this.sRes)    * 0.0025;
       this.sDrive  += (this.drive    - this.sDrive)  * 0.0025;
       this.sMorph  += (this.morph    - this.sMorph)  * 0.0025;
 
-      // Slower decay while key/MIDI note is held down; natural decay on release
       this.pluckEnv *= this.noteHeld ? 0.99992 : 0.99972;
       this.tarabEnv *= 0.99994;
 
@@ -91,12 +112,10 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
       const droneGain = this.droneActive ? (0.38 * breath) : 0.0;
       const leadGain  = (this.droneActive ? 0.25 : 0.0) + this.pluckEnv * 0.95;
 
-      // 1. Root Tanpura Drone (Anchored to SA & PA!)
       this.pDroneSa += TWO_PI * this.sRootHz * invSr;
       this.pSub     += TWO_PI * (this.sRootHz * 0.5) * invSr;
       this.pPa      += TWO_PI * (this.sRootHz * 1.4983) * invSr;
 
-      // 2. Lead Sitar Melody String (Plays relative Swara note!)
       this.pLead    += TWO_PI * this.sLeadHz * invSr;
       this.pJawari  += TWO_PI * (this.sLeadHz * (2.0 + this.sMorph * 3.0)) * invSr;
 
@@ -113,7 +132,6 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
       const leadSa  = Math.sin(this.pLead);
       const tarab   = Math.sin(this.pLead * 3.0 + 1.5 * pa) * (this.sRes * 0.45 * this.tarabEnv);
 
-      // Jawari curved-bridge buzz tracks the Lead Melody String!
       const dynJaw = this.sJaw * (1.0 + 0.65 * this.pluckEnv);
       const buzz   = dynJaw * 0.90 * Math.sin(this.pJawari + (1.0 + dynJaw * 3.5) * leadSa);
 
@@ -133,7 +151,6 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
 registerProcessor("saanskara-sitar-processor", SaanskaraSitarProcessor);
 `;
 
-// Computer Keyboard -> Semitone Offset from Root SA (Standard Piano Layout: A..L + W..P)
 const KEYBOARD_SWARA_MAP = {
     KeyA: { semi: 0,  swara: "Sa" },
     KeyW: { semi: 1,  swara: "komal re" },
@@ -157,28 +174,29 @@ const KEYBOARD_SWARA_MAP = {
 const SWARA_NAMES = ["Sa", "re", "Re", "ga", "Ga", "Ma", "Ma#", "Pa", "dha", "Dha", "ni", "Ni"]
 
 export default class extends Controller {
-    static targets = ["canvas", "readout", "audioBtn", "paramInput", "midiStatus", "swaraBtn"]
+    static targets = ["canvas", "readout", "audioBtn", "stopBtn", "paramInput", "midiStatus", "swaraBtn"]
 
     async connect() {
         this.droneEnabled = true
         this.audioCtx = null
         this.workletNode = null
         this.workletReady = null
-        this.octaveShift = 0        // Z / X shifts octave (-2 .. +2)
-        this.midiRootNote = 60      // Middle C (60) = Root SA by default
+        this.octaveShift = 0
+        this.midiRootNote = 60
         this.currentSemitone = 0
         this.pitchBendSemitones = 0
         this.heldKeys = new Set()
 
         window.saanskaraOnImGuiParamChanged = (param, value) => {
             if (this.hasReadoutTarget) {
-                this.readoutTarget.textContent = `${param}: ${value.toFixed(2)}`
+                const suffix = param === "meend_ms" ? "ms" : (param === "root_hz" ? "Hz" : "")
+                this.readoutTarget.textContent = `${param}: ${value.toFixed(param === "meend_ms" || param === "root_hz" ? 0 : 2)}${suffix}`
             }
             this.workletNode?.port.postMessage({ type: "param", key: param, value })
 
             this.paramInputTargets.forEach((input) => {
                 if (input.dataset.paramKey === param && document.activeElement !== input) {
-                    input.value = param === "root_hz" ? Math.round(value) : value.toFixed(2)
+                    input.value = (param === "root_hz" || param === "meend_ms") ? Math.round(value) : value.toFixed(2)
                 }
             })
 
@@ -207,19 +225,33 @@ export default class extends Controller {
     }
 
     // ==========================================================================
-    // SWARA NOTE TRIGGER (Calculates Exact Frequency Ratio Relative to SA Hz!)
+    // ⏹ HARD STOP / PANIC KILL SWITCH (Stops Any Signal Going to AudioWorklet!)
     // ==========================================================================
+    async stopAudio() {
+        this.droneEnabled = false
+        this.heldKeys.clear()
+        this.wasm?._synth_stop_all?.()
+        this.workletNode?.port.postMessage({ type: "stop" })
+
+        if (this.audioCtx && this.audioCtx.state === "running") {
+            await this.audioCtx.suspend()
+        }
+
+        this.updateAudioButtonUI()
+        if (this.hasReadoutTarget) {
+            this.readoutTarget.textContent = "⏹ Audio Stopped"
+        }
+    }
+
     async triggerSwaraSemitone(semitonesFromSa, velocity = 0.92, swaraLabel = null, sustain = true) {
         await this.ensureAudioEngine()
         this.currentSemitone = semitonesFromSa
         const totalSemis = semitonesFromSa + this.pitchBendSemitones
         const pitchRatio = Math.pow(2.0, totalSemis / 12.0)
 
-        // Update C99 Oscilloscope & Pluck Envelope + AudioWorklet!
         this.wasm?._synth_trigger_pluck?.(velocity, pitchRatio)
         this.workletNode?.port.postMessage({ type: "pluck", velocity, pitchRatio, sustain })
 
-        // Highlight active Swara button & readout
         const noteIndex = ((semitonesFromSa % 12) + 12) % 12
         const label = swaraLabel || SWARA_NAMES[noteIndex]
         if (this.hasReadoutTarget) {
@@ -235,21 +267,21 @@ export default class extends Controller {
         })
     }
 
-    // Action for clickable/touchable Swara Pads in HTML
     playSwaraPad(e) {
         const semi = parseInt(e.currentTarget.dataset.semitone, 10) + (this.octaveShift * 12)
         const label = e.currentTarget.dataset.swara
         this.triggerSwaraSemitone(semi, 0.95, label, false)
     }
 
-    // ==========================================================================
-    // COMPUTER KEYBOARD (`A W S E D F T G Y H U J K`, `Z`/`X` Octave) & WEBMIDI
-    // ==========================================================================
     bindKeyboardAndMidi() {
         this.onKeyDown = (e) => {
-            // Ignore if typing inside an <input> or <textarea>
             if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target?.tagName) || e.metaKey || e.ctrlKey || e.altKey) return
 
+            // Escape key acts as an instant Panic / Stop Audio shortcut!
+            if (e.code === "Escape") {
+                this.stopAudio()
+                return
+            }
             if (e.code === "KeyZ") {
                 this.octaveShift = Math.max(-2, this.octaveShift - 1)
                 if (this.hasReadoutTarget) this.readoutTarget.textContent = `Octave (Saptak): ${this.octaveShift >= 0 ? "+" : ""}${this.octaveShift}`
@@ -282,7 +314,6 @@ export default class extends Controller {
         window.addEventListener("keydown", this.onKeyDown)
         window.addEventListener("keyup", this.onKeyUp)
 
-        // Initialize WebMIDI API for Hardware MIDI Keyboards!
         if (navigator.requestMIDIAccess) {
             navigator.requestMIDIAccess({ sysex: false }).then((midiAccess) => {
                 const bindInputs = () => {
@@ -293,7 +324,7 @@ export default class extends Controller {
                     if (this.hasMidiStatusTarget) {
                         this.midiStatusTarget.textContent = inputs.length > 0
                             ? `🎹 MIDI: ${inputs[0].name} (C4 = Sa)`
-                            : "🎹 Keys: A-K (Z/X Oct) • MIDI Ready"
+                            : "🎹 Keys: A-K (Z/X Oct, Esc Stop) • MIDI Ready"
                     }
                 }
                 bindInputs()
@@ -306,28 +337,25 @@ export default class extends Controller {
         const [status, data1, data2] = msg.data
         const command = status & 0xf0
 
-        // Note On (0x90 with velocity > 0)
         if (command === 0x90 && data2 > 0) {
             const semitonesFromSa = data1 - this.midiRootNote
             const velocity = Math.max(0.2, data2 / 127.0)
             this.triggerSwaraSemitone(semitonesFromSa, velocity, null, true)
-        }
-        // Note Off (0x80 or 0x90 with velocity 0)
-        else if (command === 0x80 || (command === 0x90 && data2 === 0)) {
+        } else if (command === 0x80 || (command === 0x90 && data2 === 0)) {
             this.workletNode?.port.postMessage({ type: "note_off" })
-        }
-        // Pitch Bend Wheel (0xE0) -> Smooth Sitar Meend (+/- 2 semitones)!
-        else if (command === 0xe0) {
+        } else if (command === 0xe0) {
             const bend14 = ((data2 << 7) | data1) - 8192
             this.pitchBendSemitones = (bend14 / 8192.0) * 2.0
             const pitchRatio = Math.pow(2.0, (this.currentSemitone + this.pitchBendSemitones) / 12.0)
             this.wasm?._synth_trigger_pluck?.(0.5, pitchRatio)
             this.workletNode?.port.postMessage({ type: "pitch_bend", pitchRatio })
-        }
-        // Mod Wheel (CC #1) -> Controls Jawari Buzz!
-        else if (command === 0xb0 && data1 === 1) {
+        } else if (command === 0xb0 && data1 === 1) {
             const jawVal = data2 / 127.0
             this.wasm?._synth_set_param_value?.(1, jawVal)
+        } else if (command === 0xb0 && data1 === 5) {
+            // MIDI CC #5 (Standard Portamento Time) -> Controls MEEND knob (0..1200ms)!
+            const meendMs = (data2 / 127.0) * 1200.0
+            this.wasm?._synth_set_param_value?.(4, meendMs)
         }
     }
 
@@ -347,13 +375,14 @@ export default class extends Controller {
         const parent = c.parentElement
         if (getComputedStyle(parent).position === "static") parent.style.position = "relative"
 
+        const isIntParam = (meta.key === "root_hz" || meta.key === "meend_ms")
         const input = document.createElement("input")
         input.type = "number"
         input.inputMode = "decimal"
-        input.step = meta.key === "root_hz" ? "1" : "0.01"
+        input.step = isIntParam ? "1" : "0.01"
         input.min = meta.min
         input.max = meta.max
-        input.value = meta.key === "root_hz" ? Math.round(meta.value) : meta.value.toFixed(2)
+        input.value = isIntParam ? Math.round(meta.value) : meta.value.toFixed(2)
 
         Object.assign(input.style, {
             position: "absolute",
@@ -404,6 +433,7 @@ export default class extends Controller {
     async toggleAudio() {
         await this.ensureAudioEngine()
         this.droneEnabled = !this.droneEnabled
+        this.wasm?._synth_set_drone_active?.(this.droneEnabled ? 1 : 0)
         this.workletNode?.port.postMessage({ type: "drone", active: this.droneEnabled })
         this.updateAudioButtonUI()
     }
@@ -441,7 +471,7 @@ export default class extends Controller {
 
     updateAudioButtonUI() {
         if (!this.hasAudioBtnTarget) return
-        this.audioBtnTarget.textContent = this.droneEnabled ? "🔊 Continuous Drone: ON" : "🔇 Continuous Drone: MUTED"
+        this.audioBtnTarget.textContent = this.droneEnabled ? "🔊 Drone: ON" : "🔇 Drone: OFF"
         this.audioBtnTarget.setAttribute("aria-pressed", this.droneEnabled ? "true" : "false")
     }
 

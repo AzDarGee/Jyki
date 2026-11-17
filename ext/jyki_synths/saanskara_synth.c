@@ -1,5 +1,5 @@
 // ext/jyki_synths/saanskara_synth.c
-// Pure C99 Clay + NanoVG Synth: 48kHz Audio, Manual Value Editor, WiperDot Knobs, ImPlot Scope & 4-Touch Limit!
+// Pure C99 Clay + NanoVG Synth: 5 Knobs (including MEEND Glide), Stop/Kill Switch, WiperDot UI & ImPlot Scope!
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
@@ -22,10 +22,10 @@
 #endif
 
 // ============================================================================
-// 1. STRICT 4-TOUCH LIMIT, HELPERS & PARAMETER DEFINITIONS
+// 1. STRICT 4-TOUCH LIMIT, HELPERS & 6 PARAMETER DEFINITIONS (5 Knobs + 1 Slider)
 // ============================================================================
 #define MAX_TOUCH_POINTS 4
-#define NUM_PARAMS 5
+#define NUM_PARAMS 6
 #define SCOPE_POINTS 360
 
 static float clampf(float v, float lo, float hi) {
@@ -57,11 +57,12 @@ typedef struct {
 } TouchSlot;
 
 static SynthParam g_params[NUM_PARAMS] = {
-    { "SA (HZ)",   "root_hz",      "%.0fHz", 240.0f, 0.0f, 20000.0f, 0, 0,0,0,0 },
-    { "JAWARI",    "jawari_buzz",  "%.2f",   0.42f,  0.0f,   1.0f,   0, 0,0,0,0 },
-    { "TARAB RES", "resonance",    "%.2f",   0.68f,  0.0f,   1.0f,   0, 0,0,0,0 },
-    { "DRIVE",     "analog_drive", "%.1fx",  1.65f,  0.5f,   4.0f,   0, 0,0,0,0 },
-    { "MORPH MIX", "morph_slider", "%.2f",   0.75f,  0.0f,   1.0f,   1, 0,0,0,0 }
+    { "SA (HZ)",   "root_hz",      "%.0fHz", 240.0f, 0.0f, 20000.0f,  0, 0,0,0,0 },
+    { "JAWARI",    "jawari_buzz",  "%.2f",   0.42f,  0.0f,   1.0f,    0, 0,0,0,0 },
+    { "TARAB",     "resonance",    "%.2f",   0.68f,  0.0f,   1.0f,    0, 0,0,0,0 },
+    { "DRIVE",     "analog_drive", "%.1fx",  1.65f,  0.5f,   4.0f,    0, 0,0,0,0 },
+    { "MEEND",     "meend_ms",     "%.0fMS", 180.0f, 0.0f,   1200.0f, 0, 0,0,0,0 }, // Knob 4: Meend Glide (0..1200ms)!
+    { "MORPH MIX", "morph_slider", "%.2f",   0.75f,  0.0f,   1.0f,    1, 0,0,0,0 }  // Param 5: Horizontal Slider
 };
 
 static TouchSlot g_touches[MAX_TOUCH_POINTS];
@@ -113,24 +114,15 @@ void synth_set_param_value(int index, float val) {
 }
 
 // ============================================================================
-// 3. REAL-TIME 48kHz C99 CONTINUOUS AUDIO SYNTHESIZER
+// 3. REAL-TIME C99 STATE, MEEND PORTAMENTO & STOP/KILL SWITCH
 // ============================================================================
 static float g_audio_sample_rate = 48000.0f;
 static int   g_drone_active = 1;
-static float g_phase_sa     = 0.0f;
-static float g_phase_pa     = 0.0f;
-static float g_phase_sub    = 0.0f;
-static float g_phase_jawari = 0.0f;
-static float g_phase_lfo    = 0.0f;
+static int   g_is_stopped   = 0;
 static float g_pluck_env    = 0.0f;
 static float g_tarab_env    = 0.8f;
-static float g_smooth_hz    = 240.0f;
-static float g_smooth_jaw   = 0.42f;
-static float g_smooth_res   = 0.68f;
-static float g_smooth_drive = 1.65f;
-static float g_smooth_morph = 0.75f;
-static float g_meend_ratio  = 1.0f;
-static float g_audio_out_buf[2048];
+static float g_meend_target = 1.0f;
+static float g_meend_curr   = 1.0f; // Glides smoothly toward g_meend_target!
 
 EMSCRIPTEN_KEEPALIVE
 void synth_set_sample_rate(float sr) {
@@ -140,77 +132,28 @@ void synth_set_sample_rate(float sr) {
 EMSCRIPTEN_KEEPALIVE
 void synth_set_drone_active(int active) {
     g_drone_active = active ? 1 : 0;
+    if (g_drone_active) g_is_stopped = 0;
 }
 
 EMSCRIPTEN_KEEPALIVE
-int synth_get_drone_active(void) {
-    return g_drone_active;
+void synth_stop_all(void) {
+    g_drone_active = 0;
+    g_is_stopped   = 1;
+    g_pluck_env    = 0.0f;
+    g_tarab_env    = 0.0f;
+    for (int s = 0; s < MAX_TOUCH_POINTS; s++) g_touches[s].active = 0;
 }
 
 EMSCRIPTEN_KEEPALIVE
 void synth_trigger_pluck(float velocity, float pitch_ratio) {
-    g_pluck_env   = clampf(velocity, 0.2f, 1.0f);
-    g_tarab_env   = 1.0f;
-    g_meend_ratio = clampf(pitch_ratio, 0.5f, 2.0f);
-    js_emit_pluck(g_pluck_env, g_meend_ratio);
-}
-
-EMSCRIPTEN_KEEPALIVE
-float* synth_render_audio_block(int num_frames, int drone_override) {
-    if (num_frames > 2048) num_frames = 2048;
-
-    int is_on = (drone_override >= 0) ? drone_override : g_drone_active;
-    float target_hz    = g_params[0].value * g_meend_ratio;
-    float target_jaw   = g_params[1].value;
-    float target_res   = g_params[2].value;
-    float target_drive = g_params[3].value;
-    float target_morph = g_params[4].value;
-    float inv_sr       = 1.0f / g_audio_sample_rate;
-
-    for (int i = 0; i < num_frames; i++) {
-        g_smooth_hz    += (target_hz    - g_smooth_hz)    * 0.002f;
-        g_smooth_jaw   += (target_jaw   - g_smooth_jaw)   * 0.002f;
-        g_smooth_res   += (target_res   - g_smooth_res)   * 0.002f;
-        g_smooth_drive += (target_drive - g_smooth_drive) * 0.002f;
-        g_smooth_morph += (target_morph - g_smooth_morph) * 0.002f;
-
-        g_pluck_env *= 0.99980f;
-
-        g_phase_lfo += 2.0f * (float)M_PI * 0.35f * inv_sr;
-        if (g_phase_lfo > 2.0f * (float)M_PI) g_phase_lfo -= 2.0f * (float)M_PI;
-        float breath = 0.85f + 0.15f * sinf(g_phase_lfo);
-
-        float drone_level = is_on ? (0.45f * breath) : 0.0f;
-        float amp_env = fminf(1.2f, drone_level + g_pluck_env * 0.75f);
-
-        g_phase_sa     += 2.0f * (float)M_PI * g_smooth_hz * inv_sr;
-        g_phase_pa     += 2.0f * (float)M_PI * (g_smooth_hz * 1.4983f) * inv_sr;
-        g_phase_sub    += 2.0f * (float)M_PI * (g_smooth_hz * 0.5f) * inv_sr;
-        g_phase_jawari += 2.0f * (float)M_PI * (g_smooth_hz * (2.0f + g_smooth_morph * 3.0f)) * inv_sr;
-
-        if (g_phase_sa     > 2.0f * (float)M_PI) g_phase_sa     -= 2.0f * (float)M_PI;
-        if (g_phase_pa     > 2.0f * (float)M_PI) g_phase_pa     -= 2.0f * (float)M_PI;
-        if (g_phase_sub    > 2.0f * (float)M_PI) g_phase_sub    -= 2.0f * (float)M_PI;
-        if (g_phase_jawari > 2.0f * (float)M_PI) g_phase_jawari -= 2.0f * (float)M_PI;
-
-        float sa    = sinf(g_phase_sa);
-        float sub   = sinf(g_phase_sub) * (0.65f * (1.0f - g_smooth_morph * 0.6f));
-        float pa    = sinf(g_phase_pa) * (g_smooth_res * 0.65f);
-        float tarab = sinf(g_phase_sa * 3.0f + 1.5f * pa) * (g_smooth_res * 0.40f);
-        float buzz  = g_smooth_jaw * 0.85f * sinf(g_phase_jawari + (1.0f + g_smooth_jaw * 3.5f) * sa);
-
-        float raw = (sa + sub + pa + tarab + buzz) * amp_env * g_smooth_drive;
-        float out = raw / (1.0f + 0.50f * fabsf(raw));
-
-        g_audio_out_buf[i] = out * (0.20f + 0.25f * g_smooth_morph);
+    g_is_stopped   = 0;
+    g_pluck_env    = clampf(velocity, 0.2f, 1.0f);
+    g_tarab_env    = 1.0f;
+    g_meend_target = clampf(pitch_ratio, 0.25f, 4.0f);
+    if (g_params[4].value <= 2.0f) {
+        g_meend_curr = g_meend_target;
     }
-
-    return g_audio_out_buf;
-}
-
-EMSCRIPTEN_KEEPALIVE
-float synth_get_audio_sample(int index) {
-    return (index >= 0 && index < 2048) ? g_audio_out_buf[index] : 0.0f;
+    js_emit_pluck(g_pluck_env, g_meend_target);
 }
 
 // ============================================================================
@@ -266,7 +209,7 @@ static void draw_glyph(char c, float x, float y, float w, float h) {
 static void draw_vector_text(const char* str, float cx, float cy, float char_w, float char_h, NVGcolor color, int align_center) {
     int len = (int)strlen(str);
     if (len <= 0) return;
-    float pitch = char_w * 1.42f;
+    float pitch = char_w * 1.40f;
     float total_w = len * pitch - (pitch - char_w);
     float start_x = align_center ? (cx - total_w * 0.5f) : cx;
     float start_y = cy - char_h * 0.5f;
@@ -277,7 +220,7 @@ static void draw_vector_text(const char* str, float cx, float cy, float char_w, 
             draw_glyph(str[i], start_x + i * pitch, start_y, char_w, char_h);
         }
     }
-    nvgStrokeWidth(g_nvg, 1.45f);
+    nvgStrokeWidth(g_nvg, 1.40f);
     nvgLineCap(g_nvg, NVG_ROUND);
     nvgLineJoin(g_nvg, NVG_ROUND);
     nvgStrokeColor(g_nvg, color);
@@ -308,7 +251,6 @@ void synth_pointer_down(int pointer_id, float x, float y) {
         return;
     }
 
-    // Check if the user tapped the Value Readout Pill or double-tapped to enter a number manually!
     static double s_last_tap_ms = 0.0;
     static int    s_last_tap_param = -1;
     double now_ms = emscripten_get_now();
@@ -328,7 +270,7 @@ void synth_pointer_down(int pointer_id, float x, float y) {
         return;
     }
 
-    if (g_pluck_env < 0.25f) synth_trigger_pluck(0.45f, 1.0f);
+    if (g_pluck_env < 0.25f && !g_is_stopped) synth_trigger_pluck(0.45f, g_meend_target);
 
     for (int s = 0; s < MAX_TOUCH_POINTS; s++) {
         if (!g_touches[s].active || g_touches[s].pointer_id == pointer_id) {
@@ -417,10 +359,10 @@ void imgui_on_mouse_wheel(float dx, float dy) {
 static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
     float cx = p->bbox_x + p->bbox_w * 0.5f;
     float cy = p->bbox_y + p->bbox_h * 0.50f;
-    float radius = fminf(p->bbox_w * 0.42f, (p->bbox_h - 34.0f) * 0.46f);
-    if (radius < 14.0f) radius = 14.0f;
+    float radius = fminf(p->bbox_w * 0.44f, (p->bbox_h - 34.0f) * 0.46f);
+    if (radius < 12.0f) radius = 12.0f;
 
-    draw_vector_text(p->name, cx, p->bbox_y + 9.0f, 4.6f, 7.2f, g_col_text, 1);
+    draw_vector_text(p->name, cx, p->bbox_y + 9.0f, 4.1f, 6.6f, g_col_text, 1);
 
     float norm = (p->value - p->min_val) / (p->max_val - p->min_val);
     float a0 = 0.75f * (float)M_PI;
@@ -463,13 +405,13 @@ static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
 
     char val_buf[24];
     snprintf(val_buf, sizeof(val_buf), p->fmt, p->value);
-    float pill_w = fminf(p->bbox_w - 6.0f, 54.0f);
+    float pill_w = fminf(p->bbox_w - 4.0f, 52.0f);
     float pill_y = p->bbox_y + p->bbox_h - 15.0f;
     nvgBeginPath(g_nvg);
     nvgRoundedRect(g_nvg, cx - pill_w * 0.5f, pill_y, pill_w, 14.0f, 3.0f);
     nvgFillColor(g_nvg, g_col_panel);
     nvgFill(g_nvg);
-    draw_vector_text(val_buf, cx, pill_y + 7.0f, 4.4f, 6.8f, is_touched ? g_col_alert : g_col_accent, 1);
+    draw_vector_text(val_buf, cx, pill_y + 7.0f, 3.9f, 6.2f, is_touched ? g_col_alert : g_col_accent, 1);
 }
 
 static void draw_imgui_slider(SynthParam* p, int is_touched) {
@@ -530,15 +472,24 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
     nvgStrokeColor(g_nvg, hex_to_nvg(g_hex_accent, 0.14f));
     nvgStroke(g_nvg);
 
-    float root_hz = g_params[0].value * g_meend_ratio;
+    // Smooth visual Meend portamento glide on the scope at 60fps!
+    float meend_ms = g_params[4].value;
+    if (meend_ms <= 2.0f) {
+        g_meend_curr = g_meend_target;
+    } else {
+        float alpha = 1.0f - expf(-16.67f / meend_ms);
+        g_meend_curr += (g_meend_target - g_meend_curr) * alpha;
+    }
+
+    float root_hz = g_params[0].value * g_meend_curr;
     float jawari  = g_params[1].value;
     float res     = g_params[2].value;
     float drive   = g_params[3].value;
-    float morph   = g_params[4].value;
+    float morph   = g_params[5].value;
 
-    g_phase += 0.045f;
     float mid_y = y + h * 0.52f;
-    float amp_h = h * 0.38f;
+    float amp_h = g_is_stopped ? 0.01f : (h * 0.38f);
+    if (!g_is_stopped) g_phase += 0.045f;
 
     nvgBeginPath(g_nvg);
     nvgMoveTo(g_nvg, x, mid_y);
@@ -602,13 +553,13 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
     nvgRect(g_nvg, leg_x + 7.0f, leg_y + 6.0f, 8.0f, 8.0f);
     nvgFillColor(g_nvg, g_col_accent);
     nvgFill(g_nvg);
-    draw_vector_text("MASTER SITAR WAVE", leg_x + 20.0f, leg_y + 10.0f, 4.0f, 6.0f, g_col_text, 0);
+    draw_vector_text(g_is_stopped ? "AUDIO STOPPED" : "MASTER SITAR WAVE", leg_x + 20.0f, leg_y + 10.0f, 4.0f, 6.0f, g_col_text, 0);
 
     nvgBeginPath(g_nvg);
     nvgRect(g_nvg, leg_x + 7.0f, leg_y + 18.0f, 8.0f, 8.0f);
     nvgFillColor(g_nvg, g_col_alert);
     nvgFill(g_nvg);
-    draw_vector_text("JAWARI HARMONICS", leg_x + 20.0f, leg_y + 22.0f, 4.0f, 6.0f, g_col_muted, 0);
+    draw_vector_text("JAWARI + MEEND GLIDE", leg_x + 20.0f, leg_y + 22.0f, 4.0f, 6.0f, g_col_muted, 0);
 }
 
 // ============================================================================
@@ -634,7 +585,7 @@ static void render_frame(void) {
     Clay_SetLayoutDimensions((Clay_Dimensions){ g_css_w, g_css_h });
     Clay_BeginLayout();
 
-    int is_mobile_narrow = (g_css_w < 600.0f);
+    int is_mobile_narrow = (g_css_w < 620.0f);
     Clay_LayoutDirection root_dir = is_mobile_narrow ? CLAY_TOP_TO_BOTTOM : CLAY_LEFT_TO_RIGHT;
 
     CLAY(CLAY_ID("RootContainer"), {
@@ -648,28 +599,30 @@ static void render_frame(void) {
         CLAY(CLAY_ID("ControlsRack"), {
             .layout = {
                 .sizing = {
-                    is_mobile_narrow ? CLAY_SIZING_GROW(0) : CLAY_SIZING_FIXED(340),
+                    is_mobile_narrow ? CLAY_SIZING_GROW(0) : CLAY_SIZING_FIXED(385),
                     is_mobile_narrow ? CLAY_SIZING_FIXED(145) : CLAY_SIZING_GROW(0)
                 },
                 .layoutDirection = CLAY_TOP_TO_BOTTOM,
-                .padding = { 10, 10, 24, 10 },
+                .padding = { 8, 8, 24, 10 },
                 .childGap = 8
             }
         }) {
+            // Top Row: 5 Rotary Knobs (SA, JAWARI, TARAB, DRIVE, MEEND)
             CLAY(CLAY_ID("KnobRow"), {
                 .layout = {
                     .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
                     .layoutDirection = CLAY_LEFT_TO_RIGHT,
-                    .childGap = 6
+                    .childGap = 4
                 }
             }) {
-                for (int i = 0; i < 4; i++) {
+                for (int i = 0; i < 5; i++) {
                     CLAY(CLAY_IDI("ParamBox", i), {
                         .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } }
                     }) {}
                 }
             }
-            CLAY(CLAY_IDI("ParamBox", 4), {
+            // Bottom Row: MORPH MIX Slider (Index 5)
+            CLAY(CLAY_IDI("ParamBox", 5), {
                 .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIXED(28) } }
             }) {}
         }
@@ -698,7 +651,7 @@ static void render_frame(void) {
         nvgStrokeColor(g_nvg, g_col_panel);
         nvgStroke(g_nvg);
 
-        draw_vector_text("SAANSKARA RAGA DSP RACK (4-TOUCH)", rack_data.boundingBox.x + 10.0f, rack_data.boundingBox.y + 12.0f, 4.5f, 7.0f, g_col_muted, 0);
+        draw_vector_text("SAANSKARA RAGA DSP RACK (MEEND + 4-TOUCH)", rack_data.boundingBox.x + 10.0f, rack_data.boundingBox.y + 12.0f, 4.3f, 6.8f, g_col_muted, 0);
     }
 
     for (int i = 0; i < NUM_PARAMS; i++) {

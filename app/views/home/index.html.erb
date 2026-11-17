@@ -753,6 +753,25 @@
             Rendered natively on the GPU by <code>Dear ImGui + ImPlot + imgui-knobs</code> inside a Rails 8 <code>&lt;canvas&gt;</code>!
           </p>
         </div>
+        <button type="button"
+                data-action="click->imgui-synth#pluckNote"
+                class="theme-pill-btn">
+          🪕 Pluck Sitar
+        </button>
+        <button type="button"
+                data-imgui-synth-target="audioBtn"
+                data-action="click->imgui-synth#toggleAudio"
+                class="theme-pill-btn"
+                aria-pressed="true">
+          🔊 Drone: ON
+        </button>
+        <button type="button"
+                data-imgui-synth-target="stopBtn"
+                data-action="click->imgui-synth#stopAudio"
+                class="theme-pill-btn"
+                style="border-color: var(--saanskara-accent-alert); color: var(--saanskara-accent-alert)">
+          ⏹ Stop Audio [Esc]
+        </button>
         <span data-imgui-synth-target="readout"
               class="px-2.5 sm:px-3 py-1 rounded font-mono text-[11px] sm:text-xs shrink-0 self-start sm:self-auto"
               style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
@@ -767,7 +786,7 @@
       </canvas>
 
       <!-- MANUAL NUMERIC VALUE ENTRY BAR (2-Way Synced with C99 Knobs & Slider!) -->
-      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3 pt-3 border-t text-xs font-mono"
+      <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 mt-3 pt-3 border-t text-xs font-mono"
            style="border-color: var(--saanskara-border-subtle)">
         <label class="flex items-center justify-between px-2.5 py-1.5 rounded" style="background-color: var(--saanskara-bg-canvas)">
           <span style="color: var(--saanskara-text-muted)">SA (Hz):</span>
@@ -804,6 +823,16 @@
           <input type="number" step="0.1" min="0.5" max="4.0" value="1.65"
                  data-imgui-synth-target="paramInput"
                  data-param-index="3" data-param-key="analog_drive"
+                 data-action="input->imgui-synth#setManualParam change->imgui-synth#setManualParam"
+                 class="w-14 text-right bg-transparent font-bold focus:outline-none"
+                 style="color: var(--saanskara-accent-primary)">
+        </label>
+
+        <label class="flex items-center justify-between px-2.5 py-1.5 rounded" style="background-color: var(--saanskara-bg-canvas)">
+          <span style="color: var(--saanskara-text-muted)">MEEND:</span>
+          <input type="number" step="10" min="0" max="1200" value="180"
+                 data-imgui-synth-target="paramInput"
+                 data-param-index="4" data-param-key="meend_ms"
                  data-action="input->imgui-synth#setManualParam change->imgui-synth#setManualParam"
                  class="w-14 text-right bg-transparent font-bold focus:outline-none"
                  style="color: var(--saanskara-accent-primary)">
