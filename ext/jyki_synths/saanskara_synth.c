@@ -49,7 +49,7 @@ typedef struct {
 } TouchSlot;
 
 static SynthParam g_params[NUM_PARAMS] = {
-    { "SA (HZ)",   "root_hz",      "%.0fHz", 240.0f, 110.0f, 440.0f, 0, 0,0,0,0 },
+    { "SA (HZ)",   "root_hz",      "%.0fHz", 240.0f, 20.0f, 880.0f, 0, 0,0,0,0 },
     { "JAWARI",    "jawari_buzz",  "%.2f",   0.42f,  0.0f,   1.0f,   0, 0,0,0,0 },
     { "TARAB RES", "resonance",    "%.2f",   0.68f,  0.0f,   1.0f,   0, 0,0,0,0 },
     { "DRIVE",     "analog_drive", "%.1fx",  1.65f,  0.5f,   4.0f,   0, 0,0,0,0 },
