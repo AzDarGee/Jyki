@@ -819,6 +819,48 @@
                  style="color: var(--saanskara-accent-primary)">
         </label>
       </div>
+
+      <!-- INTERACTIVE SWARA KEYBOARD & MIDI STRIP (Relative to SA Hz!) -->
+      <div class="mt-3 pt-3 border-t" style="border-color: var(--saanskara-border-subtle)">
+        <div class="flex items-center justify-between text-xs font-mono mb-2">
+      <span style="color: var(--saanskara-text-muted)">
+        🪕 <strong>Saptak Swaras (Relative to SA Hz)</strong> • Computer Keys: <code>A W S E D F T G Y H U J K</code> (<code>Z/X</code> Octave)
+      </span>
+          <span data-imgui-synth-target="midiStatus" style="color: var(--saanskara-accent-primary)">
+        🎹 Keys: A-K • MIDI Ready
+      </span>
+        </div>
+
+        <div class="grid grid-cols-7 sm:grid-cols-13 gap-1.5">
+          <% [
+               [0,  "Sa",  "A"],
+               [1,  "re♭", "W"],
+               [2,  "Re",  "S"],
+               [3,  "ga♭", "E"],
+               [4,  "Ga",  "D"],
+               [5,  "Ma",  "F"],
+               [6,  "Ma♯", "T"],
+               [7,  "Pa",  "G"],
+               [8,  "dha♭","Y"],
+               [9,  "Dha", "H"],
+               [10, "ni♭", "U"],
+               [11, "Ni",  "J"],
+               [12, "Sa'", "K"]
+             ].each do |semi, swara, key_hint| %>
+            <button type="button"
+                    data-imgui-synth-target="swaraBtn"
+                    data-semitone="<%= semi %>"
+                    data-swara="<%= swara %>"
+                    data-action="pointerdown->imgui-synth#playSwaraPad"
+                    aria-pressed="<%= semi == 0 ? 'true' : 'false' %>"
+                    class="theme-pill-btn flex flex-col items-center justify-center py-2 px-1 text-center">
+              <span class="font-bold text-xs"><%= swara %></span>
+              <span class="text-[10px] opacity-60 font-mono">[<%= key_hint %>]</span>
+            </button>
+          <% end %>
+        </div>
+      </div>
+
     </div>
   </aside>
 </div>
