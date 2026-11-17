@@ -22,7 +22,7 @@ body,
   background-color: theme("bg-canvas");
   color: theme("text-main");
   transition: background-color $daw-transition-speed ease, color $daw-transition-speed ease;
-  @apply w-full h-screen min-h-screen overflow-y-auto overflow-x-hidden flex flex-col select-none font-sans;
+  @apply w-full h-screen h-dvh min-h-screen min-h-dvh overflow-y-auto overflow-x-hidden flex flex-col select-none font-sans;
 
   .daw-workspace {
     @apply flex-1 grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-6 p-3 sm:p-6;

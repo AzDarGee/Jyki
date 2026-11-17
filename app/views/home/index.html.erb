@@ -6,7 +6,7 @@
   current_handle = current_user&.username.presence || "saanskara"
   current_role = (current_user&.role.presence || "OWNER").upcase
 %>
-<div class="daw-pwa-shell w-full h-screen min-h-screen overflow-y-auto overflow-x-hidden flex flex-col"
+<div class="daw-pwa-shell w-full h-screen h-dvh min-h-screen min-h-dvh overflow-y-auto overflow-x-hidden flex flex-col pb-16 sm:pb-12 pb-[calc(env(safe-area-inset-bottom,0px)+4rem)]"
      id="saanskara-daw"
      data-controller="studio crdt-sync"
      data-theme="<%= @project.theme_name %>"
@@ -603,7 +603,7 @@
   <!-- 4. COLLAPSIBLE STUDIO CHAT & CRDT VECTOR OPERATION LOG DRAWER -->
   <aside id="crdt-collab-drawer"
          data-crdt-sync-target="collabDrawer"
-         class="crdt-collab-drawer mx-3 sm:mx-6 mb-4 sm:mb-6 rounded-xl p-3 sm:p-4"
+         class="crdt-collab-drawer mx-3 sm:mx-6 mb-6 sm:mb-8 rounded-xl p-3 sm:p-4"
          aria-label="Studio Collaboration & CRDT Telemetry Drawer">
     <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3 pb-3 mb-3 border-b"
          style="border-color: var(--saanskara-border-subtle)">
@@ -743,18 +743,18 @@
       </div>
     </div>
     <!-- SAANSKARA DEAR IMGUI + IMPLOT + IMGUI-KNOBS WASM RACK -->
-    <div class="daw-panel mt-6" data-controller="imgui-synth">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <h2 class="text-sm font-bold uppercase tracking-wider">
+    <div class="daw-panel mt-4 sm:mt-6 min-w-0" data-controller="imgui-synth">
+      <div class="flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2.5 mb-3">
+        <div class="min-w-0 flex-1">
+          <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider">
             🪕 Saanskara Sitar Synth &amp; 120fps ImPlot Oscilloscope (WebGL2 WASM)
           </h2>
-          <p class="text-xs" style="color: var(--saanskara-text-muted)">
+          <p class="text-[11px] sm:text-xs" style="color: var(--saanskara-text-muted)">
             Rendered natively on the GPU by <code>Dear ImGui + ImPlot + imgui-knobs</code> inside a Rails 8 <code>&lt;canvas&gt;</code>!
           </p>
         </div>
         <span data-imgui-synth-target="readout"
-              class="px-3 py-1 rounded font-mono text-xs"
+              class="px-2.5 sm:px-3 py-1 rounded font-mono text-[11px] sm:text-xs shrink-0 self-start sm:self-auto"
               style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
           root_hz: 240.00
         </span>
@@ -762,7 +762,7 @@
 
       <canvas id="imgui-synth-canvas"
               data-imgui-synth-target="canvas"
-              class="h-56 rounded-lg block cursor-crosshair"
+              class="w-full max-w-full h-44 sm:h-56 rounded-lg block cursor-crosshair"
               style="border: 1px solid var(--saanskara-border-subtle); touch-action: none">
       </canvas>
     </div>
