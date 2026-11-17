@@ -1,5 +1,5 @@
 // ext/jyki_synths/saanskara_synth.c
-// Pure C99 Clay + NanoVG Synth with imgui-knobs WiperDot UI, ImPlot Shaded Scope, Vector Labels & 4-Touch Limit!
+// Pure C99 Clay + NanoVG Synth with 48kHz Audio Engine, imgui-knobs WiperDot UI, ImPlot Scope & 4-Touch Limit!
 
 #define CLAY_IMPLEMENTATION
 #include "clay.h"
@@ -82,8 +82,118 @@ static float clampf(float v, float lo, float hi) {
 }
 
 // ============================================================================
-// 2. ZERO-DEPENDENCY GPU VECTOR HERSHEY MICRO-FONT (Draws Crisp UI Labels!)
-//    Each glyph is encoded on a 4x6 grid so we need ZERO external .ttf files!
+// 2. REAL-TIME 48kHz C99 CONTINUOUS AUDIO SYNTHESIZER (Defined BEFORE Touch!)
+// ============================================================================
+static float g_audio_sample_rate = 48000.0f;
+static int   g_drone_active = 1; // Continuous sound ON by default!
+static float g_phase_sa     = 0.0f;
+static float g_phase_pa     = 0.0f;
+static float g_phase_sub    = 0.0f;
+static float g_phase_jawari = 0.0f;
+static float g_phase_lfo    = 0.0f;
+static float g_pluck_env    = 0.0f;
+static float g_tarab_env    = 0.8f;
+static float g_smooth_hz    = 240.0f;
+static float g_smooth_jaw   = 0.42f;
+static float g_smooth_res   = 0.68f;
+static float g_smooth_drive = 1.65f;
+static float g_smooth_morph = 0.75f;
+static float g_meend_ratio  = 1.0f;
+static float g_audio_out_buf[2048];
+
+EMSCRIPTEN_KEEPALIVE
+void synth_set_sample_rate(float sr) {
+    if (sr >= 8000.0f && sr <= 192000.0f) g_audio_sample_rate = sr;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void synth_set_drone_active(int active) {
+    g_drone_active = active ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int synth_get_drone_active(void) {
+    return g_drone_active;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void synth_trigger_pluck(float velocity, float pitch_ratio) {
+    g_pluck_env   = clampf(velocity, 0.2f, 1.0f);
+    g_tarab_env   = 1.0f;
+    g_meend_ratio = clampf(pitch_ratio, 0.5f, 2.0f);
+}
+
+EMSCRIPTEN_KEEPALIVE
+float* synth_render_audio_block(int num_frames, int drone_override) {
+    if (num_frames > 2048) num_frames = 2048;
+
+    int is_on = (drone_override >= 0) ? drone_override : g_drone_active;
+    float target_hz    = g_params[0].value * g_meend_ratio;
+    float target_jaw   = g_params[1].value;
+    float target_res   = g_params[2].value;
+    float target_drive = g_params[3].value;
+    float target_morph = g_params[4].value;
+    float inv_sr       = 1.0f / g_audio_sample_rate;
+
+    for (int i = 0; i < num_frames; i++) {
+        // Sample-accurate parameter smoothing (zero clicks/zipper noise while turning knobs!)
+        g_smooth_hz    += (target_hz    - g_smooth_hz)    * 0.002f;
+        g_smooth_jaw   += (target_jaw   - g_smooth_jaw)   * 0.002f;
+        g_smooth_res   += (target_res   - g_smooth_res)   * 0.002f;
+        g_smooth_drive += (target_drive - g_smooth_drive) * 0.002f;
+        g_smooth_morph += (target_morph - g_smooth_morph) * 0.002f;
+
+        g_pluck_env *= 0.99980f;
+
+        // Slow breathing Tanpura LFO so the continuous drone feels alive like plucked strings!
+        g_phase_lfo += 2.0f * (float)M_PI * 0.35f * inv_sr;
+        if (g_phase_lfo > 2.0f * (float)M_PI) g_phase_lfo -= 2.0f * (float)M_PI;
+        float breath = 0.85f + 0.15f * sinf(g_phase_lfo);
+
+        float drone_level = is_on ? (0.45f * breath) : 0.0f;
+        float amp_env = fminf(1.2f, drone_level + g_pluck_env * 0.75f);
+
+        // Advance oscillators controlled directly by Knob 0 (SA Hz)
+        g_phase_sa     += 2.0f * (float)M_PI * g_smooth_hz * inv_sr;
+        g_phase_pa     += 2.0f * (float)M_PI * (g_smooth_hz * 1.4983f) * inv_sr;
+        g_phase_sub    += 2.0f * (float)M_PI * (g_smooth_hz * 0.5f) * inv_sr;
+        g_phase_jawari += 2.0f * (float)M_PI * (g_smooth_hz * (2.0f + g_smooth_morph * 3.0f)) * inv_sr;
+
+        if (g_phase_sa     > 2.0f * (float)M_PI) g_phase_sa     -= 2.0f * (float)M_PI;
+        if (g_phase_pa     > 2.0f * (float)M_PI) g_phase_pa     -= 2.0f * (float)M_PI;
+        if (g_phase_sub    > 2.0f * (float)M_PI) g_phase_sub    -= 2.0f * (float)M_PI;
+        if (g_phase_jawari > 2.0f * (float)M_PI) g_phase_jawari -= 2.0f * (float)M_PI;
+
+        // 1. Knob 0 (SA HZ) + Slider 4 (MORPH MIX: blends warm sub-drone vs bright upper sitar)
+        float sa  = sinf(g_phase_sa);
+        float sub = sinf(g_phase_sub) * (0.65f * (1.0f - g_smooth_morph * 0.6f));
+
+        // 2. Knob 2 (TARAB RES: controls Fifth 'Pa' & 3rd/5th harmonic sympathetic strings!)
+        float pa    = sinf(g_phase_pa) * (g_smooth_res * 0.65f);
+        float tarab = sinf(g_phase_sa * 3.0f + 1.5f * pa) * (g_smooth_res * 0.40f);
+
+        // 3. Knob 1 (JAWARI: controls curved-bridge FM harmonic buzz shimmer!)
+        float buzz = g_smooth_jaw * 0.85f * sinf(g_phase_jawari + (1.0f + g_smooth_jaw * 3.5f) * sa);
+
+        // 4. Knob 3 (DRIVE: controls analog tube saturation & output loudness!)
+        float raw = (sa + sub + pa + tarab + buzz) * amp_env * g_smooth_drive;
+        float out = raw / (1.0f + 0.50f * fabsf(raw));
+
+        // Morph slider also acts as master output contour
+        g_audio_out_buf[i] = out * (0.20f + 0.25f * g_smooth_morph);
+    }
+
+    return g_audio_out_buf;
+}
+
+// Direct sample getter so JS NEVER crashes even if HEAPF32 isn't exported!
+EMSCRIPTEN_KEEPALIVE
+float synth_get_audio_sample(int index) {
+    return (index >= 0 && index < 2048) ? g_audio_out_buf[index] : 0.0f;
+}
+
+// ============================================================================
+// 3. ZERO-DEPENDENCY GPU VECTOR HERSHEY MICRO-FONT
 // ============================================================================
 static void draw_glyph(char c, float x, float y, float w, float h) {
     if (c >= 'a' && c <= 'z') c -= 32;
@@ -154,7 +264,7 @@ static void draw_vector_text(const char* str, float cx, float cy, float char_w, 
 }
 
 // ============================================================================
-// 3. 4-FINGER MULTI-TOUCH & MOUSE ENGINE
+// 4. 4-FINGER MULTI-TOUCH & MOUSE ENGINE
 // ============================================================================
 EMSCRIPTEN_KEEPALIVE
 void synth_pointer_down(int pointer_id, float x, float y) {
@@ -167,9 +277,19 @@ void synth_pointer_down(int pointer_id, float x, float y) {
             break;
         }
     }
-    if (hit_param < 0) return;
 
-    // Enforce strict 4-touch limit (MAX_TOUCH_POINTS = 4)
+    if (hit_param < 0) {
+        // Tapping/dragging inside the Oscilloscope plucks the Sitar & bends pitch (Meend)!
+        Clay_ElementData scope = Clay_GetElementData(CLAY_ID("ScopeBox"));
+        if (scope.found && x >= scope.boundingBox.x && x <= (scope.boundingBox.x + scope.boundingBox.width)) {
+            float norm_x = clampf((x - scope.boundingBox.x) / scope.boundingBox.width, 0.0f, 1.0f);
+            synth_trigger_pluck(0.95f, 1.0f + norm_x);
+        }
+        return;
+    }
+
+    if (g_pluck_env < 0.25f) synth_trigger_pluck(0.45f, 1.0f);
+
     for (int s = 0; s < MAX_TOUCH_POINTS; s++) {
         if (!g_touches[s].active || g_touches[s].pointer_id == pointer_id) {
             g_touches[s].active      = 1;
@@ -252,7 +372,7 @@ void imgui_on_mouse_wheel(float dx, float dy) {
 }
 
 // ============================================================================
-// 4. IMGUI-KNOBS (`ImGuiKnobVariant_WiperDot`) & IMPLOT VISUAL RECREATION!
+// 5. IMGUI-KNOBS (`ImGuiKnobVariant_WiperDot`) & IMPLOT VISUAL RECREATION!
 // ============================================================================
 static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
     float cx = p->bbox_x + p->bbox_w * 0.5f;
@@ -260,7 +380,6 @@ static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
     float radius = fminf(p->bbox_w * 0.42f, (p->bbox_h - 34.0f) * 0.46f);
     if (radius < 14.0f) radius = 14.0f;
 
-    // 1. Top Label (Just like ImGuiKnobs::Knob title!)
     draw_vector_text(p->name, cx, p->bbox_y + 9.0f, 4.6f, 7.2f, g_col_text, 1);
 
     float norm = (p->value - p->min_val) / (p->max_val - p->min_val);
@@ -268,7 +387,6 @@ static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
     float a1 = 2.25f * (float)M_PI;
     float a_val = a0 + norm * (a1 - a0);
 
-    // 2. Outer Track Ring (ImGuiCol_FrameBg)
     nvgBeginPath(g_nvg);
     nvgArc(g_nvg, cx, cy, radius, a0, a1, NVG_CW);
     nvgStrokeWidth(g_nvg, radius * 0.18f);
@@ -276,7 +394,6 @@ static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
     nvgLineCap(g_nvg, NVG_ROUND);
     nvgStroke(g_nvg);
 
-    // 3. Glowing Active Wiper Arc (ImGuiCol_SliderGrab / ImGuiCol_SliderGrabActive)
     if (norm > 0.005f) {
         nvgBeginPath(g_nvg);
         nvgArc(g_nvg, cx, cy, radius, a0, a_val, NVG_CW);
@@ -286,7 +403,6 @@ static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
         nvgStroke(g_nvg);
     }
 
-    // 4. Inner 3D Rotary Knob Body (ImGuiKnobVariant_WiperDot center circle)
     float body_r = radius * 0.74f;
     NVGpaint knob_grad = nvgLinearGradient(g_nvg, cx, cy - body_r, cx, cy + body_r, g_col_panel, g_col_canvas);
     nvgBeginPath(g_nvg);
@@ -297,7 +413,6 @@ static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
     nvgStrokeColor(g_nvg, is_touched ? g_col_accent : hex_to_nvg(g_hex_text, 0.15f));
     nvgStroke(g_nvg);
 
-    // 5. The Signature `WiperDot` Indicator on the Knob Perimeter!
     float dot_r = body_r * 0.65f;
     float dx = cx + cosf(a_val) * dot_r;
     float dy = cy + sinf(a_val) * dot_r;
@@ -306,7 +421,6 @@ static void draw_imgui_wiperdot_knob(SynthParam* p, int is_touched) {
     nvgFillColor(g_nvg, is_touched ? g_col_alert : g_col_text);
     nvgFill(g_nvg);
 
-    // 6. Bottom Value Readout Pill (e.g., "240HZ", "0.42", "1.7X")
     char val_buf[24];
     snprintf(val_buf, sizeof(val_buf), p->fmt, p->value);
     float pill_w = fminf(p->bbox_w - 6.0f, 54.0f);
@@ -325,11 +439,8 @@ static void draw_imgui_slider(SynthParam* p, int is_touched) {
     nvgFill(g_nvg);
 
     float cy = p->bbox_y + p->bbox_h * 0.5f;
-
-    // Left Label: "MORPH MIX"
     draw_vector_text(p->name, p->bbox_x + 8.0f, cy, 4.6f, 7.2f, g_col_text, 0);
 
-    // Center Slider Groove
     float track_x = p->bbox_x + 84.0f;
     float track_w = fmaxf(20.0f, p->bbox_w - 138.0f);
     float norm = (p->value - p->min_val) / (p->max_val - p->min_val);
@@ -345,20 +456,17 @@ static void draw_imgui_slider(SynthParam* p, int is_touched) {
     nvgFillColor(g_nvg, is_touched ? g_col_alert : g_col_accent);
     nvgFill(g_nvg);
 
-    // ImGui-style Rectangular Grab Handle
     nvgBeginPath(g_nvg);
     nvgRoundedRect(g_nvg, track_x + fill_w - 5.0f, cy - 7.5f, 10.0f, 15.0f, 3.0f);
     nvgFillColor(g_nvg, g_col_text);
     nvgFill(g_nvg);
 
-    // Right Value Readout
     char val_buf[24];
     snprintf(val_buf, sizeof(val_buf), "%.0f%%", norm * 100.0f);
     draw_vector_text(val_buf, p->bbox_x + p->bbox_w - 26.0f, cy, 4.5f, 7.0f, g_col_accent, 1);
 }
 
 static void draw_implot_oscilloscope(float x, float y, float w, float h) {
-    // 1. ImPlot Frame & Plot Background
     nvgBeginPath(g_nvg);
     nvgRoundedRect(g_nvg, x, y, w, h, 6.0f);
     nvgFillColor(g_nvg, g_col_canvas);
@@ -367,7 +475,6 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
     nvgStrokeColor(g_nvg, g_col_panel);
     nvgStroke(g_nvg);
 
-    // 2. ImPlot Grid Lines (AxisGrid)
     nvgBeginPath(g_nvg);
     for (int gx = 1; gx < 6; gx++) {
         float lx = x + (w * gx) / 6.0f;
@@ -383,7 +490,7 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
     nvgStrokeColor(g_nvg, hex_to_nvg(g_hex_accent, 0.14f));
     nvgStroke(g_nvg);
 
-    float root_hz = g_params[0].value;
+    float root_hz = g_params[0].value * g_meend_ratio;
     float jawari  = g_params[1].value;
     float res     = g_params[2].value;
     float drive   = g_params[3].value;
@@ -393,7 +500,6 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
     float mid_y = y + h * 0.52f;
     float amp_h = h * 0.38f;
 
-    // 3. ImPlot::PlotShaded("Jawari Harmonics") — Translucent Filled Polygon + Stroke!
     nvgBeginPath(g_nvg);
     nvgMoveTo(g_nvg, x, mid_y);
     for (int i = 0; i < SCOPE_POINTS; i++) {
@@ -424,7 +530,6 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
     nvgStrokeColor(g_nvg, g_col_alert);
     nvgStroke(g_nvg);
 
-    // 4. ImPlot::PlotLine("Master Sitar Wave") — Primary Analog-Saturated Output Wave!
     nvgBeginPath(g_nvg);
     for (int i = 0; i < SCOPE_POINTS; i++) {
         float t = (float)i / (float)(SCOPE_POINTS - 1);
@@ -447,10 +552,9 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
     nvgStrokeColor(g_nvg, g_col_accent);
     nvgStroke(g_nvg);
 
-    // 5. ImPlot Top-Left Legend Overlay Box
     float leg_x = x + 10.0f, leg_y = y + 8.0f;
     nvgBeginPath(g_nvg);
-    nvgRoundedRect(g_nvg, leg_x, leg_y, 148.0f, 32.0f, 4.0f);
+    nvgRoundedRect(g_nvg, leg_x, leg_y, 156.0f, 32.0f, 4.0f);
     nvgFillColor(g_nvg, hex_to_nvg(0x090d16, 0.80f));
     nvgFill(g_nvg);
 
@@ -468,7 +572,7 @@ static void draw_implot_oscilloscope(float x, float y, float w, float h) {
 }
 
 // ============================================================================
-// 5. CLAY FLEXBOX LAYOUT + NANOVG RENDER LOOP
+// 6. CLAY FLEXBOX LAYOUT + NANOVG RENDER LOOP
 // ============================================================================
 static void render_frame(void) {
     if (!g_nvg) return;
@@ -501,7 +605,6 @@ static void render_frame(void) {
             .childGap = 12
         }
     }) {
-        // Left ImGui-style Child Panel ("KnobsPanel")
         CLAY(CLAY_ID("ControlsRack"), {
             .layout = {
                 .sizing = {
@@ -531,7 +634,6 @@ static void render_frame(void) {
             }) {}
         }
 
-        // Right ImPlot Oscilloscope Panel ("ScopeBox")
         CLAY(CLAY_ID("ScopeBox"), {
             .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } }
         }) {}
@@ -541,13 +643,11 @@ static void render_frame(void) {
 
     nvgBeginFrame(g_nvg, g_css_w, g_css_h, dpr);
 
-    // Outer WindowBg
     nvgBeginPath(g_nvg);
     nvgRoundedRect(g_nvg, 0, 0, g_css_w, g_css_h, 8.0f);
     nvgFillColor(g_nvg, g_col_surface);
     nvgFill(g_nvg);
 
-    // Left ChildBg Border Box + Header Title ("SAANSKARA RAGA DSP RACK • 4-TOUCH")
     Clay_ElementData rack_data = Clay_GetElementData(CLAY_ID("ControlsRack"));
     if (rack_data.found) {
         nvgBeginPath(g_nvg);
@@ -592,7 +692,7 @@ static void render_frame(void) {
 }
 
 // ============================================================================
-// 6. NATIVE C TOUCH & INITIALIZATION
+// 7. NATIVE C TOUCH & INITIALIZATION
 // ============================================================================
 static EM_BOOL on_c_touchstart(int eventType, const EmscriptenTouchEvent* e, void* userData) {
     (void)eventType; (void)userData;

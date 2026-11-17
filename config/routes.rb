@@ -49,9 +49,10 @@ Rails.application.routes.draw do
   resources :track_clips, only: [ :update, :destroy ]
 
   # Legacy home index & studio route
-  get "home" => "home#index", as: :home
+  get "workstation" => "workstation#index", as: :workstation
   get "studio" => "home#index", as: :studio
 
   # Defines the root path route ("/") — Jaku by Saanskara Studios SPA Workstation
-  root "workstation#index"
+  # root "workstation#index"
+  root "home#index"
 end

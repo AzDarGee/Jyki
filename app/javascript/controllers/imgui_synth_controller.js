@@ -2,15 +2,16 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-    static targets = ["canvas", "readout"]
+    static targets = ["canvas", "readout", "audioBtn"]
 
     async connect() {
-        // Expose global hook so C++ EM_JS callback reaches Stimulus & WebAudio/CRDTs!
+        this.droneEnabled = true // Continuous audio ON by default!
+        this.audioCtx = null
+
         window.saanskaraOnImGuiParamChanged = (param, value) => {
             if (this.hasReadoutTarget) {
                 this.readoutTarget.textContent = `${param}: ${value.toFixed(2)}`
             }
-            // Dispatch standard DOM event so studio_controller / crdt_sync_controller can persist it!
             this.element.dispatchEvent(new CustomEvent("imgui:param", {
                 bubbles: true,
                 detail: { param, value }
@@ -24,15 +25,79 @@ export default class extends Controller {
         this.wasm.ccall("init_saanskara_imgui", "number", ["string"], ["#imgui-synth-canvas"])
         this.syncRagaThemeToImGui()
 
-        this.bindInputEvents()
+        this.bindMultiTouchEvents()
         this.observeThemeChanges()
+        this.updateAudioButtonUI()
+    }
+
+    toggleAudio() {
+        this.ensureAudioEngine()
+        this.droneEnabled = !this.droneEnabled
+        if (this.wasm._synth_set_drone_active) {
+            this.wasm._synth_set_drone_active(this.droneEnabled ? 1 : 0)
+        }
+        this.updateAudioButtonUI()
+    }
+
+    pluckNote() {
+        this.ensureAudioEngine()
+        this.wasm._synth_trigger_pluck(1.0, 1.0)
+    }
+
+    ensureAudioEngine() {
+        if (!this.wasm) return
+
+        if (!this.audioCtx) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext
+            this.audioCtx = new AudioContextClass({ latencyHint: "interactive", sampleRate: 48000 })
+            this.wasm._synth_set_sample_rate(this.audioCtx.sampleRate)
+
+            const bufferSize = 512
+            this.scriptNode = this.audioCtx.createScriptProcessor(bufferSize, 0, 2)
+
+            this.scriptNode.onaudioprocess = (e) => {
+                const outL = e.outputBuffer.getChannelData(0)
+                const outR = e.outputBuffer.getChannelData(1)
+                const frames = outL.length
+
+                const ptr = this.wasm._synth_render_audio_block(frames, this.droneEnabled ? 1 : 0)
+
+                if (this.wasm.HEAPF32) {
+                    const start = ptr >> 2
+                    for (let i = 0; i < frames; i++) {
+                        const s = this.wasm.HEAPF32[start + i]
+                        outL[i] = s
+                        outR[i] = s
+                    }
+                } else if (this.wasm._synth_get_audio_sample) {
+                    for (let i = 0; i < frames; i++) {
+                        const s = this.wasm._synth_get_audio_sample(i)
+                        outL[i] = s
+                        outR[i] = s
+                    }
+                }
+            }
+
+            this.scriptNode.connect(this.audioCtx.destination)
+        }
+
+        if (this.audioCtx.state === "suspended") {
+            this.audioCtx.resume()
+        }
+        this.updateAudioButtonUI()
+    }
+
+    updateAudioButtonUI() {
+        if (!this.hasAudioBtnTarget) return
+        this.audioBtnTarget.textContent = this.droneEnabled ? "🔊 Continuous Drone: ON" : "🔇 Continuous Drone: MUTED"
+        this.audioBtnTarget.setAttribute("aria-pressed", this.droneEnabled ? "true" : "false")
     }
 
     loadWasmScript(src) {
         return new Promise((resolve, reject) => {
             if (window.createSaanskaraSynthModule) return resolve()
             const s = document.createElement("script")
-            s.src = src
+            s.src = `${src}?v=${Date.now()}` // Bust browser cache so new WASM loads immediately!
             s.onload = resolve
             s.onerror = reject
             document.head.appendChild(s)
@@ -42,35 +107,44 @@ export default class extends Controller {
     resizeCanvas() {
         const c = this.canvasTarget
         const rect = c.getBoundingClientRect()
-        c.width = rect.width
-        c.height = rect.height
+        const dpr = window.devicePixelRatio || 1.0
+        c.width = Math.round(rect.width * dpr)
+        c.height = Math.round(rect.height * dpr)
         if (this.wasm) {
-            this.wasm._imgui_set_canvas_size(c.width, c.height)
+            this.wasm._imgui_set_canvas_size(Math.round(rect.width), Math.round(rect.height))
         }
     }
 
-    bindInputEvents() {
+    bindMultiTouchEvents() {
         const c = this.canvasTarget
+        c.style.touchAction = "none"
+        c.style.userSelect = "none"
+        c.style.webkitUserSelect = "none"
+
         window.addEventListener("resize", () => this.resizeCanvas())
 
-        c.addEventListener("pointermove", (e) => {
-            const r = c.getBoundingClientRect()
-            this.wasm._imgui_on_mouse_move(e.clientX - r.left, e.clientY - r.top)
-        })
+        // Wake up continuous audio on the very first click/touch anywhere on the canvas!
         c.addEventListener("pointerdown", (e) => {
-            c.setPointerCapture(e.pointerId)
-            this.wasm._imgui_on_mouse_button(e.button, 1)
-        })
-        c.addEventListener("pointerup", (e) => {
-            this.wasm._imgui_on_mouse_button(e.button, 0)
-        })
-        c.addEventListener("wheel", (e) => {
             e.preventDefault()
-            this.wasm._imgui_on_mouse_wheel(-e.deltaX * 0.01, -e.deltaY * 0.01)
+            this.ensureAudioEngine()
+            c.setPointerCapture(e.pointerId)
+            const r = c.getBoundingClientRect()
+            this.wasm._synth_pointer_down(e.pointerId, e.clientX - r.left, e.clientY - r.top)
         }, { passive: false })
+
+        c.addEventListener("pointermove", (e) => {
+            e.preventDefault()
+            const r = c.getBoundingClientRect()
+            this.wasm._synth_pointer_move(e.pointerId, e.clientX - r.left, e.clientY - r.top)
+        }, { passive: false })
+
+        const endTouch = (e) => {
+            this.wasm._synth_pointer_up(e.pointerId)
+        }
+        c.addEventListener("pointerup", endTouch)
+        c.addEventListener("pointercancel", endTouch)
     }
 
-    // Reads live CSS Custom Properties (--saanskara-*) and injects them into Dear ImGui!
     syncRagaThemeToImGui() {
         if (!this.wasm) return
         const styles = getComputedStyle(document.documentElement)
@@ -99,5 +173,7 @@ export default class extends Controller {
 
     disconnect() {
         this.themeObserver?.disconnect()
+        this.scriptNode?.disconnect()
+        this.audioCtx?.close()
     }
 }
