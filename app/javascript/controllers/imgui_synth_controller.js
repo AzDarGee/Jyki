@@ -1,10 +1,6 @@
 // app/javascript/controllers/imgui_synth_controller.js
 import { Controller } from "@hotwired/stimulus"
 
-// ============================================================================
-// REAL-TIME 48kHz AUDIO WORKLET PROCESSOR (Runs on Dedicated OS Audio Thread!)
-// 128-frame quantum = 2.66ms latency • Zero Main-Thread UI Jitter!
-// ============================================================================
 const SAANSKARA_WORKLET_SOURCE = `
 class SaanskaraSitarProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -17,14 +13,12 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
     this.morph       = 0.75;
     this.meendRatio  = 1.0;
 
-    // Smoothed internal DSP registers (prevents zipper noise on fast knob turns)
     this.sHz    = 240.0;
     this.sJaw   = 0.42;
     this.sRes   = 0.68;
     this.sDrive = 1.65;
     this.sMorph = 0.75;
 
-    // Phase accumulators & envelopes
     this.pSa     = 0.0;
     this.pPa     = 0.0;
     this.pSub    = 0.0;
@@ -57,14 +51,13 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
 
     const outL = output[0];
     const outR = output.length > 1 ? output[1] : null;
-    const frames = outL.length; // 128 frames per hardware quantum
+    const frames = outL.length;
     const invSr = 1.0 / sampleRate;
     const TWO_PI = 6.283185307179586;
 
     const targetHz = this.rootHz * this.meendRatio;
 
     for (let i = 0; i < frames; i++) {
-      // Sample-accurate exponential parameter smoothing
       this.sHz    += (targetHz       - this.sHz)    * 0.0025;
       this.sJaw   += (this.jawari    - this.sJaw)   * 0.0025;
       this.sRes   += (this.resonance - this.sRes)   * 0.0025;
@@ -74,7 +67,6 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
       this.pluckEnv *= 0.99980;
       this.tarabEnv *= 0.99993;
 
-      // Breathing Tanpura LFO
       this.pLfo += TWO_PI * 0.35 * invSr;
       if (this.pLfo > TWO_PI) this.pLfo -= TWO_PI;
       const breath = 0.85 + 0.15 * Math.sin(this.pLfo);
@@ -82,7 +74,6 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
       const droneLevel = this.droneActive ? (0.45 * breath) : 0.0;
       const ampEnv = Math.min(1.2, droneLevel + this.pluckEnv * 0.75);
 
-      // Advance phase accumulators
       this.pSa     += TWO_PI * this.sHz * invSr;
       this.pPa     += TWO_PI * (this.sHz * 1.4983) * invSr;
       this.pSub    += TWO_PI * (this.sHz * 0.5) * invSr;
@@ -93,19 +84,14 @@ class SaanskaraSitarProcessor extends AudioWorkletProcessor {
       if (this.pSub    > TWO_PI) this.pSub    -= TWO_PI;
       if (this.pJawari > TWO_PI) this.pJawari -= TWO_PI;
 
-      // 1. Sa + Sub-Octave Drone (shaped by Morph Mix slider)
       const sa  = Math.sin(this.pSa);
       const sub = Math.sin(this.pSub) * (0.65 * (1.0 - this.sMorph * 0.6));
-
-      // 2. Fifth (Pa) + Sympathetic Tarab Strings (shaped by Tarab Res knob)
       const pa    = Math.sin(this.pPa) * (this.sRes * 0.65);
       const tarab = Math.sin(this.pSa * 3.0 + 1.5 * pa) * (this.sRes * 0.40);
 
-      // 3. Non-linear Jawari curved bridge FM buzz (shaped by Jawari knob)
       const dynJaw = this.sJaw * (1.0 + 0.5 * this.pluckEnv);
       const buzz   = dynJaw * 0.85 * Math.sin(this.pJawari + (1.0 + dynJaw * 3.5) * sa);
 
-      // 4. Rational analog tube soft-clipper (shaped by Drive knob)
       const raw = (sa + sub + pa + tarab + buzz) * ampEnv * this.sDrive;
       const sample = (raw / (1.0 + 0.50 * Math.abs(raw))) * (0.20 + 0.25 * this.sMorph);
 
@@ -120,7 +106,7 @@ registerProcessor("saanskara-sitar-processor", SaanskaraSitarProcessor);
 `;
 
 export default class extends Controller {
-    static targets = ["canvas", "readout", "audioBtn"]
+    static targets = ["canvas", "readout", "audioBtn", "paramInput"]
 
     async connect() {
         this.droneEnabled = true
@@ -128,13 +114,19 @@ export default class extends Controller {
         this.workletNode = null
         this.workletReady = null
 
-        // Receive live knob & slider turns directly from C99 Clay + NanoVG!
+        // 1. Receive live knob & slider turns from C99 and update AudioWorklet + HTML number inputs!
         window.saanskaraOnImGuiParamChanged = (param, value) => {
             if (this.hasReadoutTarget) {
                 this.readoutTarget.textContent = `${param}: ${value.toFixed(2)}`
             }
-            // Forward immediately to the dedicated AudioWorklet thread!
             this.workletNode?.port.postMessage({ type: "param", key: param, value })
+
+            // Keep any external manual <input> fields in sync when turning knobs!
+            this.paramInputTargets.forEach((input) => {
+                if (input.dataset.paramKey === param && document.activeElement !== input) {
+                    input.value = param === "root_hz" ? Math.round(value) : value.toFixed(2)
+                }
+            })
 
             this.element.dispatchEvent(new CustomEvent("imgui:param", {
                 bubbles: true,
@@ -142,7 +134,11 @@ export default class extends Controller {
             }))
         }
 
-        // Receive oscilloscope Meend plucks from C99!
+        // 2. Open floating inline numeric editor when user taps a value pill or double-taps a knob on the <canvas>!
+        window.saanskaraOpenParamEditor = (meta) => {
+            this.spawnInlineCanvasInput(meta)
+        }
+
         window.saanskaraOnImGuiPluck = (velocity, pitchRatio) => {
             this.workletNode?.port.postMessage({ type: "pluck", velocity, pitchRatio })
         }
@@ -157,6 +153,84 @@ export default class extends Controller {
         this.bindMultiTouchEvents()
         this.observeThemeChanges()
         this.updateAudioButtonUI()
+    }
+
+    // Triggered when user types into one of the manual number inputs in the HTML strip
+    setManualParam(e) {
+        this.ensureAudioEngine()
+        const input = e.currentTarget
+        const idx = parseInt(input.dataset.paramIndex, 10)
+        const val = parseFloat(input.value)
+        if (!Number.isNaN(idx) && !Number.isNaN(val) && this.wasm?._synth_set_param_value) {
+            this.wasm._synth_set_param_value(idx, val)
+        }
+    }
+
+    // Spawns a sleek floating <input type="number"> directly over the tapped value pill on the <canvas>!
+    spawnInlineCanvasInput(meta) {
+        this.closeInlineInput()
+
+        const c = this.canvasTarget
+        const parent = c.parentElement
+        if (getComputedStyle(parent).position === "static") {
+            parent.style.position = "relative"
+        }
+
+        const input = document.createElement("input")
+        input.type = "number"
+        input.inputMode = "decimal"
+        input.step = meta.key === "root_hz" ? "1" : "0.01"
+        input.min = meta.min
+        input.max = meta.max
+        input.value = meta.key === "root_hz" ? Math.round(meta.value) : meta.value.toFixed(2)
+
+        Object.assign(input.style, {
+            position: "absolute",
+            left: `${ c.offsetLeft + meta.x - 4 }px`,
+            top: `${ c.offsetTop + meta.y - 2 }px`,
+            width: `${ Math.max(64, meta.w + 8) }px`,
+            height: "22px",
+            fontSize: "11px",
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            textAlign: "center",
+            backgroundColor: "var(--saanskara-bg-canvas)",
+            color: "var(--saanskara-accent-primary)",
+            border: "1.5px solid var(--saanskara-accent-primary)",
+            borderRadius: "4px",
+            outline: "none",
+            zIndex: "50",
+            boxShadow: "0 0 10px var(--saanskara-accent-primary)"
+        })
+
+        const commit = () => {
+            const parsed = parseFloat(input.value)
+            if (!Number.isNaN(parsed) && this.wasm?._synth_set_param_value) {
+                this.wasm._synth_set_param_value(meta.index, parsed)
+            }
+            this.closeInlineInput()
+        }
+
+        input.addEventListener("keydown", (ev) => {
+            if (ev.key === "Enter") { ev.preventDefault(); commit() }
+            if (ev.key === "Escape") { ev.preventDefault(); this.closeInlineInput() }
+        })
+        input.addEventListener("blur", commit)
+
+        parent.appendChild(input)
+        this.activeInlineInput = input
+        requestAnimationFrame(() => {
+            input.focus()
+            input.select()
+        })
+    }
+
+    closeInlineInput() {
+        if (this.activeInlineInput) {
+            const el = this.activeInlineInput
+            this.activeInlineInput = null
+            el.remove()
+        }
     }
 
     async toggleAudio() {
@@ -177,7 +251,6 @@ export default class extends Controller {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext
             this.audioCtx = new AudioContextClass({ latencyHint: "interactive", sampleRate: 48000 })
 
-            // Load our AudioWorkletProcessor via zero-network Blob URL
             const blob = new Blob([SAANSKARA_WORKLET_SOURCE], { type: "application/javascript" })
             const workletUrl = URL.createObjectURL(blob)
 
@@ -284,6 +357,7 @@ export default class extends Controller {
     }
 
     disconnect() {
+        this.closeInlineInput()
         this.themeObserver?.disconnect()
         this.workletNode?.disconnect()
         this.audioCtx?.close()
