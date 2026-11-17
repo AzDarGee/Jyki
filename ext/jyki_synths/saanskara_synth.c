@@ -20,21 +20,17 @@
 #define M_PI 3.14159265358979323846f
 #endif
 
-// ============================================================================
-// 1. MULTI-TOUCH & SYNTH DSP STATE (Zero Heap Allocations in Render Loop!)
-// ============================================================================
 #define MAX_TOUCH_POINTS 10
 #define NUM_PARAMS 5
-#define SCOPE_POINTS 360
+#define SCOPE_POINTS 256
 
 typedef struct {
     const char* name;
     const char* key;
-    const char* unit;
     float value;
     float min_val;
     float max_val;
-    int is_slider; // 0 = Rotary Knob, 1 = Touch Slider
+    int is_slider;
     float bbox_x, bbox_y, bbox_w, bbox_h;
 } SynthParam;
 
@@ -48,22 +44,20 @@ typedef struct {
 } TouchSlot;
 
 static SynthParam g_params[NUM_PARAMS] = {
-    { "SA (ROOT)", "root_hz",      "Hz", 240.0f, 110.0f, 440.0f, 0, 0,0,0,0 },
-    { "JAWARI",    "jawari_buzz",  "%",  0.45f,  0.0f,   1.0f,   0, 0,0,0,0 },
-    { "TARAB RES", "resonance",    "%",  0.68f,  0.0f,   1.0f,   0, 0,0,0,0 },
-    { "TUBE DRIVE","analog_drive", "x",  1.65f,  0.5f,   4.0f,   0, 0,0,0,0 },
-    { "MORPH MIX", "morph_slider", "%",  0.75f,  0.0f,   1.0f,   1, 0,0,0,0 } // Horizontal Touch Slider!
+    { "SA (ROOT)", "root_hz",      240.0f, 110.0f, 440.0f, 0, 0,0,0,0 },
+    { "JAWARI",    "jawari_buzz",  0.45f,  0.0f,   1.0f,   0, 0,0,0,0 },
+    { "TARAB RES", "resonance",    0.68f,  0.0f,   1.0f,   0, 0,0,0,0 },
+    { "TUBE DRIVE","analog_drive", 1.65f,  0.5f,   4.0f,   0, 0,0,0,0 },
+    { "MORPH MIX", "morph_slider", 0.75f,  0.0f,   1.0f,   1, 0,0,0,0 }
 };
 
 static TouchSlot g_touches[MAX_TOUCH_POINTS];
 static NVGcontext* g_nvg = NULL;
 static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE g_gl = 0;
-static int g_width = 800, g_height = 280;
+static int g_width = 800, g_height = 240;
 static float g_dpr = 1.0f;
 static float g_phase = 0.0f;
-static uint8_t g_clay_arena_mem[1024 * 512]; // 512KB fixed arena for Clay (0 malloc!)
 
-// Raga Theme Colors (Synced from Rails SCSS --saanskara-* variables)
 static NVGcolor g_col_canvas, g_col_surface, g_col_panel, g_col_accent, g_col_alert, g_col_text;
 
 EM_JS(void, js_emit_param, (const char* key, float val), {
@@ -80,12 +74,8 @@ static float clampf(float v, float lo, float hi) {
     return v < lo ? lo : (v > hi ? hi : v);
 }
 
-// ============================================================================
-// 2. MULTI-TOUCH POINTER HANDLERS (Supports 10 Simultaneous Fingers!)
-// ============================================================================
 EMSCRIPTEN_KEEPALIVE
 void synth_pointer_down(int pointer_id, float x, float y) {
-    // Hit-test against Clay-computed bounding boxes immediately on finger-down!
     int hit_param = -1;
     for (int i = 0; i < NUM_PARAMS; i++) {
         SynthParam* p = &g_params[i];
@@ -106,10 +96,9 @@ void synth_pointer_down(int pointer_id, float x, float y) {
             g_touches[s].start_y     = y;
             g_touches[s].start_val   = g_params[hit_param].value;
 
-            // If it's a horizontal slider, jump/scrub directly to finger X!
             SynthParam* p = &g_params[hit_param];
-            if (p->is_slider && p->bbox_w > 10.0f) {
-                float norm = clampf((x - p->bbox_x) / p->bbox_w, 0.0f, 1.0f);
+            if (p->is_slider && p->bbox_w > 24.0f) {
+                float norm = clampf((x - (p->bbox_x + 12.0f)) / (p->bbox_w - 24.0f), 0.0f, 1.0f);
                 p->value = p->min_val + norm * (p->max_val - p->min_val);
                 js_emit_param(p->key, p->value);
             }
@@ -125,13 +114,12 @@ void synth_pointer_move(int pointer_id, float x, float y) {
             SynthParam* p = &g_params[g_touches[s].param_index];
             float range = p->max_val - p->min_val;
 
-            if (p->is_slider) {
-                float norm = clampf((x - p->bbox_x) / p->bbox_w, 0.0f, 1.0f);
+            if (p->is_slider && p->bbox_w > 24.0f) {
+                float norm = clampf((x - (p->bbox_x + 12.0f)) / (p->bbox_w - 24.0f), 0.0f, 1.0f);
                 p->value = p->min_val + norm * range;
             } else {
-                // Rotary Knob: Vertical + Horizontal drag (140px = full sweep, ergonomic on phones!)
-                float dy = (g_touches[s].start_y - y) / 130.0f;
-                float dx = (x - g_touches[s].start_x) / 220.0f;
+                float dy = (g_touches[s].start_y - y) / 120.0f;
+                float dx = (x - g_touches[s].start_x) / 200.0f;
                 p->value = clampf(g_touches[s].start_val + (dy + dx) * range, p->min_val, p->max_val);
             }
             js_emit_param(p->key, p->value);
@@ -149,12 +137,15 @@ void synth_pointer_up(int pointer_id) {
     }
 }
 
-// ============================================================================
-// 3. NANOVG VECTOR HARDWARE WIDGET PAINTERS (Knobs, Sliders, & Oscilloscope)
-// ============================================================================
 static void draw_nanovg_knob(SynthParam* p, int is_touched) {
+    // Subtle card behind each knob so hit zone is clearly visible
+    nvgBeginPath(g_nvg);
+    nvgRoundedRect(g_nvg, p->bbox_x, p->bbox_y, p->bbox_w, p->bbox_h, 6.0f);
+    nvgFillColor(g_nvg, g_col_canvas);
+    nvgFill(g_nvg);
+
     float cx = p->bbox_x + p->bbox_w * 0.5f;
-    float cy = p->bbox_y + p->bbox_h * 0.46f;
+    float cy = p->bbox_y + p->bbox_h * 0.52f;
     float radius = fminf(p->bbox_w, p->bbox_h) * 0.34f;
 
     float norm = (p->value - p->min_val) / (p->max_val - p->min_val);
@@ -162,7 +153,7 @@ static void draw_nanovg_knob(SynthParam* p, int is_touched) {
     float a1 = 2.25f * (float)M_PI;
     float a_val = a0 + norm * (a1 - a0);
 
-    // 1. Background Track Arc
+    // Track ring
     nvgBeginPath(g_nvg);
     nvgArc(g_nvg, cx, cy, radius, a0, a1, NVG_CW);
     nvgStrokeWidth(g_nvg, 5.0f);
@@ -170,22 +161,22 @@ static void draw_nanovg_knob(SynthParam* p, int is_touched) {
     nvgLineCap(g_nvg, NVG_ROUND);
     nvgStroke(g_nvg);
 
-    // 2. Glowing Active Value Arc
+    // Active value arc
     nvgBeginPath(g_nvg);
     nvgArc(g_nvg, cx, cy, radius, a0, a_val, NVG_CW);
-    nvgStrokeWidth(g_nvg, is_touched ? 6.5f : 5.0f);
+    nvgStrokeWidth(g_nvg, is_touched ? 7.0f : 5.5f);
     nvgStrokeColor(g_nvg, is_touched ? g_col_alert : g_col_accent);
     nvgStroke(g_nvg);
 
-    // 3. Inner Metallic Rotary Cap
+    // Center cap
     nvgBeginPath(g_nvg);
-    nvgCircle(g_nvg, cx, cy, radius * 0.74f);
-    nvgFillColor(g_nvg, g_col_canvas);
+    nvgCircle(g_nvg, cx, cy, radius * 0.70f);
+    nvgFillColor(g_nvg, g_col_surface);
     nvgFill(g_nvg);
 
-    // 4. Wiper Indicator Line & Glowing Dot
-    float ix = cx + cosf(a_val) * (radius * 0.52f);
-    float iy = cy + sinf(a_val) * (radius * 0.52f);
+    // Wiper needle
+    float ix = cx + cosf(a_val) * (radius * 0.55f);
+    float iy = cy + sinf(a_val) * (radius * 0.55f);
     nvgBeginPath(g_nvg);
     nvgMoveTo(g_nvg, cx, cy);
     nvgLineTo(g_nvg, ix, iy);
@@ -195,34 +186,35 @@ static void draw_nanovg_knob(SynthParam* p, int is_touched) {
 }
 
 static void draw_nanovg_slider(SynthParam* p, int is_touched) {
-    float pad = 12.0f;
+    nvgBeginPath(g_nvg);
+    nvgRoundedRect(g_nvg, p->bbox_x, p->bbox_y, p->bbox_w, p->bbox_h, 6.0f);
+    nvgFillColor(g_nvg, g_col_canvas);
+    nvgFill(g_nvg);
+
+    float pad = 14.0f;
     float track_x = p->bbox_x + pad;
-    float track_w = p->bbox_w - pad * 2.0f;
+    float track_w = fmaxf(10.0f, p->bbox_w - pad * 2.0f);
     float track_y = p->bbox_y + p->bbox_h * 0.5f;
     float norm = (p->value - p->min_val) / (p->max_val - p->min_val);
     float fill_w = norm * track_w;
 
-    // Track Groove
     nvgBeginPath(g_nvg);
     nvgRoundedRect(g_nvg, track_x, track_y - 4.0f, track_w, 8.0f, 4.0f);
-    nvgFillColor(g_nvg, g_col_canvas);
+    nvgFillColor(g_nvg, g_col_panel);
     nvgFill(g_nvg);
 
-    // Filled Saffron Bar
     nvgBeginPath(g_nvg);
     nvgRoundedRect(g_nvg, track_x, track_y - 4.0f, fill_w, 8.0f, 4.0f);
     nvgFillColor(g_nvg, is_touched ? g_col_alert : g_col_accent);
     nvgFill(g_nvg);
 
-    // Ergonomic Touch Handle
     nvgBeginPath(g_nvg);
-    nvgCircle(g_nvg, track_x + fill_w, track_y, is_touched ? 11.0f : 8.5f);
+    nvgCircle(g_nvg, track_x + fill_w, track_y, is_touched ? 10.5f : 8.0f);
     nvgFillColor(g_nvg, g_col_text);
     nvgFill(g_nvg);
 }
 
 static void draw_nanovg_oscilloscope(float x, float y, float w, float h) {
-    // Scope Screen Background
     nvgBeginPath(g_nvg);
     nvgRoundedRect(g_nvg, x, y, w, h, 8.0f);
     nvgFillColor(g_nvg, g_col_canvas);
@@ -236,30 +228,30 @@ static void draw_nanovg_oscilloscope(float x, float y, float w, float h) {
 
     g_phase += 0.05f;
     float mid_y = y + h * 0.5f;
-    float amp_h = h * 0.40f;
+    float amp_h = h * 0.38f;
 
-    // 1. Secondary Harmonic Overtone Trace
+    // 1. Harmonic Overtone Trace
     nvgBeginPath(g_nvg);
     for (int i = 0; i < SCOPE_POINTS; i++) {
         float t = (float)i / (float)(SCOPE_POINTS - 1);
         float px = x + t * w;
         float env = sinf(t * (float)M_PI);
-        float buzz = jawari * sinf(2.0f * (float)M_PI * (root_hz * 0.075f) * t + g_phase * 1.5f) * env;
+        float buzz = jawari * sinf(2.0f * (float)M_PI * (root_hz * 0.06f) * t + g_phase * 1.5f) * env;
         float py = mid_y - buzz * amp_h;
         if (i == 0) nvgMoveTo(g_nvg, px, py);
         else nvgLineTo(g_nvg, px, py);
     }
-    nvgStrokeWidth(g_nvg, 1.6f);
+    nvgStrokeWidth(g_nvg, 1.5f);
     nvgStrokeColor(g_nvg, g_col_alert);
     nvgStroke(g_nvg);
 
-    // 2. Primary Analog-Saturated Sitar Waveform
+    // 2. Primary Analog-Saturated Sitar Wave
     nvgBeginPath(g_nvg);
     for (int i = 0; i < SCOPE_POINTS; i++) {
         float t = (float)i / (float)(SCOPE_POINTS - 1);
         float px = x + t * w;
         float env = sinf(t * (float)M_PI);
-        float f = root_hz * 0.025f;
+        float f = root_hz * 0.022f;
 
         float sa = sinf(2.0f * (float)M_PI * f * t + g_phase);
         float pa = res * 0.6f * sinf(2.0f * (float)M_PI * (f * 1.5f) * t - g_phase * 0.5f);
@@ -272,24 +264,22 @@ static void draw_nanovg_oscilloscope(float x, float y, float w, float h) {
         if (i == 0) nvgMoveTo(g_nvg, px, py);
         else nvgLineTo(g_nvg, px, py);
     }
-    nvgStrokeWidth(g_nvg, 2.8f);
+    nvgStrokeWidth(g_nvg, 2.6f);
     nvgStrokeColor(g_nvg, g_col_accent);
     nvgStroke(g_nvg);
 }
 
-// ============================================================================
-// 4. CLAY 15-MICROSECOND RESPONSIVE FLEXBOX LAYOUT + NANOVG RENDER LOOP
-// ============================================================================
 static void render_frame(void) {
+    if (!g_nvg) return;
+
     glViewport(0, 0, (int)(g_width * g_dpr), (int)(g_height * g_dpr));
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    // 1. Run Clay Zero-Malloc Flexbox Layout (Automatically adapts to Mobile Portrait vs Desktop!)
     Clay_SetLayoutDimensions((Clay_Dimensions){ (float)g_width, (float)g_height });
     Clay_BeginLayout();
 
-    int is_mobile_narrow = (g_width < 640);
+    int is_mobile_narrow = (g_width < 600);
     Clay_LayoutDirection root_dir = is_mobile_narrow ? CLAY_TOP_TO_BOTTOM : CLAY_LEFT_TO_RIGHT;
 
     CLAY(CLAY_ID("RootContainer"), {
@@ -300,12 +290,11 @@ static void render_frame(void) {
             .childGap = 12
         }
     }) {
-        // Controls Rack (4 Rotary Knobs + 1 Morph Slider)
         CLAY(CLAY_ID("ControlsRack"), {
             .layout = {
                 .sizing = {
                     is_mobile_narrow ? CLAY_SIZING_GROW(0) : CLAY_SIZING_FIXED(340),
-                    is_mobile_narrow ? CLAY_SIZING_FIXED(135) : CLAY_SIZING_GROW(0)
+                    is_mobile_narrow ? CLAY_SIZING_FIXED(125) : CLAY_SIZING_GROW(0)
                 },
                 .layoutDirection = CLAY_TOP_TO_BOTTOM,
                 .childGap = 8
@@ -315,7 +304,7 @@ static void render_frame(void) {
                 .layout = {
                     .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
                     .layoutDirection = CLAY_LEFT_TO_RIGHT,
-                    .childGap = 6
+                    .childGap = 8
                 }
             }) {
                 for (int i = 0; i < 4; i++) {
@@ -324,30 +313,26 @@ static void render_frame(void) {
                     }) {}
                 }
             }
-            // Parameter 4: Horizontal Touch Morph Slider
             CLAY(CLAY_IDI("ParamBox", 4), {
                 .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIXED(34) } }
             }) {}
         }
 
-        // Right/Bottom Oscilloscope Stage
         CLAY(CLAY_ID("ScopeBox"), {
             .layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } }
         }) {}
     }
 
-    Clay_RenderCommandArray cmds = Clay_EndLayout(1.0f / 60.0f);
+    Clay_EndLayout(0.016f);
 
-    // 2. Extract Clay-computed bounding boxes & draw with NanoVG!
     nvgBeginFrame(g_nvg, (float)g_width, (float)g_height, g_dpr);
 
-    // Background Card
     nvgBeginPath(g_nvg);
-    nvgRoundedRect(g_nvg, 0, 0, (float)g_width, (float)g_height, 10.0f);
+    nvgRoundedRect(g_nvg, 0, 0, (float)g_width, (float)g_height, 8.0f);
     nvgFillColor(g_nvg, g_col_surface);
     nvgFill(g_nvg);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < NUM_PARAMS; i++) {
         Clay_ElementData data = Clay_GetElementData(CLAY_IDI("ParamBox", i));
         if (data.found) {
             SynthParam* p = &g_params[i];
@@ -377,9 +362,6 @@ static void render_frame(void) {
     nvgEndFrame(g_nvg);
 }
 
-// ============================================================================
-// 5. EXPORTED WASM API (Matches Our Existing Stimulus Controller + Adds Multi-Touch!)
-// ============================================================================
 EMSCRIPTEN_KEEPALIVE
 void imgui_apply_raga_theme(uint32_t bg_canvas, uint32_t bg_surface, uint32_t bg_panel,
                             uint32_t accent_primary, uint32_t accent_alert, uint32_t text_main) {
@@ -393,13 +375,13 @@ void imgui_apply_raga_theme(uint32_t bg_canvas, uint32_t bg_surface, uint32_t bg
 
 EMSCRIPTEN_KEEPALIVE
 void imgui_set_canvas_size(int width, int height, float dpr) {
-    g_width  = width > 100 ? width : 100;
-    g_height = height > 100 ? height : 100;
+    g_width  = width > 100 ? width : 800;
+    g_height = height > 80 ? height : 220;
     g_dpr    = dpr > 0.5f ? dpr : 1.0f;
 }
 
 static void handle_clay_error(Clay_ErrorData errorData) {
-    printf("[Clay Layout Warning] %s\n", errorData.errorText.chars);
+    printf("[Clay] %s\n", errorData.errorText.chars);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -407,16 +389,23 @@ int init_saanskara_imgui(const char* canvas_selector) {
     EmscriptenWebGLContextAttributes attrs;
     emscripten_webgl_init_context_attributes(&attrs);
     attrs.majorVersion = 2;
-    attrs.stencil = 1; // Required by NanoVG for crisp hardware vector fills!
+    attrs.stencil = 1;
     attrs.antialias = 1;
 
     g_gl = emscripten_webgl_create_context(canvas_selector, &attrs);
-    if (g_gl <= 0) return -1;
+    if (g_gl <= 0) {
+        printf("❌ Failed to create WebGL2 context on %s\n", canvas_selector);
+        return -1;
+    }
     emscripten_webgl_make_context_current(g_gl);
 
     g_nvg = nvgCreateGLES3(NVG_ANTIALIAS | NVG_STENCIL_STROKES);
 
-    Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(sizeof(g_clay_arena_mem), g_clay_arena_mem);
+    // CRITICAL FIX: Cap Clay max elements to 256 and allocate the EXACT size Clay_MinMemorySize() requests!
+    Clay_SetMaxElementCount(256);
+    uint32_t min_mem = Clay_MinMemorySize();
+    void* clay_mem = malloc(min_mem);
+    Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(min_mem, clay_mem);
     Clay_Initialize(arena, (Clay_Dimensions){ (float)g_width, (float)g_height }, (Clay_ErrorHandler){ handle_clay_error });
 
     imgui_apply_raga_theme(0x090d16, 0x111827, 0x1e293b, 0xf59e0b, 0xe11d48, 0xf8fafc);
