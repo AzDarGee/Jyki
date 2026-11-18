@@ -750,28 +750,30 @@
             🪕 Saanskara Sitar Synth &amp; 120fps ImPlot Oscilloscope (WebGL2 WASM)
           </h2>
           <p class="text-[11px] sm:text-xs" style="color: var(--saanskara-text-muted)">
-            Rendered natively on the GPU by <code>Dear ImGui + ImPlot + imgui-knobs</code> inside a Rails 8 <code>&lt;canvas&gt;</code>!
+            Rendered natively on the GPU by <code>Clay + NanoVG + ImPlot</code> inside a Rails 8 <code>&lt;canvas&gt;</code>!
           </p>
         </div>
-        <button type="button"
-                data-action="click->imgui-synth#pluckNote"
-                class="theme-pill-btn">
-          🪕 Pluck Sitar
-        </button>
-        <button type="button"
-                data-imgui-synth-target="audioBtn"
-                data-action="click->imgui-synth#toggleAudio"
-                class="theme-pill-btn"
-                aria-pressed="true">
-          🔊 Drone: ON
-        </button>
-        <button type="button"
-                data-imgui-synth-target="stopBtn"
-                data-action="click->imgui-synth#stopAudio"
-                class="theme-pill-btn"
-                style="border-color: var(--saanskara-accent-alert); color: var(--saanskara-accent-alert)">
-          ⏹ Stop Audio [Esc]
-        </button>
+        <div class="min-w-0 flex-1">
+          <button type="button"
+                  data-action="click->imgui-synth#pluckNote"
+                  class="theme-pill-btn">
+            🪕 Pluck Sitar
+          </button>
+          <button type="button"
+                  data-imgui-synth-target="audioBtn"
+                  data-action="click->imgui-synth#toggleAudio"
+                  class="theme-pill-btn"
+                  aria-pressed="true">
+            🔊 Drone: ON
+          </button>
+          <button type="button"
+                  data-imgui-synth-target="stopBtn"
+                  data-action="click->imgui-synth#stopAudio"
+                  class="theme-pill-btn"
+                  style="border-color: var(--saanskara-accent-alert); color: var(--saanskara-accent-alert)">
+            ⏹ Stop Audio [Esc]
+          </button>
+        </div>
         <span data-imgui-synth-target="readout"
               class="px-2.5 sm:px-3 py-1 rounded font-mono text-[11px] sm:text-xs shrink-0 self-start sm:self-auto"
               style="background-color: var(--saanskara-bg-canvas); color: var(--saanskara-accent-primary)">
