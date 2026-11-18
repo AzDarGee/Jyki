@@ -99,13 +99,16 @@ module SaanskaraCanvasBuilder
     FileUtils.mkdir_p(OUT_DIR)
     File.write(C_PATH, C_SOURCE)
 
-    # 1. Compile Native Linux .so for Ruby Backend
-    system("gcc -O3 -ffast-math -shared -fPIC #{C_PATH} -o #{SO_PATH}", exception: true)
+    # 1. Compile Native Linux/macOS .so for Ruby Backend (C23)
+    cc = [ '/opt/homebrew/opt/llvm/bin/clang', '/usr/local/opt/llvm/bin/clang' ].find { |p| File.executable?(p) } || 'gcc'
+    c_std = system("#{cc} -std=c23 -x c - -o /dev/null", in: IO::NULL, out: IO::NULL, err: IO::NULL) ? '-std=c23' : '-std=c2x'
+    system("#{cc} #{c_std} -O3 -ffast-math -shared -fPIC #{C_PATH} -o #{SO_PATH}", exception: true)
 
     # 2. Compile WebAssembly .wasm for Browser AudioWorklet (if clang wasm-ld present)
     if system('which clang > /dev/null 2>&1 && which wasm-ld > /dev/null 2>&1')
+      wasm_std = system('clang -std=c23 -x c - -o /dev/null', in: IO::NULL, out: IO::NULL, err: IO::NULL) ? '-std=c23' : '-std=c2x'
       system(
-        "clang --target=wasm32 -O3 -ffast-math -nostdlib " \
+        "clang #{wasm_std} --target=wasm32 -O3 -ffast-math -nostdlib " \
         "-Wl,--no-entry -Wl,--export-dynamic #{C_PATH} -o #{WASM_PATH}",
         exception: true
       )

@@ -13,7 +13,7 @@ development:
     password: <%= Rails.application.credentials.dig(:database, :dev, :password) %>
     database: <%= Rails.application.credentials.dig(:database, :dev, :database) %>
 #    database: jyki_development
-    sslmode: require
+    sslmode: prefer
   cache:
     <<: *primary_development
 #    database: jyki_development_cache

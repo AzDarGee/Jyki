@@ -1,6 +1,6 @@
 // parallel_core.c
-// Compile Linux: gcc -O3 -shared -fPIC -pthread parallel_core.c -o
-// libparallel.so Compile macOS: clang -O3 -dynamiclib -lpthread parallel_core.c
+// Compile Linux: gcc -std=c23 -O3 -shared -fPIC -pthread parallel_core.c -o
+// libparallel.so Compile macOS: clang -std=c23 -O3 -dynamiclib -lpthread parallel_core.c
 // -o libparallel.dylib
 
 #include <pthread.h>

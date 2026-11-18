@@ -49,7 +49,9 @@ c_code = <<~C
   }
 C
 
-system("clang -O3 -ffast-math #{flag} -xc - -o #{lib_file}", input: c_code, exception: true)
+cc = [ '/opt/homebrew/opt/llvm/bin/clang', '/usr/local/opt/llvm/bin/clang' ].find { |p| File.executable?(p) } || 'clang'
+c_std = system("#{cc} -std=c23 -x c - -o /dev/null", in: IO::NULL, out: IO::NULL, err: IO::NULL) ? '-std=c23' : '-std=c2x'
+IO.popen("#{cc} #{c_std} -O3 -ffast-math #{flag} -xc - -o #{lib_file}", 'w') { |io| io.write(c_code) }
 
 module MiniDsp
   extend Fiddle::Importer

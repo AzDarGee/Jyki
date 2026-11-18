@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="midnight" data-controller="theme-bootstrap" data-action="turbo:load@document->theme-bootstrap#lockRootUrl turbo:frame-render@document->theme-bootstrap#lockRootUrl turbo:before-fetch-request@document->theme-bootstrap#injectSpaHeader popstate@window->theme-bootstrap#lockRootUrl" class="jaku-root-shell theme-midnight dark h-screen w-screen overflow-hidden bg-[#0b0a09] text-[#e5e2dc]">
+<html lang="en" data-theme="midnight" data-controller="theme-bootstrap" data-action="turbo:load@document->theme-bootstrap#lockRootUrl turbo:frame-render@document->theme-bootstrap#lockRootUrl turbo:before-fetch-request@document->theme-bootstrap#injectSpaHeader popstate@window->theme-bootstrap#lockRootUrl" class="jaku-root-shell theme-midnight dark h-screen h-dvh w-screen overflow-hidden bg-[#0b0a09] text-[#e5e2dc]">
   <head>
     <title><%= content_for(:title) || "Jyki · Saanskara Next Gen DAW & DJ Workstation" %></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Jyki by Saanskara Studios">
     <meta name="mobile-web-app-capable" content="yes">
@@ -23,7 +23,7 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body data-theme="midnight" class="jaku-root-shell h-screen w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc] font-sans antialiased">
+  <body data-theme="midnight" class="jaku-root-shell h-screen h-dvh w-screen overflow-hidden select-none flex flex-col bg-[#0b0a09] text-[#e5e2dc] font-sans antialiased">
     <%= yield %>
 
     <% if notice.present? || alert.present? %>

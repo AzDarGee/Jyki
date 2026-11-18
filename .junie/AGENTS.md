@@ -18,7 +18,7 @@ Every line of code, architectural decision, and UI component must strictly adher
 ---
 
 ## 2. Tech Stack & Environment
-- **Language:** Ruby `4.0.9` (`.ruby-version`, with YJIT/PRISM enabled) & C (C11/C17 standard for native extensions and Wasm32 DSP kernels).
+- **Language:** Ruby `4.0.9` (`.ruby-version`, with YJIT/PRISM enabled) & C (C23 standard for native extensions and Wasm32 DSP kernels).
 - **Framework:** Ruby on Rails `8.1.4` (`8.1.4.1` in `Gemfile.lock`).
 - **Database:** PostgreSQL (`pg ~> 1.1`). Single-database setup in `development` (`jyki_development`) and `test` (`jyki_test`) hosting both primary application tables (`users`) and the Solid trifecta schemas (`db/schema.rb`, `db/queue_schema.rb`, `db/cache_schema.rb`, `db/cable_schema.rb`).
 - **Authentication:** `Devise ~> 5.0.4` + `OmniAuth` (`omniauth-google-oauth2`, `omniauth-rails_csrf_protection`) configured on `User` (`app/models/user.rb`).
@@ -36,8 +36,8 @@ Always prioritize actual repository code over `ARCHITECTURE.md`. `ARCHITECTURE.m
   - Custom SCSS (`app/assets/scss/{abstracts,themes,base,components}/`) + Tailwind v4 build pipeline (`bin/css-pipeline`, `bin/scss-new`, `lib/tasks/css_pipeline.rake`).
   - `Middleware::ChromeDevTools` (`lib/middleware/chrome_devtools.rb`) serving `/.well-known/appspecific/com.chrome.devtools.json` in development.
 - **Standalone Prototypes in `research/` (Not wired into Rails `app/`):**
-  - `research/dsp/dsp_pipeline.rb`: Self-compiling Ruby + inline C11 DSP arena pipeline (HPF, LPF, gain, soft-clip saturation, power-of-two ring-buffer comb delay, peak/RMS/DC telemetry) bound via Ruby stdlib `Fiddle` (`@handle.free = SaanskaraDSP['dsp_destroy']`).
-  - `research/dsp/dsp_forge.rb` & `research/dsp/build_dsp.rb`: Compile C DSP kernels to native `.so` (`gcc -O3 -ffast-math -shared -fPIC`) for Ruby `Fiddle` and `.wasm` (`clang --target=wasm32 ... -nostdlib -Wl,--no-entry -Wl,--export-dynamic`) with 16-byte binary delta packets (`pack("CCs<fff")`) and `AudioWorkletProcessor` JS glue.
+  - `research/dsp/dsp_pipeline.rb`: Self-compiling Ruby + inline C23 DSP arena pipeline (HPF, LPF, gain, soft-clip saturation, power-of-two ring-buffer comb delay, peak/RMS/DC telemetry) bound via Ruby stdlib `Fiddle` (`@handle.free = SaanskaraDSP['dsp_destroy']`).
+  - `research/dsp/dsp_forge.rb` & `research/dsp/build_dsp.rb`: Compile C23 DSP kernels to native `.so` (`clang/gcc -std=c23 -O3 -ffast-math -shared -fPIC`) for Ruby `Fiddle` and `.wasm` (`clang -std=c23 --target=wasm32 ... -nostdlib -Wl,--no-entry -Wl,--export-dynamic`) with 16-byte binary delta packets (`pack("CCs<fff")`) and `AudioWorkletProcessor` JS glue.
   - `research/benchmark.rb` & `research/multi_core.rb`: 128-sample Web Audio render quantum and pthreads benchmarks.
 - **Aspirational Only in `ARCHITECTURE.md` (Do NOT assume present):**
   - React, Zustand, Framer Motion (`motion/react`), Yjs / Automerge CRDTs, `y-webrtc`, `y-indexeddb`, OPFS storage, Firebase/Firestore, BullMQ, Redis, WebGPU shaders, and native Swift/Kotlin/Windows clients are design notes only and do not exist in the codebase.
@@ -129,7 +129,7 @@ Always prioritize actual repository code over `ARCHITECTURE.md`. `ARCHITECTURE.m
     - Store C source code in `ext/<module_name>/` with a clean `extconf.rb` using `mkmf`, OR in `lib/native/` bound via Ruby's standard `Fiddle` (zero external gem dependency, as demonstrated in `research/dsp/dsp_pipeline.rb`) or `FFI`.
     - When using `Fiddle` with heap-allocated C structs/arenas, bind the C destructor directly to `Fiddle::Pointer#free=` (e.g., `@handle.free = NativeLib["dsp_destroy"]`) so Ruby's GC reclaims C memory automatically.
 - **C Safety & Efficiency Rules:**
-    - Compile with `-O3 -Wall -Wextra -Werror -fPIC` (and `-ffast-math` for non-NaN DSP audio kernels; use `clang --target=wasm32 -O3 -ffast-math -nostdlib -Wl,--no-entry -Wl,--export-dynamic` when dual-targeting Browser `AudioWorklet` WebAssembly).
+    - Compile with `-std=c23 -O3 -Wall -Wextra -Werror -fPIC` (and `-ffast-math` for non-NaN DSP audio kernels; use `clang -std=c23 --target=wasm32 -O3 -ffast-math -nostdlib -Wl,--no-entry -Wl,--export-dynamic` when dual-targeting Browser `AudioWorklet` WebAssembly).
     - **Memory Management:** Prefer static/arena buffers (`zero-malloc` in real-time audio callbacks) or ensure every `malloc`/`calloc` has a deterministic `free` path (`TypedData_Wrap_Struct` with `dfree` or `Fiddle::Pointer#free`).
     - **GVL Awareness:** For long-running C functions (>1ms), release the Ruby Global VM Lock using `rb_thread_call_without_gvl` so Puma threads aren't blocked.
     - Always write a pure-Ruby fallback method or isolated unit test for every C function to guarantee ease of debugging.

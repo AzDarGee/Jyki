@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+# Usage: ./bin/jyki-desktop
+# Launches Jyki as a 100% Pure Native Desktop App (Ruby + C99 Clay/NanoVG + GLFW + miniaudio)
+
+require "fileutils"
+require "rbconfig"
+require "fiddle"
+require "fiddle/import"
+
+ROOT       = File.expand_path("..", __dir__)
+VENDOR_DIR = File.join(ROOT, "tmp/vendor_clay_nvg")
+BUILD_DIR  = File.join(ROOT, "tmp/native_build")
+HOST_SRC   = File.join(ROOT, "ext/native_host/jyki_native_host.c")
+SYNTH_SRC  = File.join(ROOT, "ext/jyki_synths/saanskara_synth.c")
+
+FileUtils.mkdir_p(VENDOR_DIR)
+FileUtils.mkdir_p(BUILD_DIR)
+
+# 1. Ensure Clay, NanoVG, and single-header miniaudio.h are present
+unless File.exist?(File.join(VENDOR_DIR, "clay.h"))
+  puts "⬇️  Fetching clay.h..."
+  system("curl", "-fsSL", "https://raw.githubusercontent.com/nicbarker/clay/main/clay.h", "-o", File.join(VENDOR_DIR, "clay.h"), exception: true)
+end
+
+unless Dir.exist?(File.join(VENDOR_DIR, "nanovg"))
+  puts "⬇️  Fetching nanovg..."
+  system("git", "clone", "--depth", "1", "https://github.com/memononen/nanovg.git", File.join(VENDOR_DIR, "nanovg"), exception: true)
+end
+
+unless File.exist?(File.join(VENDOR_DIR, "miniaudio.h"))
+  puts "⬇️  Fetching single-header C99 audio engine (miniaudio.h)..."
+  system("curl", "-fsSL", "https://raw.githubusercontent.com/mackron/miniaudio/master/miniaudio.h", "-o", File.join(VENDOR_DIR, "miniaudio.h"), exception: true)
+end
+
+# 2. Detect OS & compile native shared library (`libjyki_native.so` / `.dylib`) if needed
+is_mac = RbConfig::CONFIG["host_os"] =~ /darwin/i
+ext    = is_mac ? "dylib" : "so"
+lib_so = File.join(BUILD_DIR, "libjyki_native.#{ext}")
+
+needs_build = !File.exist?(lib_so) ||
+              File.mtime(HOST_SRC) > File.mtime(lib_so) ||
+              File.mtime(SYNTH_SRC) > File.mtime(lib_so)
+
+if needs_build
+  puts "🔨 [Jyki Native] Compiling C99 Clay + NanoVG + miniaudio + GLFW -> #{File.basename(lib_so)}..."
+  nvg_c = File.join(VENDOR_DIR, "nanovg/src/nanovg.c")
+  includes = ["-I#{VENDOR_DIR}", "-I#{VENDOR_DIR}/nanovg/src"]
+
+  if is_mac
+    brew_prefix = `brew --prefix 2>/dev/null`.strip
+    includes << "-I#{brew_prefix}/include" unless brew_prefix.empty?
+    ldflags = ["-L#{brew_prefix}/lib", "-lglfw", "-framework", "OpenGL", "-framework", "CoreAudio", "-framework", "AudioToolbox", "-framework", "Cocoa", "-framework", "IOKit", "-lm"]
+  else
+    # Linux / WSL2 flags
+    ldflags = ["-lglfw", "-lGL", "-lm", "-lpthread", "-ldl"]
+  end
+
+  cmd = ["cc", "-O3", "-shared", "-fPIC", HOST_SRC, nvg_c, *includes, *ldflags, "-o", lib_so]
+  unless system(*cmd)
+    abort <<~MSG
+      ❌ Native compilation failed! Make sure GLFW development headers are installed:
+         • On Ubuntu / WSL2: sudo apt-get update && sudo apt-get install -y libglfw3-dev libgl1-mesa-dev libasound2-dev libpulse-dev
+         • On macOS:         brew install glfw
+    MSG
+  end
+  puts "✅ Built #{lib_so} (#{(File.size(lib_so) / 1024.0).round(1)} KB)!"
+end
+
+# 3. Bind to `libjyki_native` via Ruby's Fiddle and launch the Native Window!
+module JykiNative
+  extend Fiddle::Importer
+  dlload File.expand_path("../tmp/native_build/libjyki_native.#{RbConfig::CONFIG['host_os'] =~ /darwin/i ? 'dylib' : 'so'}", __dir__)
+
+  extern "int jyki_native_init(const char*, int, int)"
+  extern "int jyki_native_step_frame()"
+  extern "void jyki_native_shutdown()"
+  extern "void imgui_apply_raga_theme(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int)"
+end
+
+puts "🦅 Launching Jyki Pure Native Desktop Window (Keys: A-K = Swaras, Z/X = Octave, 1/2/3 = Raga Themes, Space = Drone, Esc = Stop)..."
+
+if JykiNative.jyki_native_init("Jyki • Saanskara Studio DAW (Native C99 + Ruby)", 960, 320) == 0
+  begin
+    while JykiNative.jyki_native_step_frame() == 1
+      # Ruby orchestrates the 60fps native loop with near-zero overhead!
+    end
+  ensure
+    JykiNative.jyki_native_shutdown()
+    puts "🙏 Jyki Native Desktop closed cleanly."
+  end
+end

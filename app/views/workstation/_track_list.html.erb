@@ -26,6 +26,7 @@
     <%# Track Header Rows List %>
     <div id="track_headers_list"
          data-workstation-target="trackHeadersList"
+         data-action="scroll->workstation#onTrackHeadersScroll"
          class="flex-1 overflow-y-auto divide-y divide-[#221f1d]">
       <% tracks.each do |track| %>
         <%= render "workstation/track_header_row", track: track %>

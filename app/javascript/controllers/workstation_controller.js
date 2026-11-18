@@ -21,7 +21,7 @@ export default class extends Controller {
     "trackCreatorBox", "expandedTrackCreator", "collapsedTrackCreator", "collapsedTrackMenu",
     "collapsedTrackTrigger", "collapsedTrackTriggerIcon",
     "expandedTrackContent", "collapsedTrackContent", "trackHeadersList", "trackCount",
-    "timelineCanvas", "playheadLine", "hudRendererLabel", "hudWasmStatus",
+    "timelineCanvas", "timelineScroller", "playheadLine", "hudRendererLabel", "hudWasmStatus",
     "aiLabPanel", "aiRailButton", "aiModeButton", "aiPromptInput", "aiRunButton", "aiRunLabel", "aiResponseBox",
     "micStatusLabel", "micTranscribeButton", "micButtonLabel",
     "mixerDrawer",
@@ -68,8 +68,10 @@ export default class extends Controller {
 
     this.boundTimelineTick = this.onTimelineTick.bind(this)
     this.boundRendererStatus = this.onRendererStatus.bind(this)
+    this.boundTimelineScrolled = this.onTimelineScrolled.bind(this)
     this.element.addEventListener("daw-timeline:tick", this.boundTimelineTick)
     this.element.addEventListener("daw-timeline:renderer-changed", this.boundRendererStatus)
+    this.element.addEventListener("daw-timeline:scrolled", this.boundTimelineScrolled)
 
     this.applyTheme(this.themes[this.themeIndex].id, { persist: false })
     this.startMasterMeterLoop()
@@ -78,11 +80,13 @@ export default class extends Controller {
   disconnect() {
     this.element.removeEventListener("daw-timeline:tick", this.boundTimelineTick)
     this.element.removeEventListener("daw-timeline:renderer-changed", this.boundRendererStatus)
+    this.element.removeEventListener("daw-timeline:scrolled", this.boundTimelineScrolled)
     if (this.meterRafId) cancelAnimationFrame(this.meterRafId)
   }
 
   // Global keyboard shortcuts (Space = Play/Pause, R = Record)
   handleGlobalKeydown(event) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return
     const tag = event.target.tagName
     if (tag === "INPUT" || tag === "TEXTAREA" || event.target.isContentEditable) return
 
@@ -572,14 +576,39 @@ export default class extends Controller {
     })
   }
 
+  onTrackHeadersScroll(event) {
+    if (this.syncingVerticalScroll) return
+    const scrollTop = event.currentTarget.scrollTop || 0
+    if (this.hasTimelineCanvasTarget) {
+      this.syncingVerticalScroll = true
+      this.timelineCanvasTarget.dispatchEvent(
+        new CustomEvent("daw-timeline:scroll-y", { detail: { scrollTop } })
+      )
+      this.syncingVerticalScroll = false
+    }
+  }
+
+  onTimelineScrolled(event) {
+    if (this.syncingVerticalScroll) return
+    const scrollTop = Number(event.detail?.scrollTop) || 0
+    if (this.hasTrackHeadersListTarget && Math.abs(this.trackHeadersListTarget.scrollTop - scrollTop) > 0.5) {
+      this.syncingVerticalScroll = true
+      this.trackHeadersListTarget.scrollTop = scrollTop
+      this.syncingVerticalScroll = false
+    }
+  }
+
   // Append Empty Track (Audio / MIDI / Bus) via Turbo Stream + Timeline Sync
   async addEmptyTrack(event) {
     const kind = event.currentTarget.dataset.trackKind || "audio"
-    const existingIds = this.hasTrackHeadersListTarget
-      ? Array.from(this.trackHeadersListTarget.children).map((el) => Number(el.dataset.trackId) || 0)
-      : []
-    const currentCount = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1
+    const domCount = this.hasTrackHeadersListTarget
+      ? this.trackHeadersListTarget.children.length
+      : 0
+    this.pendingTrackAdditions = (this.pendingTrackAdditions || 0) + 1
+    const currentCount = domCount + this.pendingTrackAdditions
 
+    let createdTrackId = null
+    let createdTrackName = null
     const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
     try {
       const response = await fetch("/workstation/tracks", {
@@ -596,12 +625,25 @@ export default class extends Controller {
         })
       })
 
-      if (response.ok && window.Turbo) {
+      if (response.ok) {
         const streamHtml = await response.text()
-        window.Turbo.renderStreamMessage(streamHtml)
+        if (typeof DOMParser !== "undefined") {
+          const doc = new DOMParser().parseFromString(streamHtml, "text/html")
+          const headerTemplate = doc.querySelector("turbo-stream[target='track_headers_list'] template")
+          const rowEl = headerTemplate?.content?.querySelector("[data-track-id]")
+          if (rowEl) {
+            createdTrackId = Number(rowEl.dataset.trackId) || null
+            createdTrackName = rowEl.dataset.trackName || null
+          }
+        }
+        if (window.Turbo) {
+          window.Turbo.renderStreamMessage(streamHtml)
+        }
       }
     } catch (_e) {
       // Fallback if offline
+    } finally {
+      this.pendingTrackAdditions = Math.max(0, (this.pendingTrackAdditions || 1) - 1)
     }
 
     // Ensure newly appended track row matches current expanded/collapsed state of the Tracks panel
@@ -614,13 +656,27 @@ export default class extends Controller {
     this.syncTrackRowsCollapseState(this.trackHeadersOpenValue)
     this.closeCollapsedTrackMenu()
 
+    if (!createdTrackId && this.hasTrackHeadersListTarget) {
+      const lastChild = this.trackHeadersListTarget.lastElementChild
+      if (lastChild) {
+        createdTrackId = Number(lastChild.dataset.trackId) || null
+        createdTrackName = lastChild.dataset.trackName || null
+      }
+    }
+
     if (this.hasTrackCountTarget && this.hasTrackHeadersListTarget) {
-      this.trackCountTarget.textContent = String(this.trackHeadersListTarget.children.length)
+      const existingRow = createdTrackId
+        ? document.getElementById(`track_header_row_${createdTrackId}`)
+        : true
+      const nextCount = this.trackHeadersListTarget.children.length + (existingRow ? 0 : 1)
+      this.trackCountTarget.textContent = String(nextCount)
     }
 
     if (this.hasTimelineCanvasTarget) {
       this.timelineCanvasTarget.dispatchEvent(
-        new CustomEvent("daw-timeline:add-track", { detail: { kind, index: currentCount } })
+        new CustomEvent("daw-timeline:add-track", {
+          detail: { id: createdTrackId, name: createdTrackName, kind, index: currentCount }
+        })
       )
     }
     this.ensureRootUrlLocked()
@@ -632,8 +688,12 @@ export default class extends Controller {
     const trackId = Number(event.currentTarget.dataset.trackId)
     if (!trackId) return
 
+    const rowEl = document.getElementById(`track_header_row_${trackId}`)
+    const rowIndex = (rowEl && this.hasTrackHeadersListTarget)
+      ? Array.from(this.trackHeadersListTarget.children).indexOf(rowEl)
+      : -1
+
     const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
-    let removedByStream = false
     try {
       const response = await fetch(`/workstation/tracks/${trackId}`, {
         method: "DELETE",
@@ -646,17 +706,20 @@ export default class extends Controller {
       if (response.ok && window.Turbo) {
         const streamHtml = await response.text()
         window.Turbo.renderStreamMessage(streamHtml)
-        removedByStream = true
       }
     } catch (_e) {
       // Fallback if offline
     }
 
-    if (!removedByStream) {
-      document.getElementById(`track_header_row_${trackId}`)?.remove()
-      document.getElementById(`mixer_channel_card_${trackId}`)?.remove()
-      document.getElementById(`ideas_track_column_${trackId}`)?.remove()
-    }
+    document.getElementById(`track_header_row_${trackId}`)?.remove()
+    document.getElementById(`mixer_channel_card_${trackId}`)?.remove()
+    document.getElementById(`ideas_track_column_${trackId}`)?.remove()
+
+    const remainingTrackIds = this.hasTrackHeadersListTarget
+      ? Array.from(this.trackHeadersListTarget.querySelectorAll("[data-track-id]"))
+          .map((el) => Number(el.dataset.trackId))
+          .filter(Boolean)
+      : null
 
     if (this.hasTrackCountTarget && this.hasTrackHeadersListTarget) {
       this.trackCountTarget.textContent = String(this.trackHeadersListTarget.children.length)
@@ -664,7 +727,9 @@ export default class extends Controller {
 
     if (this.hasTimelineCanvasTarget) {
       this.timelineCanvasTarget.dispatchEvent(
-        new CustomEvent("daw-timeline:remove-track", { detail: { trackId } })
+        new CustomEvent("daw-timeline:remove-track", {
+          detail: { trackId, index: rowIndex, remainingTrackIds }
+        })
       )
     }
 

@@ -1,0 +1,24 @@
+#!/bin/sh
+set -e
+export PATH="$HOME/.emsdk/upstream/emscripten:$PATH"
+V="${IMGUI_VENDOR_DIR:-tmp/vendor_clay_nvg}"
+OUT="${WASM_OUT_DIR:-public/wasm}"
+mkdir -p "$V" "$OUT"
+
+[ -f "$V/clay.h" ]   || curl -fsSL https://raw.githubusercontent.com/nicbarker/clay/main/clay.h -o "$V/clay.h"
+[ -d "$V/nanovg" ]   || git clone --depth 1 https://github.com/memononen/nanovg.git "$V/nanovg"
+[ -f "$V/libnvg.a" ] || (emcc -O3 -c "$V/nanovg/src/nanovg.c" -I"$V/nanovg/src" -o "$V/nanovg.o" && emar rcs "$V/libnvg.a" "$V/nanovg.o")
+
+for src in ext/wasm_modules/*.c ext/jyki_synths/*.c; do
+  [ -f "$src" ] || continue
+  b=$(basename "$src" .c)
+  c=$(echo "$b" | awk -F_ '{for(i=1;i<=NF;i++) printf "%s", toupper(substr($i,1,1)) substr($i,2)}')
+  echo "🌿 Compiling Pure C99 Clay + NanoVG: $src -> $OUT/${b}.wasm (create${c}Module)..."
+  emcc -O3 "$src" "$V/libnvg.a" -I"$V" -I"$V/nanovg/src" \
+    -s USE_WEBGL2=1 -s FULL_ES3=1 -s MODULARIZE=1 \
+    -s EXPORT_NAME="create${c}Module" \
+    -s EXPORTED_FUNCTIONS='["_init_saanskara_imgui","_imgui_set_canvas_size","_imgui_apply_raga_theme","_synth_pointer_down","_synth_pointer_move","_synth_pointer_up"]' \
+    -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","stringToNewUTF8"]' \
+    -o "$OUT/${b}.js"
+  echo "✅ Built ultra-lean $OUT/${b}.wasm ($(du -h "$OUT/${b}.wasm" | cut -f1))!"
+done
